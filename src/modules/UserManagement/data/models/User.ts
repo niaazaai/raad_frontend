@@ -9,14 +9,21 @@ export enum UserStatus {
   INACTIVE = "inactive",
 }
 
+/** Action labels — what you do TO a user of this status (for toggle/confirm dialogs). */
 export const UserStatusLabels: Record<UserStatus, string> = {
   [UserStatus.ACTIVE]: "Activate",
   [UserStatus.INACTIVE]: "Suspend",
 };
 
+/** Display labels — the user's current state (for badges, read-only). */
+export const UserStatusDisplayLabels: Record<UserStatus, string> = {
+  [UserStatus.ACTIVE]: "Active",
+  [UserStatus.INACTIVE]: "Inactive",
+};
+
 export const UserStatusColors: Record<UserStatus, string> = {
   [UserStatus.ACTIVE]: "success",
-  [UserStatus.INACTIVE]: "secondary",
+  [UserStatus.INACTIVE]: "danger",
 };
 
 /**

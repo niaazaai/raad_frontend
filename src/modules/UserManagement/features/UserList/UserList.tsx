@@ -2,7 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus, EditPencil, Shield, UserXmark, Mail, Trash } from "iconoir-react";
 import { useUsers, useUpdateUserMutation, useDeleteUserMutation } from "../../hooks";
-import { UserManagement, UserStatus, UserStatusLabels, UserStatusColors } from "../../data/models";
+import {
+  UserManagement,
+  UserStatus,
+  UserStatusDisplayLabels,
+  UserStatusColors,
+} from "../../data/models";
 import { UserFormDrawer } from "../UserForm/UserFormDrawer";
 import { UserRoleDrawer } from "../UserForm/UserRoleDrawer";
 import { Button, DataTable, useConfirmDialog, confirmPresets } from "@/components/ui";
@@ -30,7 +35,6 @@ function getPaginationFromResponse(response: unknown): DataTablePaginationMeta |
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
-  { value: "suspended", label: "Suspended" },
 ];
 
 const UserList = () => {
@@ -192,7 +196,7 @@ const UserList = () => {
                 statusColor === "secondary" && "bg-secondary text-muted-foreground"
               )}
             >
-              {UserStatusLabels[status]}
+              {UserStatusDisplayLabels[status]}
             </span>
           );
         },
@@ -268,10 +272,6 @@ const UserList = () => {
       },
     ],
   };
-
-  // For status toggle we need a different approach - use a custom action component
-  // Let me simplify: create a UserActionsCell component that gets the user and has the mutation
-  // Or: add useUpdateUser in a wrapper. Actually the simplest is to have a hook that takes (userId, data) - useMutationApi with a dynamic URL. We can create useUpdateUserMutation that accepts id in the variables: { id: number, ...data }. Let me add that.
 
   return (
     <div className="space-y-6">

@@ -29,13 +29,7 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div
-        className="relative overflow-hidden rounded-2xl p-8"
-        style={{
-          background: "linear-gradient(135deg, #004d87 0%, #0069B4 50%, #0080d6 100%)",
-          color: "white",
-        }}
-      >
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#004d87] via-primary to-[#0080d6] p-8 text-white">
         <div className="relative z-10">
           <h1 className="text-3xl font-bold text-white">Welcome back, {user?.name || "User"}!</h1>
           <p className="mt-2 text-white/90">{"Hope you're having a great day!"}</p>

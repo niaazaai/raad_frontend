@@ -29,7 +29,7 @@ Browser → Host Nginx (HTTPS, security headers, routing)
 - date-fns (date formatting)
 
 **App area:**
-- **Dashboard (protected)** — `MainLayout` (sidebar + header). Routes include `/dashboard`, `/settings`, `/users/*`, `/roles/*`, `/permissions/*`, and **Course hub** routes under `/courses/*` (catalog entities, DataTables, drawers). Permission-gated via `ProtectedRoute`; config in `ProtectedRoutes.tsx` and `Routes.ts`. Unauthenticated users hit **Auth** routes (`/login`, `/register`, email verification) then land in the dashboard after login. **`getDashboardPath(user.type)` always returns `"/dashboard"`** — one dashboard for all signed-in types; `UserType` is `"admin"` | `"student"` | `"instructor"` (see `src/data/models/User.ts`).
+- **Dashboard (protected)** — `MainLayout` (sidebar + header). Routes include `/dashboard`, `/settings`, `/users/*`, `/roles/*`, `/permissions/*`, and **Course hub** routes under `/course/*` (catalog entities, DataTables, drawers). Permission-gated via `ProtectedRoute`; config in `ProtectedRoutes.tsx` and `Routes.ts`. Unauthenticated users hit **Auth** routes (`/login`, `/register`, email verification) then land in the dashboard after login. **`UserType`** is `"admin"` | `"student"` | `"instructor"` (see `src/data/models/User.ts`). **`getDashboardPath(user.type)`** returns `"/student"` for students and `"/dashboard"` for admin/instructor — use it for post-login redirects. The `/student` route is restricted to users with the `student` role.
 
 ---
 
@@ -262,19 +262,34 @@ export const MY_QUERY_KEYS = {
 - `active` → display label **"Activate"**
 - `inactive` → display label **"Suspend"**
 
-**UserStatus enum** (`src/modules/UserManagement/data/models/User.ts` and `src/data/enums/index.ts`):
+**UserStatus enum** (`src/modules/UserManagement/data/models/User.ts`):
 ```ts
 export enum UserStatus {
   ACTIVE = "active",
   INACTIVE = "inactive",
 }
+
+// For read-only status badges (shows current state):
+export const UserStatusDisplayLabels: Record<UserStatus, string> = {
+  [UserStatus.ACTIVE]: "Active",
+  [UserStatus.INACTIVE]: "Inactive",
+};
+
+// For toggle action buttons and confirm dialogs (shows what will happen):
 export const UserStatusLabels: Record<UserStatus, string> = {
   [UserStatus.ACTIVE]: "Activate",
   [UserStatus.INACTIVE]: "Suspend",
 };
+
+export const UserStatusColors: Record<UserStatus, string> = {
+  [UserStatus.ACTIVE]: "success",
+  [UserStatus.INACTIVE]: "danger",
+};
 ```
 
-**Legacy API values:** If the API returns `suspended` or `pending`, treat them as `inactive` for display and toggle logic (e.g. `const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending"`).
+**Rule:** Use `UserStatusDisplayLabels` for badge display. Use `UserStatusLabels` only in toggle/confirm dialog contexts. Never use "Activate" as a badge for a user who is already active.
+
+**Legacy API values:** If the API returns `suspended` or `pending`, normalise to `inactive` for display and toggle logic (e.g. `const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending"`). Backend only writes `active` / `inactive`.
 
 **UserManagement hooks** (`src/modules/UserManagement/hooks/useUsers.ts`):
 - `useUsers(params)` — list users
