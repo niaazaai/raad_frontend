@@ -93,14 +93,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           error: null,
         });
       }
-    } catch (error) {
-      console.error("Failed to fetch user:", error);
-      set({
-        user: null,
-        permissions: [],
-        status: AuthStatus.FAILED,
-        error: "Failed to fetch user",
-      });
+    } catch {
+      set({ user: null, permissions: [], status: AuthStatus.FAILED, error: "Failed to fetch user" });
     }
   },
 
@@ -160,7 +154,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         return false;
       }
     } catch (error) {
-      console.error("Login failed:", error);
       const message = error instanceof Error ? error.message : "Login failed";
       set({ status: AuthStatus.FAILED, error: message });
       return false;
@@ -213,8 +206,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         method: RequestMethod.POST,
         shouldPopError: false,
       });
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch {
+      // Always clear local state regardless of API failure
     } finally {
       // Always clear local state regardless of API response
       get().clearAuth();

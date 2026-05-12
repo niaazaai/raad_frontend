@@ -12,6 +12,10 @@ const VerifyEmailSuccessPage = lazy(() => import("@/pages/auth/VerifyEmailSucces
 const VerifyEmailExpiredPage = lazy(() => import("@/pages/auth/VerifyEmailExpired"));
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
+const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
+const CookiePolicyPage = lazy(() => import("@/pages/CookiePolicyPage"));
+const ContactPage = lazy(() => import("@/pages/ContactPage"));
 const ExploreCoursesPage = lazy(() => import("@/pages/ExploreCoursesPage"));
 const CourseViewPage = lazy(() => import("@/modules/Course/features/CourseViewPage/CourseViewPage"));
 
@@ -103,6 +107,42 @@ const AppRoutes = () => {
         element={
           <Suspense fallback={<PageLoader />}>
             <LandingPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/about"
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <AboutPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/privacy-policy"
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <PrivacyPolicyPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/cookie-policy"
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <CookiePolicyPage />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/contact"
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <ContactPage />
           </Suspense>
         }
       />

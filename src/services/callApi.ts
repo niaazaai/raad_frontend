@@ -34,7 +34,6 @@ export async function fetchCsrfCookie(): Promise<void> {
         throw new Error(`CSRF cookie fetch failed: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error("Failed to fetch CSRF cookie:", error);
       throw error;
     } finally {
       csrfPromise = null;
@@ -83,8 +82,7 @@ const callApi = async <R = ObjectAny>({
     try {
       await fetchCsrfCookie();
     } catch {
-      // Continue anyway - the request might still work if cookie exists
-      console.warn("CSRF fetch failed, attempting request anyway");
+      // Continue — request may still work if a valid cookie already exists
     }
   }
 
@@ -104,12 +102,9 @@ const callApi = async <R = ObjectAny>({
     ...props,
   });
 
-  // Handle 419 CSRF token mismatch - retry once with fresh token
   if (response.status === 419 && retryOn419) {
-    console.warn("CSRF token mismatch (419), refreshing and retrying...");
     try {
       await fetchCsrfCookie();
-      // Retry the request with skipCsrf to avoid infinite loop
       return callApi<R>({
         method,
         data,
@@ -121,8 +116,8 @@ const callApi = async <R = ObjectAny>({
         retryOn419: false,
         ...props,
       });
-    } catch (retryError) {
-      console.error("Retry after CSRF refresh failed:", retryError);
+    } catch {
+      // Fall through to handleResponse so the 419 toast is shown
     }
   }
 
