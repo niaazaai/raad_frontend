@@ -20,12 +20,14 @@ Build and update features in a way that stays consistent with the existing Raad 
 
 ## Project Layout (high signal)
 
-- `src/modules/*` → feature modules (UserManagement, Course, Notifications)
+- `src/modules/*` → feature modules (UserManagement, Course, Notifications, ActivityLog)
+- `src/modules/<Feature>/features/` → sub-features/pages inside a module (e.g. `Course/features/CourseWizardPage/`)
 - `src/routes/*` → app and protected route registration
-- `src/components/ui/*` → shared UI primitives (DataTable, Button, etc.)
+- `src/components/ui/*` → shared UI primitives (DataTable, Button, Drawer, SearchableSelect, RichTextEditor, Stepper, PageBreadcrumb, etc.)
 - `src/hooks/common/*` → shared API/query helpers
 - `src/store/*` → Zustand stores (auth, layout, errors)
 - `src/assets/css/index.css` → global design tokens and theme variables
+- `src/pages/*` → top-level pages (Dashboard, StudentDashboard, ExploreCoursesPage, LandingPage, SettingsPage, auth/*, errors/*)
 
 ## Core Coding Patterns
 
@@ -63,6 +65,8 @@ Build and update features in a way that stays consistent with the existing Raad 
 - Register routes in `src/routes/ProtectedRoutes.tsx`.
 - Enforce permissions in routes and UI (`ProtectedRoute`, `Can`, `CanAny`).
 - Keep central route references aligned in `src/routes/Routes.ts`.
+- Use `anyRole` on a route to restrict by Spatie role name (e.g. `anyRole: ["root"]` for activity log, `anyRole: ["student"]` for student dashboard).
+- Use `anyPermission` as an OR-match fallback alongside `permission`.
 
 ### Tables & CRUD Pages
 
@@ -89,10 +93,12 @@ Build and update features in a way that stays consistent with the existing Raad 
 - Models/Schemas: PascalCase files (`User.ts`)
 - Constants/Utilities: camelCase (`endpoints.ts`, `formatDate.ts`)
 - Feature routes: `routes/index.tsx`
+- Sub-features inside a module live under `features/<FeatureName>/` not `pages/`
 
 ## Do
 
 - Keep features modular in `src/modules/<FeatureName>/`.
+- Place sub-pages inside `src/modules/<FeatureName>/features/<SubFeature>/`.
 - Add endpoint constants and query keys before writing hooks.
 - Reuse shared UI components and established variants.
 - Handle loading, empty, error, and permission states explicitly.
@@ -113,10 +119,10 @@ Build and update features in a way that stays consistent with the existing Raad 
 1. Add module constants (`endpoints`, `query keys`).
 2. Add Zod models/types (`Create*`, `Update*` schemas).
 3. Add hooks (`useQueryApi`, `useMutationApi`).
-4. Build pages/components (DataTable for lists).
+4. Build pages/components inside `features/<SubFeature>/` (DataTable for lists).
 5. Register module routes in `ProtectedRoutes`.
-6. Add route aggregate entries (if used for menus/breadcrumbs).
-7. Verify permission guards in route + UI actions.
+6. Add route aggregate entries in `Routes.ts` (used for menus/breadcrumbs).
+7. Verify permission guards in route (`permission` / `anyPermission` / `anyRole`) + UI actions.
 8. Confirm API contract compatibility (`success`, `message`, `data`, `meta`).
 
 ## Reference Docs
@@ -124,6 +130,32 @@ Build and update features in a way that stays consistent with the existing Raad 
 - `README.FRONTEND.LLM.md` → full coding standards and examples.
 - `DESIGN.md` → unified visual/layout system and token conventions.
 
-## Course hub (recent surface area)
+## Module map (current surface area)
 
-- Routes live in `src/modules/Course/routes/index.tsx`: list, **create wizard**, **edit wizard**, **`/course/courses/:courseId/view`** (catalog-style read-only page). Use `useCourseEntity*` hooks and permission keys `course.courses.*`.
+### UserManagement (`/users`, `/roles`, `/permissions`)
+- Hooks: `useUsers`, `useUser`, `useCreateUser`, `useUpdateUser`, `useUpdateUserMutation`, `useDeleteUserMutation`
+- Permission keys: `users.*`, `roles.*`, `permissions.*`
+
+### Course hub (`/course/*`, `/instructors`)
+- Routes: `/course` (hub), `/course/:slug` (generic entity list via `COURSE_ENTITY_REGISTRY`), `/course/courses` (course list), `/course/courses/create` (wizard), `/course/courses/:courseId/edit` (wizard), `/instructors` (instructor list)
+- Entity slugs in `COURSE_ENTITY_REGISTRY`: `main-categories`, `sub-categories`, `course-faasls`, `courses`, `lessons`, `assignments`, `downloadable-resources`, `quiz-files`, `student-discounts`, `subscription-plans`, `student-subscriptions`, `instructors`, `lms-classes`, `lms-class-students`
+- Hooks: `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `useUpdateCourseEntity`, `useDeleteCourseEntity` (from `modules/Course/hooks/useCourseEntity.ts`)
+- Permission keys: `course.<entity>.read|create|update|delete`
+
+### CoursePlayerPage (`/learn/course/:courseId`)
+- Student course learning view with lesson playback.
+- Uses `useStudentLearning` hook (`src/hooks/useStudentLearning.ts`).
+- No explicit permission — requires active enrollment (backend-enforced).
+
+### ActivityLog (`/activity-log`)
+- Route restricted to `anyRole: ["root"]` (super admin only).
+- Hook: `useActivityLogs` in `modules/ActivityLog/hooks/`.
+
+### Notifications
+- In-app notifications via `modules/Notifications/`.
+
+### Student Dashboard (`/student`)
+- Route restricted to `anyRole: ["student"]`.
+
+### Public pages
+- `ExploreCoursesPage`, `LandingPage` — use `usePublicCourses` hook (`src/hooks/usePublicCourses.ts`), no auth required.

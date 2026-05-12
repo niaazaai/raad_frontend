@@ -29,7 +29,9 @@ Browser → Host Nginx (HTTPS, security headers, routing)
 - date-fns (date formatting)
 
 **App area:**
-- **Dashboard (protected)** — `MainLayout` (sidebar + header). Routes include `/dashboard`, `/settings`, `/users/*`, `/roles/*`, `/permissions/*`, and **Course hub** routes under `/courses/*` (catalog entities, DataTables, drawers). Permission-gated via `ProtectedRoute`; config in `ProtectedRoutes.tsx` and `Routes.ts`. Unauthenticated users hit **Auth** routes (`/login`, `/register`, email verification) then land in the dashboard after login. **`getDashboardPath(user.type)` always returns `"/dashboard"`** — one dashboard for all signed-in types; `UserType` is `"admin"` | `"student"` | `"instructor"` (see `src/data/models/User.ts`).
+- **Dashboard (protected)** — `MainLayout` (sidebar + header). Routes include `/dashboard`, `/settings`, `/users/*`, `/roles/*`, `/permissions/*`, **Course hub** routes under `/course/*`, `/instructors`, `/activity-log`, and `/student`. Permission-gated via `ProtectedRoute`; config in `ProtectedRoutes.tsx` and `Routes.ts`. Unauthenticated users hit **Auth** routes (`/login`, `/register`, email verification) then land in the dashboard after login. **`getDashboardPath(user.type)` always returns `"/dashboard"`** — one dashboard for all admin/instructor types; `UserType` is `"admin"` | `"student"` | `"instructor"` (see `src/data/models/User.ts`). Student users land on `/student` (role-gated via `anyRole: ["student"]`).
+- **Public pages** — `LandingPage`, `ExploreCoursesPage`: no auth required, use `usePublicCourses` hook.
+- **Student learning** — `/learn/course/:courseId`: `CoursePlayerPage` with lesson video playback, uses `useStudentLearning` hook.
 
 ---
 
@@ -39,7 +41,10 @@ Browser → Host Nginx (HTTPS, security headers, routing)
 src/
 ├── assets/css/index.css         # Tailwind v4 + design tokens (CSS variables)
 ├── components/
-│   ├── ui/                          # shadcn/ui (Button, Input, Card, DataTable, Drawer, **ImageDropzone** (`mediaPreview` for video), etc.)
+│   ├── ui/                      # shadcn/ui + custom: Button, Input, Card, DataTable, Drawer,
+│   │                            #   ImageDropzone (mediaPreview for video), MultiImageDropzone,
+│   │                            #   SearchableSelect, RichTextEditor, Stepper, PageBreadcrumb,
+│   │                            #   ConfirmDialog, Spinner, Avatar, DropdownMenu, etc.
 │   └── errors/                  # ErrorFallback, error boundary components
 ├── data/
 │   ├── constants/               # API_ENDPOINTS, REQUEST_METHODS
@@ -48,25 +53,54 @@ src/
 ├── features/
 │   └── auth/                    # Auth feature (AuthWrapper, ProtectedRoute, Can, useAuth)
 ├── hooks/
-│   └── common/                  # useApi, useQueryApi, useMutationApi, useDebounce
+│   ├── common/                  # useApi, useQueryApi, useMutationApi, useDebounce, useDataTableParams
+│   ├── useDashboardStats.ts     # Dashboard KPI data
+│   ├── useStudentLearning.ts    # Student enrolled course + lesson payload
+│   └── usePublicCourses.ts      # Unauthenticated public course listing
 ├── layouts/
 │   ├── components/              # Header, Sidebar (MainLayout)
 │   └── MainLayout.tsx           # Dashboard / protected area layout
 ├── lib/                         # Utility functions (cn, formatDate, etc.)
 ├── modules/                     # Feature modules (self-contained)
-│   ├── UserManagement/          # Users, roles, permissions: lists, forms, hooks, routes
-│   ├── Course/                  # Course hub, lists, **CourseWizardPage**, **CourseViewPage**, hooks, sidebar icon map
+│   ├── UserManagement/          # Users, roles, permissions
+│   │   └── features/            # UserList, UserForm, RoleList, RoleForm, RoleDetail, PermissionList
+│   ├── Course/                  # Course hub, entity lists, wizard, player
+│   │   ├── data/
+│   │   │   ├── courseRegistry.ts          # COURSE_ENTITY_REGISTRY + CourseEntitySlug type
+│   │   │   ├── courseEntityFormRegistry.ts
+│   │   │   ├── courseEntitySidebarIcons.tsx
+│   │   │   └── courseSidebarNav.ts
+│   │   ├── features/
+│   │   │   ├── CourseHub/                 # /course landing hub
+│   │   │   ├── CourseEntityList/          # Generic list driven by COURSE_ENTITY_REGISTRY slug
+│   │   │   ├── CoursesPage/               # /course/courses dedicated list
+│   │   │   ├── CourseWizardPage/          # create/edit multi-step wizard
+│   │   │   ├── CourseViewPage/            # read-only catalog detail
+│   │   │   ├── CoursePlayerPage/          # /learn/course/:courseId student player
+│   │   │   ├── CourseEntityFormDrawer/    # shared CRUD drawer for all entities
+│   │   │   └── MainCategorySubCategoriesDrawer/
+│   │   └── hooks/
+│   │       ├── useCourseEntity.ts         # useCourseEntityList, useDeleteCourseEntity, etc.
+│   │       └── useCourseFormMeta.ts
+│   ├── ActivityLog/             # /activity-log (root role only)
+│   │   ├── features/ActivityLogList/
+│   │   └── hooks/useActivityLogs.ts
 │   └── Notifications/           # In-app notifications (hooks, components)
 ├── pages/                       # Top-level pages
 │   ├── auth/                    # Login, Register, VerifyEmail, VerifyEmailSuccess, VerifyEmailExpired
 │   ├── errors/                  # NotFound, Unauthorized
-│   └── Dashboard.tsx            # Main dashboard
+│   ├── Dashboard.tsx            # Admin/instructor main dashboard
+│   ├── StudentDashboard.tsx     # Student role home (/student)
+│   ├── ExploreCoursesPage.tsx   # Public course catalog
+│   ├── LandingPage.tsx          # Public landing page
+│   ├── SettingsPage.tsx         # User settings
+│   └── SettingsRedirect.tsx
 ├── providers/                   # QueryProvider (React Query config)
 ├── routes/
 │   ├── AppRoutes.tsx            # Root routing (location-aware); Auth + protected MainLayout
-│   ├── ProtectedRoutes.tsx     # Flattened protected route config (dashboard + modules)
+│   ├── ProtectedRoutes.tsx      # Flattened protected route config (dashboard + modules)
 │   ├── base.ts                  # protectedRoutePrefix, create, show, search constants
-│   └── Routes.ts                # Central route aggregate (e.g. userManagement) for menus/breadcrumbs
+│   └── Routes.ts                # Central route aggregate (userManagement, course, activityLog)
 ├── services/                    # apiClient.ts, callApi.ts (API layer)
 ├── store/                       # Zustand stores
 │   ├── auth/                    # authStore
@@ -390,7 +424,17 @@ const CreateMyItemForm = ({ onSuccess }: CreateMyItemFormProps) => {
 
 ### 9. Routing, User Types & Permissions
 
-**`UserType`:** `"admin"` | `"student"` | `"instructor"`. There is no per-type dashboard path branching — **`getDashboardPath` always returns `"/dashboard"`**; access to admin course tools is enforced with permissions (e.g. `course.*`).
+**`UserType`:** `"admin"` | `"student"` | `"instructor"`. Admin and instructor users land on `/dashboard`; student users land on `/student` (role-gated). **`getDashboardPath` always returns `"/dashboard"`** for admin/instructor; access to admin course tools is enforced with permissions (e.g. `course.*`).
+
+**`ProtectedRouteType` fields:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `path` | `string` | Route path |
+| `component` | `ReactNode` | Lazy-loaded page component |
+| `permission` | `string?` | Single required Spatie permission |
+| `anyPermission` | `string[]?` | OR-match: user needs at least one |
+| `anyRole` | `string[]?` | OR-match by Spatie role name (e.g. `["root"]`, `["student"]`) |
 
 **Route architecture (aligned with central config + helpers):**
 
@@ -403,10 +447,10 @@ const CreateMyItemForm = ({ onSuccess }: CreateMyItemFormProps) => {
   - `getSearchRoute(route)` — `${route}/search`
   - `getShowRoute(route, idParamName?)` — `${route}/show/:id`
   - `makeShowRoute(route, id)` — `${route}/show/${id}`
-- **`src/routes/Routes.ts`** — Central aggregate of module route configs (e.g. `routes.userManagement`). Use for breadcrumbs, menus, or any non-React reference.
+- **`src/routes/Routes.ts`** — Central aggregate: `{ userManagement, course, activityLog }`. Use for breadcrumbs, menus, or any non-React reference.
 - **`src/routes/AppRoutes.tsx`** — Uses `useLocation()` and `<Routes location={location}>`. **Two groups:**
   1. **Auth (no MainLayout)** — `/login`, `/register`, `/verify-email`, `/verify-email/success`, `/verify-email/expired`
-  2. **Protected (MainLayout)** — Each route from `ProtectedRoutes.tsx` mapped to `<Route path={...} element={<Layout />}><Route index element={content} /></Route>`. Typical paths: `/dashboard`, `/settings`, `/users/*`, `/roles/*`, `/permissions/*`. Content wrapped in `ProtectedRoute` with optional `permission` / `anyPermission`. `AuthWrapper` runs `fetchUser()` on mount and redirects unauthenticated users to `/login?redirect=...`.
+  2. **Protected (MainLayout)** — Each route from `ProtectedRoutes.tsx`. Content wrapped in `ProtectedRoute` with optional `permission` / `anyPermission` / `anyRole`. `AuthWrapper` runs `fetchUser()` on mount and redirects unauthenticated users to `/login?redirect=...`.
 
 **Defining module routes:**
 
@@ -415,12 +459,14 @@ const CreateMyItemForm = ({ onSuccess }: CreateMyItemFormProps) => {
 import { lazy } from "react";
 import type { ProtectedRouteType } from "@/types/routes";
 
-const MyItemList = lazy(() => import("../pages/MyItemList"));
-const MyItemDetail = lazy(() => import("../pages/MyItemDetail"));
+const MyItemList = lazy(() => import("../features/MyItemList/MyItemList"));
+const MyItemDetail = lazy(() => import("../features/MyItemDetail/MyItemDetail"));
 
 export const MyFeatureRoutes: ProtectedRouteType[] = [
   { path: "/my-items", component: <MyItemList />, permission: "my-items.read" },
   { path: "/my-items/:id", component: <MyItemDetail />, permission: "my-items.read" },
+  // Role-gated (no permission, role check):
+  { path: "/admin-only", component: <AdminPage />, permission: "", anyRole: ["root", "admin"] },
 ];
 ```
 
@@ -695,17 +741,21 @@ Production URL examples: `https://your-domain.com` for the SPA, `https://your-do
 
 ---
 
-## Course module — wizard, routes, catalog view
+## Course module — wizard, entity lists, player
 
 **Routes** (`src/modules/Course/routes/index.tsx`):
 
-| Path | Purpose | Typical permission |
-|------|---------|-------------------|
-| `/course/courses` | Course list (table / cards) | `course.courses.read` |
+| Path | Purpose | Permission |
+|------|---------|-----------|
+| `/course` | Course hub landing | `course.main_categories.read` (anyPermission) |
+| `/course/:slug` | Generic entity list via `COURSE_ENTITY_REGISTRY` | `course.main_categories.read` (anyPermission) |
+| `/course/courses` | Dedicated course list (`CoursesPage`) | `course.courses.read` |
 | `/course/courses/create` | Multi-step **create** wizard | `course.courses.create` |
 | `/course/courses/:courseId/edit` | Multi-step **edit** wizard | `course.courses.update` |
-| `/course/courses/:courseId/view` | **Read-only** catalog-style page (banner, thumbnail, copy, curriculum outline) | `course.courses.read` |
-| `/course/*` | Other catalog entity lists (categories, etc.) | entity-specific |
+| `/instructors` | Instructor list (uses `forcedSlug="instructors"`) | `course.instructors.read` |
+| `/learn/course/:courseId` | Student **CoursePlayerPage** with lesson video | none (enrollment-enforced) |
+
+**`COURSE_ENTITY_REGISTRY`** (`src/modules/Course/data/courseRegistry.ts`): maps every `CourseEntitySlug` to `{ slug, title, apiPath, permission, columns, filterParams? }`. Entity slugs: `main-categories`, `sub-categories`, `course-faasls`, `courses`, `lessons`, `assignments`, `downloadable-resources`, `quiz-files`, `student-discounts`, `subscription-plans`, `student-subscriptions`, `instructors`, `lms-classes`, `lms-class-students`.
 
 Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `useUpdateCourseEntity` from `modules/Course/hooks/useCourseEntity.ts`. Mutations set `hasFiles` automatically when the body includes a `File`; multipart uses POST + `_method` for PATCH when files are present (see `callApi`).
 
@@ -739,10 +789,10 @@ Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `us
    - `data/models/index.ts` — barrel export
    - `hooks/use<Entity>.ts` — `useQueryApi` / `useMutationApi` wrappers
    - `hooks/index.ts` — barrel export
-   - `pages/<Entity>List.tsx` — list page
-   - `pages/<Entity>Detail.tsx` — detail page (if needed)
-   - `components/` — module-specific components (forms, tables, cards)
-   - `routes/index.tsx` — route definitions with permissions (use `ProtectedRouteType` from `@/types/routes`; optionally use `getCreateRoute` / `getShowRoute` from `@/utils/routeHandling` for path consistency)
+   - `features/<Entity>List/<Entity>List.tsx` — list page (use `DataTable`)
+   - `features/<Entity>Detail/<Entity>Detail.tsx` — detail page (if needed)
+   - `components/` — module-specific shared components (forms, cards)
+   - `routes/index.tsx` — route definitions with `ProtectedRouteType`; set `permission`, `anyPermission`, or `anyRole` as needed
 3. Register routes in `src/routes/ProtectedRoutes.tsx` (spread `...MyFeatureRoutes`)
 4. Add the module to the central aggregate in `src/routes/Routes.ts` (e.g. `myFeature: MyFeatureRoutes`)
 5. Add sidebar link in `src/layouts/components/Sidebar.tsx` (and for course catalog entities, register icons in `src/modules/Course/data/courseEntitySidebarIcons.tsx` if applicable)
