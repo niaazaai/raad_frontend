@@ -13,7 +13,6 @@ type InitPayload = {
   recommended_part_size_bytes: number;
 };
 
-/** Apisauce leaves `response.data` loosely typed; Laravel errors use `message`. */
 function readApiMessage(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const m = "message" in data ? (data as { message?: unknown }).message : undefined;
@@ -35,18 +34,14 @@ function putPart(
   url: string,
   blob: Blob,
   contentType: string,
-  partStartOffset: number,
-  fileTotalBytes: number,
-  onOverallProgress: (loadedSoFar: number, total: number) => void,
+  onPartLoaded: (loaded: number) => void,
   signal?: AbortSignal
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        onOverallProgress(partStartOffset + e.loaded, fileTotalBytes);
-      }
+      if (e.lengthComputable) onPartLoaded(e.loaded);
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -78,9 +73,11 @@ function putPart(
   });
 }
 
+const CONCURRENT_PARTS = 5;
+
 /**
  * Browser → Garage/S3 multipart upload using Laravel presign endpoints.
- * Large files never pass through nginx/PHP body limits (only small JSON + presigned PUTs).
+ * Uploads CONCURRENT_PARTS parts in parallel for faster throughput on large files.
  */
 export async function uploadLessonVideoMultipart(
   lessonId: number,
@@ -109,11 +106,21 @@ export async function uploadLessonVideoMultipart(
     init.recommended_part_size_bytes || 10 * 1024 * 1024
   );
 
-  const parts: Array<{ part_number: number; etag: string }> = [];
-  let partNumber = 1;
-  for (let offset = 0; offset < totalBytes; offset += partSize) {
+  const totalParts = Math.ceil(totalBytes / partSize);
+  const results: Array<{ part_number: number; etag: string }> = new Array(totalParts);
+  const loadedPerPart = new Array<number>(totalParts).fill(0);
+
+  function reportProgress() {
+    if (!onProgress) return;
+    const loaded = loadedPerPart.reduce((sum, n) => sum + n, 0);
+    onProgress(loaded, totalBytes);
+  }
+
+  async function uploadOnePart(partIndex: number): Promise<void> {
     if (signal?.aborted) throw new Error("Upload cancelled");
 
+    const partNumber = partIndex + 1;
+    const offset = partIndex * partSize;
     const end = Math.min(offset + partSize, totalBytes);
     const blob = file.slice(offset, end);
 
@@ -132,23 +139,36 @@ export async function uploadLessonVideoMultipart(
       url,
       blob,
       file.type || "application/octet-stream",
-      offset,
-      totalBytes,
-      (loadedSoFar, total) => {
-        onProgress?.(loadedSoFar, total);
+      (loaded) => {
+        loadedPerPart[partIndex] = loaded;
+        reportProgress();
       },
       signal
     );
 
-    parts.push({ part_number: partNumber, etag });
-    partNumber++;
+    loadedPerPart[partIndex] = blob.size;
+    results[partIndex] = { part_number: partNumber, etag };
+    reportProgress();
+  }
+
+  for (let batchStart = 0; batchStart < totalParts; batchStart += CONCURRENT_PARTS) {
+    if (signal?.aborted) throw new Error("Upload cancelled");
+    const batchPromises: Promise<void>[] = [];
+    for (
+      let i = batchStart;
+      i < Math.min(batchStart + CONCURRENT_PARTS, totalParts);
+      i++
+    ) {
+      batchPromises.push(uploadOnePart(i));
+    }
+    await Promise.all(batchPromises);
   }
 
   onProgress?.(totalBytes, totalBytes);
 
   const completeRes = await apiClient.post(
     `/lessons/${lessonId}/video/multipart/complete`,
-    { parts }
+    { parts: results.filter(Boolean) }
   );
   if (!completeRes.ok) {
     const msg = readApiMessage(completeRes.data);

@@ -118,7 +118,7 @@ const AboutPage = () => {
                 Key Milestones
               </h3>
               <ol className="relative flex flex-col gap-0 border-l border-white/[0.1]">
-                {timelineEvents.map((event, i) => (
+                {timelineEvents.map((event) => (
                   <li key={event.year} className="relative pb-8 pl-8 last:pb-0">
                     {/* Dot */}
                     <span

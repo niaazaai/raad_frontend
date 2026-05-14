@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Resolver } from "react-hook-form";
@@ -835,39 +835,78 @@ const CourseWizardPage = () => {
     void queryClient.invalidateQueries({ queryKey: ["course"] });
   }, [queryClient]);
 
-  /** 0–100 while multipart upload runs in background (lesson id keyed). */
+  /**
+   * lesson id → upload progress:
+   *   -1  = queued (waiting for a slot)
+   *   0–100 = uploading (percent)
+   *   absent = not uploading
+   */
   const [lessonVideoUploadPct, setLessonVideoUploadPct] = useState<Record<number, number>>({});
+
+  /** Queue of pending uploads: each entry is the work to kick off when a slot opens. */
+  const uploadQueueRef = useRef<Array<() => void>>([]);
+  /** Count of uploads currently running (not queued). */
+  const activeUploadCountRef = useRef(0);
+  const MAX_CONCURRENT_UPLOADS = 3;
+
+  const processUploadQueue = useCallback(() => {
+    while (
+      activeUploadCountRef.current < MAX_CONCURRENT_UPLOADS &&
+      uploadQueueRef.current.length > 0
+    ) {
+      const next = uploadQueueRef.current.shift();
+      if (next) {
+        activeUploadCountRef.current += 1;
+        next();
+      }
+    }
+  }, []);
 
   const beginLessonVideoUpload = useCallback(
     (lessonId: number, file: File) => {
-      setLessonVideoUploadPct((prev) => ({ ...prev, [lessonId]: 0 }));
-      void uploadLessonVideoMultipart(lessonId, file, {
-        onProgress: (loaded, total) =>
-          setLessonVideoUploadPct((prev) => ({
-            ...prev,
-            [lessonId]: total > 0 ? Math.round((loaded / total) * 100) : 0,
-          })),
-      })
-        .then(() => {
-          toast.success("Video uploaded; transcoding started.");
-          setLessonVideoUploadPct((prev) => {
-            const next = { ...prev };
-            delete next[lessonId];
-            return next;
-          });
-          invalidateCourseLists();
+      const runUpload = () => {
+        setLessonVideoUploadPct((prev) => ({ ...prev, [lessonId]: 0 }));
+        void uploadLessonVideoMultipart(lessonId, file, {
+          onProgress: (loaded, total) =>
+            setLessonVideoUploadPct((prev) => ({
+              ...prev,
+              [lessonId]: total > 0 ? Math.round((loaded / total) * 100) : 0,
+            })),
         })
-        .catch((err: unknown) => {
-          toast.error(err instanceof Error ? err.message : "Video upload failed");
-          setLessonVideoUploadPct((prev) => {
-            const next = { ...prev };
-            delete next[lessonId];
-            return next;
+          .then(() => {
+            toast.success("Video uploaded; transcoding started.");
+            setLessonVideoUploadPct((prev) => {
+              const next = { ...prev };
+              delete next[lessonId];
+              return next;
+            });
+            invalidateCourseLists();
+          })
+          .catch((err: unknown) => {
+            toast.error(err instanceof Error ? err.message : "Video upload failed");
+            setLessonVideoUploadPct((prev) => {
+              const next = { ...prev };
+              delete next[lessonId];
+              return next;
+            });
+            void abortLessonMultipartUpload(lessonId).catch(() => undefined);
+          })
+          .finally(() => {
+            activeUploadCountRef.current -= 1;
+            processUploadQueue();
           });
-          void abortLessonMultipartUpload(lessonId).catch(() => undefined);
-        });
+      };
+
+      if (activeUploadCountRef.current < MAX_CONCURRENT_UPLOADS) {
+        activeUploadCountRef.current += 1;
+        runUpload();
+      } else {
+        // Mark as queued (-1) until a slot opens
+        setLessonVideoUploadPct((prev) => ({ ...prev, [lessonId]: -1 }));
+        uploadQueueRef.current.push(() => runUpload());
+      }
     },
-    [invalidateCourseLists]
+    [invalidateCourseLists, processUploadQueue]
   );
 
   const closeLessonDrawer = () => {
@@ -1603,8 +1642,9 @@ const CourseWizardPage = () => {
                               lessonsForModule.map((lesson) => {
                                 const lid = Number(lesson.id);
                                 const pct = lessonVideoUploadPct[lid];
+                                const isQueued = pct === -1;
                                 const vStatus = String(lesson.video_status ?? "");
-                                const showDeterminate = pct !== undefined;
+                                const showDeterminate = pct !== undefined && pct >= 0;
                                 const showIndeterminate =
                                   pct === undefined && vStatus === "uploading";
 
@@ -1657,7 +1697,11 @@ const CourseWizardPage = () => {
                                         </span>
                                       ) : null}
                                     </div>
-                                    {showDeterminate || showIndeterminate ? (
+                                    {isQueued ? (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Queued — waiting for upload slot…
+                                      </p>
+                                    ) : showDeterminate || showIndeterminate ? (
                                       <div className="space-y-1">
                                         <div className="flex justify-between text-[11px] text-muted-foreground">
                                           <span>
