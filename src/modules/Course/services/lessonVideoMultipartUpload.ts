@@ -13,6 +13,11 @@ type InitPayload = {
   recommended_part_size_bytes: number;
 };
 
+type PresignBatchPayload = {
+  parts: Array<{ part_number: number; url: string }>;
+  expires_in_seconds: number;
+};
+
 function readApiMessage(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const m = "message" in data ? (data as { message?: unknown }).message : undefined;
@@ -49,7 +54,7 @@ function putPart(
         if (!raw) {
           reject(
             new Error(
-              "Part upload succeeded but ETag was missing. If uploads go to Garage/S3 on another origin, ensure CORS exposes the ETag header."
+              "Part upload succeeded but ETag was missing. Ensure CORS exposes the ETag header."
             )
           );
           return;
@@ -73,11 +78,59 @@ function putPart(
   });
 }
 
-const CONCURRENT_PARTS = 5;
+/**
+ * Sliding-window concurrency: always keeps up to `concurrency` tasks running.
+ * Unlike batching, a new task starts as soon as any slot opens — no waiting for
+ * a full batch to finish before the next one begins.
+ */
+async function slidingWindow<T>(
+  items: T[],
+  worker: (item: T) => Promise<void>,
+  concurrency: number,
+  signal?: AbortSignal
+): Promise<void> {
+  const queue = [...items];
+  let active = 0;
+  let firstError: unknown;
+
+  await new Promise<void>((resolve, reject) => {
+    function next() {
+      if (firstError) return;
+      if (signal?.aborted) {
+        reject(new Error("Upload cancelled"));
+        return;
+      }
+
+      while (active < concurrency && queue.length > 0) {
+        const item = queue.shift()!;
+        active++;
+        worker(item)
+          .then(() => {
+            active--;
+            next();
+          })
+          .catch((err) => {
+            firstError = err;
+            reject(err);
+          });
+      }
+
+      if (active === 0 && queue.length === 0) resolve();
+    }
+
+    next();
+  });
+}
+
+// 8 concurrent part uploads — good balance of throughput vs. connection overhead.
+const CONCURRENT_PARTS = 8;
 
 /**
- * Browser → Garage/S3 multipart upload using Laravel presign endpoints.
- * Uploads CONCURRENT_PARTS parts in parallel for faster throughput on large files.
+ * Browser → Garage/S3 multipart upload.
+ *
+ * All presigned URLs are fetched in a single batch API call before any upload
+ * begins, eliminating per-part API roundtrip latency. Parts then upload via a
+ * sliding window for maximum throughput.
  */
 export async function uploadLessonVideoMultipart(
   lessonId: number,
@@ -89,6 +142,7 @@ export async function uploadLessonVideoMultipart(
 
   await fetchCsrfCookie();
 
+  // ── 1. Initiate multipart upload ─────────────────────────────────────────
   const initRes = await apiClient.post<ApiResponse<InitPayload>>(
     `/lessons/${lessonId}/video/multipart/init`,
     {
@@ -103,10 +157,21 @@ export async function uploadLessonVideoMultipart(
   const init = parseApiData<InitPayload>(initRes.data);
   const partSize = Math.max(
     5 * 1024 * 1024,
-    init.recommended_part_size_bytes || 10 * 1024 * 1024
+    init.recommended_part_size_bytes || 50 * 1024 * 1024
   );
-
   const totalParts = Math.ceil(totalBytes / partSize);
+
+  // ── 2. Batch-presign all parts in one API call ───────────────────────────
+  const presignRes = await apiClient.post<ApiResponse<PresignBatchPayload>>(
+    `/lessons/${lessonId}/video/multipart/presign-batch`,
+    { total_parts: totalParts }
+  );
+  if (!presignRes.ok || !presignRes.data) {
+    throw new Error(readApiMessage(presignRes.data) || "Could not presign upload parts");
+  }
+  const { parts: partUrls } = parseApiData<PresignBatchPayload>(presignRes.data);
+
+  // ── 3. Upload all parts concurrently via sliding window ──────────────────
   const results: Array<{ part_number: number; etag: string }> = new Array(totalParts);
   const loadedPerPart = new Array<number>(totalParts).fill(0);
 
@@ -116,56 +181,35 @@ export async function uploadLessonVideoMultipart(
     onProgress(loaded, totalBytes);
   }
 
-  async function uploadOnePart(partIndex: number): Promise<void> {
-    if (signal?.aborted) throw new Error("Upload cancelled");
+  await slidingWindow(
+    partUrls,
+    async ({ part_number, url }) => {
+      const partIndex = part_number - 1;
+      const offset = partIndex * partSize;
+      const blob = file.slice(offset, Math.min(offset + partSize, totalBytes));
 
-    const partNumber = partIndex + 1;
-    const offset = partIndex * partSize;
-    const end = Math.min(offset + partSize, totalBytes);
-    const blob = file.slice(offset, end);
+      const etag = await putPart(
+        url,
+        blob,
+        file.type || "application/octet-stream",
+        (loaded) => {
+          loadedPerPart[partIndex] = loaded;
+          reportProgress();
+        },
+        signal
+      );
 
-    const presignRes = await apiClient.post<ApiResponse<{ url: string }>>(
-      `/lessons/${lessonId}/video/multipart/presign`,
-      { part_number: partNumber }
-    );
-    if (!presignRes.ok || !presignRes.data) {
-      throw new Error(readApiMessage(presignRes.data) || "Could not prepare upload chunk");
-    }
-    const presignPayload = parseApiData<{ url: string }>(presignRes.data);
-    const url = presignPayload.url;
-    if (!url) throw new Error("Presign URL missing");
-
-    const etag = await putPart(
-      url,
-      blob,
-      file.type || "application/octet-stream",
-      (loaded) => {
-        loadedPerPart[partIndex] = loaded;
-        reportProgress();
-      },
-      signal
-    );
-
-    loadedPerPart[partIndex] = blob.size;
-    results[partIndex] = { part_number: partNumber, etag };
-    reportProgress();
-  }
-
-  for (let batchStart = 0; batchStart < totalParts; batchStart += CONCURRENT_PARTS) {
-    if (signal?.aborted) throw new Error("Upload cancelled");
-    const batchPromises: Promise<void>[] = [];
-    for (
-      let i = batchStart;
-      i < Math.min(batchStart + CONCURRENT_PARTS, totalParts);
-      i++
-    ) {
-      batchPromises.push(uploadOnePart(i));
-    }
-    await Promise.all(batchPromises);
-  }
+      loadedPerPart[partIndex] = blob.size;
+      results[partIndex] = { part_number, etag };
+      reportProgress();
+    },
+    CONCURRENT_PARTS,
+    signal
+  );
 
   onProgress?.(totalBytes, totalBytes);
 
+  // ── 4. Complete the multipart upload ─────────────────────────────────────
   const completeRes = await apiClient.post(
     `/lessons/${lessonId}/video/multipart/complete`,
     { parts: results.filter(Boolean) }
