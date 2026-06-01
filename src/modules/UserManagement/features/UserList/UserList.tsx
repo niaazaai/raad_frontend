@@ -122,7 +122,6 @@ const UserList = () => {
                   src={user.avatar}
                   alt=""
                   className="h-10 w-10 rounded-full object-cover"
-                  referrerPolicy="no-referrer"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = "";
