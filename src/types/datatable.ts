@@ -49,7 +49,7 @@ export interface DataTableActionItem<T = unknown> {
   label: string | ((row: T) => string);
   icon?: React.ReactNode | ((row: T) => React.ReactNode);
   onClick: (row: T) => void;
-  variant?: "default" | "danger" | ((row: T) => "default" | "danger");
+  variant?: "default" | "danger" | "success" | ((row: T) => "default" | "danger" | "success");
   /** When set, the action is only rendered if the user holds this permission. */
   permission?: string;
 }
