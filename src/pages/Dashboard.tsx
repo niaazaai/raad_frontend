@@ -6,10 +6,9 @@ import {
   NavArrowRight,
   Dollar,
   GraduationCap,
-  Book,
+  BookStack,
   Calendar,
   User,
-  StatsUpSquare,
 } from "iconoir-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/features/auth";
@@ -66,7 +65,7 @@ const DashboardPage = () => {
       {hasAdminDashboard && (
         <>
           {loadingStats ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
@@ -77,20 +76,13 @@ const DashboardPage = () => {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {hasAnalyticsPermission && stats.monthly_revenue != null && (
-                <RevenueStatCard
-                  monthlyRevenue={stats.monthly_revenue}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {hasAnalyticsPermission && stats.total_earnings != null && (
+                <EarningsStatCard
+                  totalEarnings={stats.total_earnings}
                   changePercent={stats.monthly_revenue_change_percent ?? 0}
                   sparkline={stats.monthly_revenue_sparkline ?? []}
-                />
-              )}
-              {hasAnalyticsPermission && stats.total_earnings != null && (
-                <StatCard
-                  title="Total Earnings"
-                  value={formatCurrency(stats.total_earnings)}
-                  icon={<Dollar className="h-5 w-5" />}
-                  color="success"
+                  formatCurrency={formatCurrency}
                 />
               )}
               {stats.total_users_count != null && (
@@ -113,7 +105,7 @@ const DashboardPage = () => {
                 <StatCard
                   title="Total Courses"
                   value={String(stats.total_courses_count)}
-                  icon={<Book className="h-5 w-5" />}
+                  icon={<BookStack className="h-5 w-5" />}
                   color="auxiliary"
                 />
               )}
@@ -130,14 +122,6 @@ const DashboardPage = () => {
                   title="Total Instructors"
                   value={String(stats.total_instructors_count)}
                   icon={<User className="h-5 w-5" />}
-                  color="info"
-                />
-              )}
-              {hasUsersPermission && stats.active_users_count != null && (
-                <StatCard
-                  title="Active Users"
-                  value={String(stats.active_users_count)}
-                  icon={<StatsUpSquare className="h-5 w-5" />}
                   color="success"
                 />
               )}
@@ -147,7 +131,7 @@ const DashboardPage = () => {
           {hasAnalyticsPermission && (
             <>
               {loadingAnalytics ? (
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 xl:grid-cols-4">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
@@ -158,7 +142,7 @@ const DashboardPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 xl:grid-cols-4">
                   <AnalyticsLineChart
                     title="Total Earnings Over Time"
                     subtitle="Paid subscriptions — last 12 months"
@@ -224,32 +208,33 @@ const DashboardPage = () => {
   );
 };
 
-interface RevenueStatCardProps {
-  monthlyRevenue: number;
+interface EarningsStatCardProps {
+  totalEarnings: number;
   changePercent: number;
   sparkline: { date: string; value: number }[];
+  formatCurrency: (value: number) => string;
 }
 
-const RevenueStatCard = ({ monthlyRevenue, changePercent, sparkline }: RevenueStatCardProps) => {
+const EarningsStatCard = ({
+  totalEarnings,
+  changePercent,
+  sparkline,
+  formatCurrency,
+}: EarningsStatCardProps) => {
   const isPositive = changePercent >= 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div className="rounded-lg bg-primary/10 p-2 text-primary">
-          <Dollar className="h-5 w-5" />
-        </div>
-        {sparkline.length > 0 && <Sparkline data={sparkline} className="h-10 w-28 shrink-0" />}
+    <div className="relative overflow-hidden rounded-xl border border-success/20 bg-gradient-to-br from-success/5 via-card to-card p-5">
+      <div className="absolute right-4 top-4 rounded-lg bg-success/15 p-2 text-success">
+        <Dollar className="h-5 w-5" />
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-foreground">
-        {new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-          maximumFractionDigits: 0,
-        }).format(monthlyRevenue)}
+      <p className="pr-12 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Total Earnings
+      </p>
+      <p className="mt-2 text-2xl font-bold tracking-tight text-foreground xl:text-3xl">
+        {formatCurrency(totalEarnings)}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <p className="text-sm text-muted-foreground">Monthly Revenue</p>
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-xs font-medium",
@@ -257,9 +242,14 @@ const RevenueStatCard = ({ monthlyRevenue, changePercent, sparkline }: RevenueSt
           )}
         >
           {isPositive ? "+" : ""}
-          {changePercent}% vs last month
+          {changePercent}% monthly
         </span>
       </div>
+      {sparkline.length > 0 && (
+        <div className="mt-3 border-t border-success/10 pt-3">
+          <Sparkline data={sparkline} className="h-9 w-full text-success" />
+        </div>
+      )}
     </div>
   );
 };
@@ -271,23 +261,55 @@ interface StatCardProps {
   color: "primary" | "success" | "warning" | "info" | "danger" | "auxiliary";
 }
 
+const CARD_THEMES = {
+  primary: {
+    border: "border-primary/20",
+    bg: "from-primary/8 via-card to-card",
+    icon: "bg-primary/15 text-primary",
+  },
+  success: {
+    border: "border-success/20",
+    bg: "from-success/8 via-card to-card",
+    icon: "bg-success/15 text-success",
+  },
+  warning: {
+    border: "border-warning/20",
+    bg: "from-warning/8 via-card to-card",
+    icon: "bg-warning/15 text-warning",
+  },
+  info: {
+    border: "border-info/20",
+    bg: "from-info/8 via-card to-card",
+    icon: "bg-info/15 text-info",
+  },
+  danger: {
+    border: "border-danger/20",
+    bg: "from-danger/8 via-card to-card",
+    icon: "bg-danger/15 text-danger",
+  },
+  auxiliary: {
+    border: "border-auxiliary/20",
+    bg: "from-auxiliary/8 via-card to-card",
+    icon: "bg-auxiliary/15 text-auxiliary",
+  },
+} as const;
+
 const StatCard = ({ title, value, icon, color }: StatCardProps) => {
-  const colorClasses = {
-    primary: "bg-primary/10 text-primary",
-    success: "bg-success/10 text-success",
-    warning: "bg-warning/10 text-warning",
-    info: "bg-info/10 text-info",
-    danger: "bg-danger/10 text-danger",
-    auxiliary: "bg-auxiliary/10 text-auxiliary",
-  };
+  const theme = CARD_THEMES[color];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
-        <div className={cn("rounded-lg p-2", colorClasses[color])}>{icon}</div>
-      </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-foreground">{value}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{title}</p>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-xl border bg-gradient-to-br p-5",
+        theme.border,
+        theme.bg
+      )}
+    >
+      <div className={cn("absolute right-4 top-4 rounded-lg p-2", theme.icon)}>{icon}</div>
+      <p className="pr-12 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <p className="mt-2 text-2xl font-bold tracking-tight text-foreground xl:text-3xl">{value}</p>
     </div>
   );
 };
