@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, EditPencil, Shield, UserXmark, Mail, Trash } from "iconoir-react";
+import { Plus, EditPencil, Shield, Prohibition, CheckCircle, Mail, Trash } from "iconoir-react";
 import { useUsers, useUpdateUserMutation, useDeleteUserMutation } from "../../hooks";
 import {
   UserManagement,
@@ -240,9 +240,25 @@ const UserList = () => {
       },
       {
         key: "toggle",
-        label: "Suspend / Activate",
-        icon: <UserXmark className="h-4 w-4" />,
-        variant: "danger" as const,
+        label: (user) => {
+          const raw = String(user.status ?? "active");
+          const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
+          return isInactive ? "Activate" : "Deactivate";
+        },
+        icon: (user) => {
+          const raw = String(user.status ?? "active");
+          const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
+          return isInactive ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <Prohibition className="h-4 w-4" />
+          );
+        },
+        variant: (user) => {
+          const raw = String(user.status ?? "active");
+          const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
+          return isInactive ? "success" : "danger";
+        },
         onClick: async (user) => {
           const raw = String(user.status ?? "active");
           const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
@@ -306,7 +322,7 @@ const UserList = () => {
       {/* User Form Drawer */}
       <Drawer open={formDrawerOpen} onClose={closeFormDrawer}>
         <DrawerOverlay />
-        <DrawerContent>
+        <DrawerContent className="w-[21%] min-w-[320px]">
           <UserFormDrawer user={editingUser} onSuccess={closeFormDrawer} />
         </DrawerContent>
       </Drawer>

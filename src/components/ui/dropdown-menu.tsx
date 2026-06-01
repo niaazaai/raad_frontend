@@ -65,7 +65,7 @@ DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 const DropdownMenuItem = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
-    variant?: "default" | "danger";
+    variant?: "default" | "danger" | "success";
   }
 >(({ className, variant = "default", ...props }, ref) => (
   <DropdownMenuPrimitive.Item
@@ -73,6 +73,7 @@ const DropdownMenuItem = React.forwardRef<
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       variant === "danger" && "text-danger focus:bg-danger/10 focus:text-danger",
+      variant === "success" && "text-success focus:bg-success/10 focus:text-success",
       className
     )}
     {...props}

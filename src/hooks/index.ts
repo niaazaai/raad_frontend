@@ -36,5 +36,10 @@ export {
   type CourseLearnQuizFile,
   type MyEnrollmentItem,
 } from "./useStudentLearning";
-export { useDashboardStats } from "./useDashboardStats";
-export type { DashboardStats } from "./useDashboardStats";
+export { useDashboardStats, useDashboardAnalytics } from "./useDashboardStats";
+export type {
+  DashboardStats,
+  DashboardAnalytics,
+  DashboardChartPoint,
+  DashboardSparkPoint,
+} from "./useDashboardStats";
