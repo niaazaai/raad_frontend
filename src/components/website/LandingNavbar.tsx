@@ -5,6 +5,7 @@ import { Menu, Xmark, NavArrowDown } from "iconoir-react";
 import LanguageSwitcher from "@/components/website/LanguageSwitcher";
 import ThemeToggle from "@/components/website/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
+import { useIsDarkMode } from "@/hooks";
 
 interface LandingNavbarProps {
   loginHref: string;
@@ -13,6 +14,7 @@ interface LandingNavbarProps {
 
 const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
   const { t } = useTranslation();
+  const isDark = useIsDarkMode();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,10 +40,36 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
     };
   }, [menuOpen]);
 
-  const desktopLinkClass =
-    "rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground";
-  const mobileLinkClass =
-    "block rounded-xl px-5 py-3.5 text-base font-semibold text-foreground/85 transition-colors hover:bg-muted/60";
+  const glassNavClass = cn(
+    "pointer-events-auto flex w-full max-w-6xl items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 backdrop-blur-2xl backdrop-saturate-150 transition-all duration-500 md:px-5 md:py-3",
+    isDark
+      ? cn(
+          "border-white/15 bg-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.28)]",
+          scrolled && "border-white/20 bg-white/[0.11] shadow-[0_12px_40px_rgba(0,0,0,0.38)]",
+        )
+      : cn(
+          "border-white/50 bg-white/45 shadow-[0_8px_32px_rgba(0,105,180,0.10)]",
+          scrolled && "border-primary/20 bg-white/65 shadow-[0_12px_40px_rgba(0,105,180,0.14)]",
+        ),
+  );
+
+  const desktopLinkClass = cn(
+    "rounded-full px-3 py-2 text-sm font-medium transition-colors",
+    isDark
+      ? "text-white/70 hover:bg-white/10 hover:text-white"
+      : "text-foreground/70 hover:bg-primary/10 hover:text-primary",
+  );
+
+  const mobileLinkClass = cn(
+    "block rounded-xl px-5 py-3.5 text-base font-semibold transition-colors",
+    isDark ? "text-white/85 hover:bg-white/10" : "text-foreground hover:bg-primary/10",
+  );
+
+  const mobileOverlayClass = cn(
+    "fixed inset-0 z-40 flex flex-col backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300 lg:hidden",
+    isDark ? "bg-[#050a18]/80" : "bg-background/75",
+    menuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+  );
 
   return (
     <>
@@ -51,13 +79,7 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
           className,
         )}
       >
-        <nav
-          className={cn(
-            "pointer-events-auto flex w-full max-w-6xl items-center justify-between gap-3 rounded-2xl border border-border/60 px-3 py-2.5 shadow-sm backdrop-blur-xl transition-all duration-300 md:px-5 md:py-3",
-            scrolled ? "bg-card/90" : "bg-card/70",
-          )}
-          aria-label="Main"
-        >
+        <nav className={glassNavClass} aria-label="Main">
           <a href="/" className="flex shrink-0 items-center gap-2 pe-2">
             <img src="/logo.png" alt="Raad LMS" className="h-9 w-auto object-contain md:h-10" />
           </a>
@@ -73,7 +95,7 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
           <div className="flex shrink-0 items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
             <ThemeToggle className="hidden sm:flex" />
-            <Button asChild size="sm" className="rounded-full px-4 font-semibold">
+            <Button asChild size="sm" className="rounded-full px-4 font-semibold shadow-sm">
               <a href={loginHref}>{t("nav.signIn")}</a>
             </Button>
             <button
@@ -81,7 +103,10 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
               aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted/70 lg:hidden"
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-full transition-colors lg:hidden",
+                isDark ? "text-white/80 hover:bg-white/10" : "text-foreground hover:bg-primary/10",
+              )}
             >
               {menuOpen ? <Xmark width={20} height={20} /> : <Menu width={20} height={20} />}
             </button>
@@ -89,13 +114,7 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
         </nav>
       </header>
 
-      <div
-        aria-hidden={!menuOpen}
-        className={cn(
-          "fixed inset-0 z-40 flex flex-col bg-background/95 backdrop-blur-xl transition-all duration-300 lg:hidden",
-          menuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
+      <div aria-hidden={!menuOpen} className={mobileOverlayClass}>
         <div className="h-20 shrink-0" />
         <nav className="flex flex-1 flex-col px-6 pb-10">
           <div className="mb-6 flex items-center gap-3">
@@ -114,7 +133,12 @@ const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
               </li>
             ))}
           </ul>
-          <div className="mt-8 border-t border-border pt-6">
+          <div
+            className={cn(
+              "mt-8 border-t pt-6",
+              isDark ? "border-white/10" : "border-primary/15",
+            )}
+          >
             <Button asChild className="w-full rounded-full py-3 font-semibold">
               <a href={loginHref} onClick={() => setMenuOpen(false)}>
                 {t("nav.signIn")}

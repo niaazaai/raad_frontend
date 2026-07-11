@@ -1,5 +1,6 @@
 import { AppLocale, AppLocaleLabels } from "@/data/enums/locale";
 import { useLocaleStore } from "@/store";
+import { useIsDarkMode } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n/useTranslation";
 import { Check, Globe, NavArrowDown } from "iconoir-react";
@@ -17,13 +18,17 @@ interface LanguageSwitcherProps {
 const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
+  const isDark = useIsDarkMode();
   const { t } = useTranslation();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex h-9 items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 text-xs font-semibold text-primary shadow-sm outline-none transition hover:border-primary/35 hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary/25 data-[state=open]:border-primary/40 data-[state=open]:bg-primary/10",
+          "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-xs font-semibold backdrop-blur-md outline-none transition focus-visible:ring-2 focus-visible:ring-primary/25 data-[state=open]:border-primary/40",
+          isDark
+            ? "border-white/15 bg-white/10 text-white hover:border-white/25 hover:bg-white/15 data-[state=open]:bg-white/15"
+            : "border-white/50 bg-white/40 text-primary hover:border-primary/30 hover:bg-white/60 data-[state=open]:bg-white/60",
           className,
         )}
         aria-label={t("language.select")}
@@ -34,7 +39,7 @@ const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="min-w-[9.5rem] overflow-hidden rounded-2xl border border-primary/15 bg-card p-1.5 shadow-lg"
+        className="min-w-[9.5rem] overflow-hidden rounded-2xl border border-primary/15 bg-card/95 p-1.5 shadow-lg backdrop-blur-xl"
       >
         {Object.values(AppLocale).map((code) => {
           const active = locale === code;

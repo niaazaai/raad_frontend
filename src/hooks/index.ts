@@ -45,3 +45,4 @@ export type {
 } from "./useDashboardStats";
 export { usePublicStats, useSubmitContactForm } from "./usePublicSite";
 export type { PublicStats, ContactFormData } from "./usePublicSite";
+export { useIsDarkMode, useResolvedTheme } from "./useResolvedTheme";
