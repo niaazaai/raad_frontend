@@ -90,11 +90,11 @@ export const badgeColorStyles: Record<QualificationColor, string> = {
 
 export const memberColorStyles: Record<TeamMemberColor, { avatar: string; role: string }> = {
   primary: {
-    avatar: "bg-primary/15 text-primary ring-primary/20",
+    avatar: "bg-primary/20 text-primary",
     role: "text-primary",
   },
   auxiliary: {
-    avatar: "bg-auxiliary/15 text-auxiliary ring-auxiliary/20",
+    avatar: "bg-auxiliary/20 text-auxiliary",
     role: "text-auxiliary",
   },
 };

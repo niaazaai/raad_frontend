@@ -47,28 +47,20 @@ const QualificationsSection = () => {
           <h3 className={`${sectionTitleClass} mt-4 text-2xl md:text-3xl`}>{t("qualifications.teamTitle")}</h3>
         </ScrollReveal>
 
-        <ScrollReveal className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ScrollReveal className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {TEAM_MEMBERS.map(({ name, role, bio, initials, color }) => (
             <article
               key={name}
-              className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition hover:border-primary/25 md:p-6"
+              className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center transition-all duration-300 hover:border-primary/30 hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:border-primary/30 dark:hover:bg-white/[0.07]"
             >
               <div
-                className="pointer-events-none absolute -end-8 -top-8 h-24 w-24 rounded-full bg-primary/5 transition group-hover:bg-primary/10"
-                aria-hidden
-              />
-              <div className="flex items-start gap-4">
-                <div
-                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-bold ring-1 ${memberColorStyles[color].avatar}`}
-                >
-                  {initials}
-                </div>
-                <div className="min-w-0 text-start">
-                  <h4 className="text-base font-semibold text-foreground">{name}</h4>
-                  <p className={`text-sm font-medium ${memberColorStyles[color].role}`}>{role}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{bio}</p>
-                </div>
+                className={`flex h-20 w-20 items-center justify-center rounded-full text-xl font-bold ${memberColorStyles[color].avatar}`}
+              >
+                {initials}
               </div>
+              <h4 className="mt-4 text-lg font-semibold text-foreground">{name}</h4>
+              <p className={`mt-1 text-sm font-medium ${memberColorStyles[color].role}`}>{role}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{bio}</p>
             </article>
           ))}
         </ScrollReveal>
