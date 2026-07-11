@@ -13,6 +13,27 @@ html {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
 
+html {
+  scroll-behavior: auto;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
 @theme {
   --breakpoint-3xl: 120rem;
 }
@@ -292,6 +313,21 @@ html {
   .btn-outline-danger {
     @apply border border-danger text-danger bg-light-danger hover:text-white hover:bg-danger focus:text-white focus:bg-danger ring-danger/40;
   }
+}
+
+/* Public marketing site — scoped locale + richer light-mode surfaces */
+.website-shell {
+  --website-primary-tint: color-mix(in oklab, var(--primary) 8%, var(--background));
+  --website-auxiliary-tint: color-mix(in oklab, var(--auxiliary) 7%, var(--background));
+}
+
+.website-shell .text-muted-foreground {
+  color: color-mix(in oklab, var(--foreground) 62%, var(--muted-foreground));
+}
+
+.dark .website-shell {
+  --website-primary-tint: color-mix(in oklab, var(--primary) 12%, var(--background));
+  --website-auxiliary-tint: color-mix(in oklab, var(--auxiliary) 10%, var(--background));
 }
 
 /* Skeleton Animation */

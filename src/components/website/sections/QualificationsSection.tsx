@@ -1,79 +1,77 @@
 import ScrollReveal from "@/components/website/ScrollReveal";
-
-type BadgeColor = "primary" | "auxiliary" | "success" | "warning";
-
-interface Qualification {
-  name: string;
-  full: string;
-  badge: string;
-  color: BadgeColor;
-}
-
-const qualifications: Qualification[] = [
-  { name: "ACCA", full: "Association of Chartered Certified Accountants", badge: "Gold Partner", color: "primary" },
-  { name: "CMA", full: "Certified Management Accountant", badge: "Authorized Center", color: "auxiliary" },
-  { name: "CPA", full: "Certified Public Accountant", badge: "Preparation", color: "success" },
-  { name: "CFA", full: "Chartered Financial Analyst", badge: "Preparation", color: "warning" },
-  { name: "CIMA", full: "Chartered Inst. of Management Accountants", badge: "Approved", color: "primary" },
-  { name: "CAT", full: "Certified Accounting Technician", badge: "Authorized", color: "auxiliary" },
-];
-
-const badgeStyles: Record<BadgeColor, string> = {
-  primary: "bg-primary/15 text-primary",
-  auxiliary: "bg-auxiliary/15 text-auxiliary",
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/15 text-warning",
-};
+import {
+  QUALIFICATIONS,
+  TEAM_MEMBERS,
+  badgeColorStyles,
+  memberColorStyles,
+  sectionBadgeClass,
+  sectionInnerClass,
+  sectionShellClass,
+  sectionSurface,
+  sectionSubtitleClass,
+  sectionTitleClass,
+} from "@/components/website/websiteData";
+import { useTranslation } from "@/i18n/useTranslation";
 
 const QualificationsSection = () => {
-  return (
-    <section id="qualifications" className="bg-[#050a18] py-20">
-      <div className="mx-auto max-w-6xl px-4 md:px-8">
+  const { t } = useTranslation();
 
-        {/* Section header */}
-        <ScrollReveal className="mb-14 flex flex-col items-center text-center">
-          <div>
-            <span className="inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-              Our Qualifications
-            </span>
-          </div>
-          <div>
-            <h2 className="mt-4 max-w-2xl text-3xl font-bold tracking-tight text-white md:text-4xl">
-              Globally Recognized Credentials
-            </h2>
-          </div>
-          <div>
-            <p className="mt-4 max-w-xl text-base text-white/55">
-              Our students earn certifications respected by employers worldwide.
-            </p>
-          </div>
+  return (
+    <section id="qualifications" className={`${sectionShellClass} ${sectionSurface.muted}`}>
+      <div className={sectionInnerClass}>
+        <ScrollReveal className="mb-12 flex flex-col items-center text-center md:mb-14">
+          <span className={sectionBadgeClass}>{t("qualifications.badge")}</span>
+          <h2 className={`${sectionTitleClass} mt-4`}>{t("qualifications.title")}</h2>
+          <p className={`${sectionSubtitleClass} mx-auto`}>{t("qualifications.subtitle")}</p>
         </ScrollReveal>
 
-        {/* Qualifications grid — each card is a direct child of ScrollReveal for stagger */}
-        <ScrollReveal className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {qualifications.map((q) => (
-            <div
+        <ScrollReveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {QUALIFICATIONS.map((q) => (
+            <article
               key={q.name}
-              className="group flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6 transition-all duration-300 hover:border-primary/40 hover:bg-white/[0.07]"
+              className="flex flex-col rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md md:p-6"
             >
-              {/* Abbreviation */}
-              <span className="text-4xl font-black text-white/90">{q.name}</span>
-
-              {/* Full name */}
-              <span className="mt-1 text-sm text-white/55">{q.full}</span>
-
-              {/* Badge — pushed to bottom */}
+              <span className="text-3xl font-black tracking-tight text-foreground md:text-4xl">{q.name}</span>
+              <span className="mt-1 text-sm text-muted-foreground">{q.full}</span>
               <div className="mt-auto pt-5">
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${badgeStyles[q.color]}`}
-                >
+                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeColorStyles[q.color]}`}>
                   {q.badge}
                 </span>
               </div>
-            </div>
+            </article>
           ))}
         </ScrollReveal>
 
+        <ScrollReveal className="mt-16 flex flex-col items-center text-center md:mt-20">
+          <span className={sectionBadgeClass}>{t("qualifications.teamBadge")}</span>
+          <h3 className={`${sectionTitleClass} mt-4 text-2xl md:text-3xl`}>{t("qualifications.teamTitle")}</h3>
+        </ScrollReveal>
+
+        <ScrollReveal className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {TEAM_MEMBERS.map(({ name, role, bio, initials, color }) => (
+            <article
+              key={name}
+              className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition hover:border-primary/25 md:p-6"
+            >
+              <div
+                className="pointer-events-none absolute -end-8 -top-8 h-24 w-24 rounded-full bg-primary/5 transition group-hover:bg-primary/10"
+                aria-hidden
+              />
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-base font-bold ring-1 ${memberColorStyles[color].avatar}`}
+                >
+                  {initials}
+                </div>
+                <div className="min-w-0 text-start">
+                  <h4 className="text-base font-semibold text-foreground">{name}</h4>
+                  <p className={`text-sm font-medium ${memberColorStyles[color].role}`}>{role}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{bio}</p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </ScrollReveal>
       </div>
     </section>
   );

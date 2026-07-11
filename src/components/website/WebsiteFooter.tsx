@@ -1,77 +1,63 @@
-import { Facebook, Linkedin, Mail, MapPin, Phone, Twitter, Youtube } from "iconoir-react";
-
-const QUICK_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Programs", href: "/explore-courses" },
-  { label: "Campus", href: "/#campus" },
-  { label: "Team", href: "/#team" },
-  { label: "Contact", href: "/contact" },
-];
-
-const RESOURCE_LINKS = [
-  { label: "Privacy Policy", href: "/privacy-policy" },
-  { label: "Cookie Policy", href: "/cookie-policy" },
-  { label: "Terms of Use", href: "/#" },
-  { label: "FAQ", href: "/#" },
-];
-
-const SOCIAL_LINKS = [
-  { icon: Facebook, label: "Facebook", href: "/#" },
-  { icon: Twitter, label: "Twitter / X", href: "/#" },
-  { icon: Linkedin, label: "LinkedIn", href: "/#" },
-  { icon: Youtube, label: "YouTube", href: "/#" },
-];
-
-const colTitleClass =
-  "text-white/90 font-semibold text-sm uppercase tracking-widest mb-4";
-
-const linkClass =
-  "text-white/55 hover:text-white transition-colors text-sm";
+import { useTranslation } from "@/i18n/useTranslation";
+import { SOCIAL_ICON_LINKS } from "@/components/website/SocialIcons";
+import { CONTACT_INFO } from "@/components/website/websiteData";
+import { useLocaleStore } from "@/store";
+import { AppLocale } from "@/data/enums/locale";
+import { MapPin, Mail, Phone } from "lucide-react";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 const WebsiteFooter = () => {
+  const { t } = useTranslation();
+  const locale = useLocaleStore((s) => s.locale);
+  const haltoonLabel = locale === AppLocale.ENGLISH ? "hal-toon" : "هال‌تون";
+
+  const quickLinks = [
+    { label: t("nav.home"), href: "/" },
+    { label: t("nav.about"), href: "/about" },
+    { label: t("nav.programs"), href: "/explore-courses" },
+    { label: t("nav.qualifications"), href: "/#qualifications" },
+    { label: t("nav.contact"), href: "/contact" },
+  ];
+
+  const resourceLinks = [
+    { label: "Privacy Policy", href: "/privacy-policy" },
+    { label: "Cookie Policy", href: "/cookie-policy" },
+  ];
+
+  const colTitleClass = "mb-4 text-sm font-semibold uppercase tracking-widest text-primary";
+
   return (
-    <footer className="border-t border-white/8 bg-[#030710]">
-      {/* Main grid */}
-      <div className="mx-auto max-w-7xl px-6 py-14 md:px-10 md:py-16 lg:py-20">
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
-          {/* Column 1 – Brand */}
-          <div className="flex flex-col gap-5">
+    <footer className="border-t border-primary/10 bg-gradient-to-b from-primary/[0.05] to-background">
+      <div className="mx-auto max-w-6xl px-4 py-14 md:px-8 md:py-16">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-4 sm:col-span-2 lg:col-span-1">
             <a href="/" aria-label="Raad LMS – Home">
-              <img
-                src="/logo.png"
-                alt="Raad Professional Development Institute"
-                className="h-10 w-auto object-contain"
-              />
+              <img src="/logo.png" alt="Raad Professional Development Institute" className="h-10 w-auto object-contain" />
             </a>
-            <p className="max-w-xs text-sm leading-relaxed text-white/55">
-              Empowering Afghanistan&apos;s next generation of global
-              professionals.
-            </p>
-            {/* Social links */}
-            <div className="flex items-center gap-3">
-              {SOCIAL_LINKS.map(({ icon: Icon, label, href }) => (
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
+            <div className="flex flex-wrap gap-2.5">
+              {SOCIAL_ICON_LINKS.map(({ icon: Icon, label, href }) => (
                 <a
                   key={label}
                   href={href}
                   aria-label={label}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-white/50 transition-colors hover:border-white/25 hover:text-white"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/15 bg-card text-muted-foreground transition hover:border-primary/35 hover:bg-primary/10 hover:text-primary"
                 >
-                  <Icon width={15} height={15} />
+                  <Icon className="h-4 w-4" strokeWidth={2} />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Column 2 – Quick Links */}
           <div>
-            <h3 className={colTitleClass}>Quick Links</h3>
-            <ul className="flex flex-col gap-2.5">
-              {QUICK_LINKS.map((link) => (
+            <h3 className={colTitleClass}>{t("footer.quickLinks")}</h3>
+            <ul className="space-y-2.5">
+              {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <a href={link.href} className={linkClass}>
+                  <a href={link.href} className="text-sm text-muted-foreground transition hover:text-primary">
                     {link.label}
                   </a>
                 </li>
@@ -79,13 +65,12 @@ const WebsiteFooter = () => {
             </ul>
           </div>
 
-          {/* Column 3 – Resources */}
           <div>
-            <h3 className={colTitleClass}>Resources</h3>
-            <ul className="flex flex-col gap-2.5">
-              {RESOURCE_LINKS.map((link) => (
-                <li key={link.label}>
-                  <a href={link.href} className={linkClass}>
+            <h3 className={colTitleClass}>{t("footer.resources")}</h3>
+            <ul className="space-y-2.5">
+              {resourceLinks.map((link) => (
+                <li key={link.href}>
+                  <a href={link.href} className="text-sm text-muted-foreground transition hover:text-primary">
                     {link.label}
                   </a>
                 </li>
@@ -93,49 +78,30 @@ const WebsiteFooter = () => {
             </ul>
           </div>
 
-          {/* Column 4 – Contact */}
           <div>
-            <h3 className={colTitleClass}>Contact</h3>
-            <ul className="flex flex-col gap-3.5">
+            <h3 className={colTitleClass}>{t("footer.contact")}</h3>
+            <ul className="space-y-3 text-sm text-muted-foreground">
               <li>
                 <a
-                  href="https://maps.google.com/?q=Kabul,Afghanistan"
+                  href={CONTACT_INFO.mapsHref}
+                  className="flex items-start gap-2 hover:text-primary"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`${linkClass} flex items-start gap-2.5`}
                 >
-                  <MapPin
-                    width={15}
-                    height={15}
-                    className="mt-0.5 shrink-0 text-white/40"
-                  />
-                  <span>Kabul, Afghanistan</span>
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" strokeWidth={2} />
+                  {CONTACT_INFO.location}
                 </a>
               </li>
               <li>
-                <a
-                  href="mailto:info@raad.af"
-                  className={`${linkClass} flex items-center gap-2.5`}
-                >
-                  <Mail
-                    width={15}
-                    height={15}
-                    className="shrink-0 text-white/40"
-                  />
-                  <span>info@raad.af</span>
+                <a href={CONTACT_INFO.emailHref} className="flex items-center gap-2 hover:text-primary">
+                  <Mail className="h-4 w-4 shrink-0 text-primary/70" strokeWidth={2} />
+                  {CONTACT_INFO.email}
                 </a>
               </li>
               <li>
-                <a
-                  href="tel:+93700000000"
-                  className={`${linkClass} flex items-center gap-2.5`}
-                >
-                  <Phone
-                    width={15}
-                    height={15}
-                    className="shrink-0 text-white/40"
-                  />
-                  <span>+93 (0) 700 000 000</span>
+                <a href={CONTACT_INFO.phoneHref} className="flex items-center gap-2 hover:text-primary">
+                  <Phone className="h-4 w-4 shrink-0 text-primary/70" strokeWidth={2} />
+                  {CONTACT_INFO.phone}
                 </a>
               </li>
             </ul>
@@ -143,14 +109,21 @@ const WebsiteFooter = () => {
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div className="border-t border-white/6 px-6 py-5 md:px-10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 text-center text-xs text-white/35 sm:flex-row sm:text-left">
+      <div className="border-t border-primary/10 px-4 py-5 md:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-center text-xs text-muted-foreground sm:flex-row sm:text-start">
           <span>
-            &copy; {CURRENT_YEAR} Raad Professional Development Institute. All
-            rights reserved.
+            © {CURRENT_YEAR} {t("footer.rights")}
           </span>
-          <span className="text-white/25">Designed for excellence</span>
+          <a
+            href="https://haltoon.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 font-medium text-muted-foreground transition hover:text-primary"
+          >
+            {t("footer.poweredBy")}
+            <img src="/haltoon.svg" alt="" className="h-5 w-auto" aria-hidden />
+            <span className="text-foreground/90">{haltoonLabel}</span>
+          </a>
         </div>
       </div>
     </footer>

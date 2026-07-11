@@ -1,117 +1,77 @@
-import LightPillar from "@/components/website/LightPillar";
-import SplitText from "@/components/website/SplitText";
+import PixelBlast from "@/components/ui/pixel-blast";
 import { Button } from "@/components/ui";
-import { NavArrowDown } from "iconoir-react";
+import { useTranslation } from "@/i18n/useTranslation";
+import ScrollReveal from "@/components/website/ScrollReveal";
+import { AnimatedArrowRight, AnimatedChevronDown } from "@/components/icons/animated";
+import { sectionBadgeClass, sectionInnerClass } from "@/components/website/websiteData";
 
 const HeroSection = () => {
+  const { t } = useTranslation();
+
   return (
     <section className="relative flex min-h-dvh flex-col overflow-hidden">
-      {/* Base background */}
       <div className="absolute inset-0 bg-[#050a18]" aria-hidden />
-
-      {/* Decorative orbs */}
-      <div
-        className="pointer-events-none absolute -right-40 -top-40 h-[600px] w-[600px] rounded-full opacity-30 blur-[120px]"
-        style={{ background: "radial-gradient(circle, #0069B4 0%, transparent 70%)" }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full opacity-25 blur-[120px]"
-        style={{ background: "radial-gradient(circle, #9B3D9A 0%, transparent 70%)" }}
-        aria-hidden
-      />
-
-      {/* WebGL light pillar */}
-      <div className="absolute inset-0">
-        <LightPillar
-          topColor="#0069B4"
-          bottomColor="#9B3D9A"
-          intensity={1.05}
-          rotationSpeed={0.28}
-          glowAmount={0.006}
-          pillarWidth={3.2}
-          pillarHeight={0.42}
-          noiseIntensity={0.45}
-          pillarRotation={0}
-          interactive={false}
-          mixBlendMode="screen"
-          quality="high"
+      <div className="absolute inset-0 opacity-90" aria-hidden>
+        <PixelBlast
+          variant="diamond"
+          pixelSize={3}
+          color="#0960f0"
+          patternScale={3}
+          patternDensity={2}
+          enableRipples
+          rippleSpeed={0.25}
+          rippleThickness={0.21}
+          rippleIntensityScale={1}
+          speed={0.5}
+          transparent
+          edgeFade={0.12}
         />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-20 pt-28 md:px-8 md:pb-24 md:pt-32">
-        <div className="mx-auto w-full max-w-5xl text-center">
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#050a18]/30 via-transparent to-[#050a18]/80"
+        aria-hidden
+      />
 
-          {/* Badge pill */}
-          <div className="mb-8 inline-flex items-center rounded-full border border-white/[0.18] bg-white/[0.07] px-4 py-2 backdrop-blur-sm">
-            <span className="text-xs font-semibold tracking-widest text-white/80 uppercase">
-              Raad Professional Development
-            </span>
-          </div>
+      <div className={`${sectionInnerClass} relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-20 pt-28 text-center md:px-8 md:pb-24 md:pt-32`}>
+        <ScrollReveal className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center" distance={20}>
+          <span className={`${sectionBadgeClass} border-white/20 bg-white/10 text-white backdrop-blur-sm`}>
+            {t("hero.badge")}
+          </span>
+          <h1 className="mt-6 text-4xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+            {t("hero.title")}
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg">
+            {t("hero.subtitle")}
+          </p>
 
-          {/* Main heading */}
-          <SplitText
-            tag="h1"
-            text="Empowering the Next Generation of Global Professionals"
-            className="hyphens-manual break-normal text-pretty text-4xl font-bold tracking-tight text-white drop-shadow-[0_2px_28px_rgba(0,0,0,0.55)] sm:text-5xl md:text-6xl lg:text-7xl"
-            delay={80}
-            duration={0.55}
-            ease="power3.out"
-            splitType="words"
-            from={{ opacity: 0, y: 36 }}
-            to={{ opacity: 1, y: 0 }}
-            threshold={0.1}
-            rootMargin="-100px"
-            textAlign="center"
-            triggerOnScroll={false}
-          />
-
-          {/* Subheading */}
-          <div className="mt-7 md:mt-8">
-            <SplitText
-              tag="p"
-              text="Premier professional education in Afghanistan — globally recognized qualifications, world-class instructors, and a community of driven learners."
-              className="mx-auto max-w-2xl text-base leading-relaxed text-white/65 md:text-lg"
-              delay={30}
-              duration={0.55}
-              ease="power2.out"
-              splitType="words"
-              from={{ opacity: 0, y: 20 }}
-              to={{ opacity: 1, y: 0 }}
-              textAlign="center"
-              triggerOnScroll={false}
-            />
-          </div>
-
-          {/* CTA buttons */}
-          <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:mt-14 sm:flex-row sm:gap-5">
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <Button
               asChild
-              className="h-auto rounded-full border-0 bg-white px-10 py-4 text-base font-bold tracking-wide text-primary shadow-[0_6px_28px_rgba(0,0,0,0.22)] ring-1 ring-white/30 transition hover:bg-white/90 hover:shadow-[0_10px_36px_rgba(0,0,0,0.3)]"
+              size="lg"
+              className="h-12 rounded-full border-0 bg-white px-8 text-base font-semibold text-primary shadow-lg hover:bg-white/95"
             >
-              <a href="/explore-courses" className="inline-flex items-center justify-center">
-                Explore Programs
+              <a href="/explore-courses" className="inline-flex items-center gap-2">
+                {t("hero.explorePrograms")}
+                <AnimatedArrowRight size={18} className="text-primary" />
               </a>
             </Button>
             <Button
               asChild
               variant="outline"
-              className="h-auto rounded-full border-2 border-white/60 bg-white/10 px-10 py-4 text-base font-bold tracking-wide text-white shadow-[0_6px_24px_rgba(0,0,0,0.12)] backdrop-blur-md transition hover:border-white hover:bg-white/20 hover:text-white"
+              size="lg"
+              className="h-12 rounded-full border-2 border-white/50 bg-white/10 px-8 text-base font-semibold text-white backdrop-blur-sm hover:border-white hover:bg-white/20 hover:text-white"
             >
-              <a href="#contact" className="inline-flex items-center justify-center">
-                Get in Touch
-              </a>
+              <a href="#contact">{t("hero.getInTouch")}</a>
             </Button>
           </div>
-        </div>
+        </ScrollReveal>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2" aria-hidden>
-        <div className="animate-bounce flex flex-col items-center gap-1.5">
-          <span className="text-xs font-medium tracking-widest text-white/40 uppercase">Scroll</span>
-          <NavArrowDown className="h-5 w-5 text-white/40" strokeWidth={2} />
+      <div className="absolute bottom-8 left-1/2 z-10 hidden -translate-x-1/2 md:block" aria-hidden>
+        <div className="flex flex-col items-center gap-1.5 text-white/45">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em]">{t("hero.scroll")}</span>
+          <AnimatedChevronDown size={18} className="text-white/45" />
         </div>
       </div>
     </section>

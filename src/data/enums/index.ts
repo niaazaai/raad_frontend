@@ -43,3 +43,5 @@ export {
   COURSE_LEVEL_OPTIONS,
 } from "./courseWizard";
 export type { CourseLanguageValue, CourseLevelValue } from "./courseWizard";
+
+export { AppLocale, AppLocaleLabels, RTL_LOCALES, isRtlLocale } from "./locale";
