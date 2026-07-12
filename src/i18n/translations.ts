@@ -215,10 +215,10 @@ const ps = {
   },
   footer: {
     tagline: "د افغانستان د راتلونکي نړیوالو مسلکي کسانو پیاوړتیا.",
-    quickLinks: "چټک لینکونه",
+    quickLinks: "لینکونه",
     resources: "سرچینې",
     contact: "اړیکه",
-    poweredBy: "چمتو شوی له",
+    poweredBy: "چمتو شوی",
     rights: "ټول حقوق خوندي دي.",
   },
   explore: {
@@ -342,10 +342,10 @@ const fa = {
   },
   footer: {
     tagline: "توانمندسازی نسل بعدی متخصصان جهانی افغانستان.",
-    quickLinks: "لینک‌های سریع",
+    quickLinks: "لینک‌ها  ",
     resources: "منابع",
     contact: "تماس",
-    poweredBy: "قدرت گرفته از",
+    poweredBy: "تهیه شده در",
     rights: "تمامی حقوق محفوظ است.",
   },
   explore: {

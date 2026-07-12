@@ -1,5 +1,5 @@
 import { useTranslation } from "@/i18n/useTranslation";
-import { SOCIAL_ICON_LINKS } from "@/components/website/SocialIcons";
+import { SOCIAL_ICON_LINKS, SocialIconLink } from "@/components/website/SocialIcons";
 import { CONTACT_INFO } from "@/components/website/websiteData";
 import { useLocaleStore } from "@/store";
 import { AppLocale } from "@/data/enums/locale";
@@ -10,7 +10,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const WebsiteFooter = () => {
   const { t } = useTranslation();
   const locale = useLocaleStore((s) => s.locale);
-  const haltoonLabel = locale === AppLocale.ENGLISH ? "hal-toon" : "هال‌تون";
+  const haltoonLabel = locale === AppLocale.ENGLISH ? "haltoon" : "حلتون";
 
   const quickLinks = [
     { label: t("nav.home"), href: "/" },
