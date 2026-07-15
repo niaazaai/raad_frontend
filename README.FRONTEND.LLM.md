@@ -791,6 +791,41 @@ Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `us
 - **UI/layout notes**
   - Drawer forms for these entities are `flex` + `min-h-0` layouts so body scroll and footer actions remain stable with large searchable dropdown content.
 
+### Course categories (main / sub) — current behavior
+
+- **Images in tables + view:** the API now returns `thumbnail_url` (signed) on `main-categories` / `sub-categories`. `CategoryImageCell` (in `CourseEntityList.tsx`) and the form-drawer view image prefer `row.thumbnail_url`, then fall back to the session-authenticated `/main-categories|sub-categories/{id}/thumbnail` endpoint, then to an initials placeholder. When adding new image columns, mirror this "signed URL first, endpoint fallback, initials last" pattern.
+- **Unique main-category title:** enforced server-side (see backend doc). The create/edit form surfaces the `422` message via the global `callApi` toast — no client-side uniqueness check is needed.
+- **Sub-categories drawer** (`MainCategorySubCategoriesDrawer.tsx`): opened from the "Sub-categories" row action on a main category. It is a **70%-width** drawer (`DrawerContent className="w-[70vw] min-w-0"`) showing a **responsive card grid** (image + title + status) with full inline **CRUD** — create/edit use a compact form (title, description, status, `ImageDropzone` for `thumbnail_file`) with `main_category_id` fixed to the opened category; delete uses `confirmPresets.delete`. It relies on the backend `?main_category_id=` filter so only that parent's sub-categories load. Reuses `useCreateCourseEntity` / `useUpdateCourseEntity` / `useDeleteCourseEntity("sub-categories")`.
+- **Exact dates:** `student-subscriptions` `purchase_date` renders as exact `YYYY-MM-DD`. In `CourseEntityList.tsx`, date keys that must be calendar-exact go in `DATE_ONLY_KEYS` (rendered via `formatYmd`), everything else in `RELATIVE_DATE_KEYS` (rendered via `formatRelativeTime`). Add future exact-date columns to `DATE_ONLY_KEYS`.
+
+---
+
+## Internationalization (i18n), RTL & fonts
+
+The app uses a **custom, lightweight i18n system** (no `react-i18next`). It powers both the public site and the **admin dashboard**.
+
+- **Locales:** `AppLocale` = `en` (English, LTR) | `fa` (Dari, RTL) | `ps` (Pashto, RTL) — `src/data/enums/locale.ts`. `RTL_LOCALES` / `isRtlLocale()` classify direction.
+- **Store:** `useLocaleStore` (`src/store/locale/localeStore.ts`), persisted under `raad-lms-locale`, default **Pashto** (shared with the public site).
+- **Dictionaries:** `src/i18n/translations.ts` — one object per locale. `Messages = typeof en`, so **English is the source of truth**: every key must exist in `en` (TypeScript derives `TranslationKey` from it). Add keys to `en`, then mirror in `ps` and `fa`. Admin namespaces: `common`, `sidebar`, `header`, `subCategories` (public namespaces: `nav`, `hero`, `auth`, etc.).
+- **Hook:** `const { t, locale } = useTranslation()` (`src/i18n/useTranslation.ts`). `t("sidebar.dashboard")` resolves a dot path; missing keys fall back to the path string.
+- **Language switcher:** in the admin `Header` (globe dropdown listing `AppLocaleLabels`); the public site has its own `components/website/LanguageSwitcher.tsx`.
+- **Applying the locale (admin):** `MainLayout` calls `applyAdminLocale(locale)` in an effect, which sets `<html lang/dir>`. This flips the **entire dashboard**, including portalled drawers/toasts/dropdowns. (`applyAdminDocumentDefaults()` still exists for the website→admin transition but is superseded by `applyAdminLocale` inside the dashboard.)
+- **Fonts:** Inter for LTR; **Vazirmatn** for RTL via a single rule in `index.css`: `html[dir="rtl"] body { font-family: "Vazirmatn", "Inter", … }`. Both fonts are loaded from Google Fonts in `index.html`. Do not hard-code font families on components.
+- **RTL layout:** use **logical Tailwind utilities** (`ms`/`me`, `ps`/`pe`, `start`/`end`, `text-start`) instead of physical (`ml`/`left`/`text-left`) so components mirror automatically. The sidebar, header, and `MainLayout` already use logical properties; mobile slide-in uses the `rtl:` variant (e.g. `-translate-x-full rtl:translate-x-full`).
+
+**Localizing a component:**
+
+```tsx
+import { useTranslation } from "@/i18n/useTranslation";
+
+const MyComponent = () => {
+  const { t } = useTranslation();
+  return <h1>{t("sidebar.dashboard")}</h1>;
+};
+```
+
+For nav labels whose identifier must stay stable (e.g. group-expand keys), keep the canonical English `title` and translate only at render via a title→key map (see `NAV_TITLE_KEYS` in `Sidebar.tsx`).
+
 ---
 
 ## Adding a New Feature Module (Checklist)
@@ -827,3 +862,5 @@ All new features are **protected dashboard modules** under `MainLayout`. There i
 - Use `React.FC` (use typed props directly)
 - Add `console.log` in committed code (use proper error handling)
 - Skip loading/error states in pages
+- Hardcode user-facing strings — use `useTranslation()` (`t(...)`) and add keys to `en` first, then `ps`/`fa`
+- Hardcode font families, or use physical layout utilities (`ml`/`left`/`text-left`) in shared UI — use logical utilities (`ms`/`start`/`text-start`) so RTL (Dari/Pashto) mirrors correctly

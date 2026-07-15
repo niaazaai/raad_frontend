@@ -473,6 +473,15 @@ Use the `extractList` / `extractPagination` helper pattern (see List Page exampl
 
 ---
 
+## Localization (i18n) & RTL
+
+- Custom i18n (no `react-i18next`). `const { t } = useTranslation()` from `@/i18n/useTranslation`; `t("sidebar.dashboard")` resolves a dot path.
+- Locales: `en` (LTR) | `fa` Dari (RTL) | `ps` Pashto (RTL), in `useLocaleStore` (persist `raad-lms-locale`).
+- Add keys to **`en` first** in `src/i18n/translations.ts` (it types `TranslationKey`), then mirror in `ps` + `fa`.
+- Admin locale/direction is applied by `MainLayout` via `applyAdminLocale(locale)` → sets `<html lang/dir>` (covers portalled drawers/toasts). Language switcher lives in the admin `Header`.
+- Fonts: Inter (LTR) / **Vazirmatn** (RTL) via `html[dir="rtl"] body` in `index.css` — never hard-code font families.
+- Use **logical** Tailwind utilities (`ms`/`me`, `ps`/`pe`, `start`/`end`, `text-start`) so components mirror in RTL; mobile transforms use the `rtl:` variant.
+
 ## DO
 
 - Keep every feature self-contained inside its `modules/<F>/` folder
@@ -497,6 +506,8 @@ Use the `extractList` / `extractPagination` helper pattern (see List Page exampl
 - Use `any` type — use `unknown` or proper types
 - Create duplicate loading spinners inside buttons — use `loading` prop on `<Button>`
 - Import from `lucide-react` or any icon library other than `iconoir-react`
+- Hardcode user-facing strings — use `t(...)` and add the key to `en` first
+- Use physical layout utilities (`ml`/`left`/`text-left`) or hardcoded fonts in shared UI — breaks RTL; use logical utilities instead
 
 ---
 
