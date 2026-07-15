@@ -36,11 +36,21 @@ export interface CourseLearnQuizFile {
   uploaded_at: string | null;
 }
 
+/** Mock tests belong to the course (not a specific lesson). */
+export interface CourseLearnMockTest {
+  id: number;
+  title: string;
+  description: string | null;
+  download_url: string | null;
+  uploaded_at: string | null;
+}
+
 export interface CourseLearnPayload {
   course: CourseLearnSummary;
   modules: CourseLearnModule[];
   lessons: CourseLearnLesson[];
   quiz_files: CourseLearnQuizFile[];
+  mock_tests: CourseLearnMockTest[];
 }
 
 export function getCourseLearnFromResponse(
