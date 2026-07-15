@@ -17,6 +17,7 @@ import {
 import { useLayoutStore } from "@/store";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth";
+import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
 import {
   buildCourseSidebarRows,
   COURSE_MODULE_ANY_PERMISSIONS,
@@ -40,6 +41,36 @@ interface NavItem {
   skipChildPermissionFilter?: boolean;
   navKey?: string;
 }
+
+/**
+ * Maps the canonical (English) nav titles — kept stable for group-expand keys —
+ * to their translation keys so labels localize without breaking state logic.
+ */
+const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
+  Dashboard: "sidebar.dashboard",
+  "User Management": "sidebar.userManagement",
+  "Activity log": "sidebar.activityLog",
+  Users: "sidebar.users",
+  Roles: "sidebar.roles",
+  Permissions: "sidebar.permissions",
+  Settings: "sidebar.settings",
+  Courses: "sidebar.courses",
+  Overview: "sidebar.overview",
+  Instructors: "sidebar.instructors",
+  "My learning": "sidebar.myLearning",
+  "Main categories": "sidebar.mainCategories",
+  "Sub categories": "sidebar.subCategories",
+  "Student discounts": "sidebar.studentDiscounts",
+  "Subscription plans": "sidebar.subscriptionPlans",
+  "Student subscriptions": "sidebar.studentSubscriptions",
+  Classes: "sidebar.classes",
+  "Class students": "sidebar.classStudents",
+  "Modules (faasl)": "sidebar.modules",
+  Lessons: "sidebar.lessons",
+  Assignments: "sidebar.assignments",
+  "Downloadable resources": "sidebar.downloadableResources",
+  "Quiz files": "sidebar.quizFiles",
+};
 
 function linkIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/student") {
@@ -127,8 +158,12 @@ const baseNavItems: NavItem[] = [
 const Sidebar = () => {
   const { sidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useLayoutStore();
   const { hasPermission, hasAnyPermission, hasAnyRole, user } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+
+  const displayTitle = (title: string): string =>
+    NAV_TITLE_KEYS[title] ? t(NAV_TITLE_KEYS[title]) : title;
 
   const courseNavChildren = useMemo(
     () => courseRowsToNavItems(buildCourseSidebarRows(hasPermission)),
@@ -232,7 +267,7 @@ const Sidebar = () => {
             {item.icon}
             {!sidebarCollapsed && (
               <>
-                <span className="min-w-0 flex-1 truncate text-left">{item.title}</span>
+                <span className="min-w-0 flex-1 truncate text-start">{displayTitle(item.title)}</span>
                 <NavArrowDown
                   className={cn(
                     "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
@@ -244,7 +279,7 @@ const Sidebar = () => {
           </button>
 
           {!sidebarCollapsed && isExpanded && (
-            <ul className="mt-0.5 space-y-0.5 border-l border-border/80 pl-2.5 ml-1.5">
+            <ul className="mt-0.5 space-y-0.5 border-s border-border/80 ps-2.5 ms-1.5">
               {item.children.map((child) => renderNavItem(child, true))}
             </ul>
           )}
@@ -269,7 +304,7 @@ const Sidebar = () => {
         >
           {item.icon}
           {!sidebarCollapsed && (
-            <span className="min-w-0 flex-1 truncate leading-snug">{item.title}</span>
+            <span className="min-w-0 flex-1 truncate leading-snug">{displayTitle(item.title)}</span>
           )}
         </NavLink>
       </li>
@@ -287,11 +322,11 @@ const Sidebar = () => {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border bg-card transition-all duration-300",
+          "fixed start-0 top-0 z-50 flex h-full flex-col border-e border-border bg-card transition-all duration-300",
           "lg:z-20",
           sidebarCollapsed ? "lg:w-[4.25rem]" : "lg:w-52",
-          "w-52 -translate-x-full lg:translate-x-0",
-          mobileMenuOpen && "translate-x-0"
+          "w-52 -translate-x-full rtl:translate-x-full lg:translate-x-0 rtl:lg:translate-x-0",
+          mobileMenuOpen && "translate-x-0 rtl:translate-x-0"
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-2.5">
@@ -307,7 +342,7 @@ const Sidebar = () => {
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="rounded-md p-1.5 hover:bg-muted lg:hidden"
-            aria-label="Close menu"
+            aria-label={t("nav.closeMenu")}
           >
             <Xmark className="h-5 w-5" />
           </button>
