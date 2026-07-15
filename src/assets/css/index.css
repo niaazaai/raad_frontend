@@ -13,6 +13,12 @@ html {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
 
+/* RTL locales (Dari/Pashto) use Vazirmatn across the whole admin shell —
+   including portalled drawers, dropdowns and toasts rendered under <body>. */
+html[dir="rtl"] body {
+  font-family: "Vazirmatn", "Inter", system-ui, -apple-system, sans-serif;
+}
+
 html {
   scroll-behavior: auto;
 }

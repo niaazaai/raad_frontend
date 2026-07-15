@@ -1,5 +1,5 @@
 import { useTranslation } from "@/i18n/useTranslation";
-import { SOCIAL_ICON_LINKS, SocialIconLink } from "@/components/website/SocialIcons";
+import { SOCIAL_ICON_LINKS } from "@/components/website/SocialIcons";
 import { CONTACT_INFO } from "@/components/website/websiteData";
 import { useLocaleStore } from "@/store";
 import { AppLocale } from "@/data/enums/locale";
