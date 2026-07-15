@@ -17,6 +17,7 @@ import {
   Play,
   Plus,
   Search,
+  Timer,
   Trash,
 } from "iconoir-react";
 import {
@@ -31,6 +32,7 @@ import {
   ImageDropzone,
   Input,
   Label,
+  MultiImageDropzone,
   RichTextEditor,
   Select,
   SelectContent,
@@ -148,6 +150,11 @@ const steps: StepConfig[] = [
     id: "resources",
     title: "Downloadable resources",
     hint: "Files for learners",
+  },
+  {
+    id: "mock-tests",
+    title: "Mock Test",
+    hint: "Practice test PDFs",
   },
   {
     id: "quiz",
@@ -349,6 +356,8 @@ function VerticalCourseStepper({
         return <CreditCard className={ic} strokeWidth={1.5} aria-hidden />;
       case "resources":
         return <Attachment className={ic} strokeWidth={1.5} aria-hidden />;
+      case "mock-tests":
+        return <Timer className={ic} strokeWidth={1.5} aria-hidden />;
       case "quiz":
         return <Page className={ic} strokeWidth={1.5} aria-hidden />;
       default:
@@ -510,6 +519,11 @@ const CourseWizardPage = () => {
     effectiveCourseId != null ? { course_id: effectiveCourseId, per_page: 200 } : undefined,
     { enabled: effectiveCourseId != null }
   );
+  const mockTestsListQuery = useCourseEntityList(
+    effectiveCourseId != null ? "mock-tests" : null,
+    effectiveCourseId != null ? { course_id: effectiveCourseId, per_page: 200 } : undefined,
+    { enabled: effectiveCourseId != null }
+  );
 
   const createMutation = useCreateCourseEntity("courses");
   const updateMutation = useUpdateCourseEntity("courses");
@@ -525,6 +539,8 @@ const CourseWizardPage = () => {
   const createQuizMutation = useCreateCourseEntity("quiz-files");
   const updateQuizMutation = useUpdateCourseEntity("quiz-files");
   const deleteQuizMutation = useDeleteCourseEntity("quiz-files");
+  const createMockTestMutation = useCreateCourseEntity("mock-tests");
+  const deleteMockTestMutation = useDeleteCourseEntity("mock-tests");
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -543,7 +559,8 @@ const CourseWizardPage = () => {
     },
   });
 
-  const { register, handleSubmit, setValue, watch, control, formState, getValues } = form;
+  const { register, handleSubmit, setValue, watch, control, formState, getValues, trigger } =
+    form;
 
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -567,6 +584,9 @@ const CourseWizardPage = () => {
     file: File | null;
     existingFileUrl?: string | null;
   }>({ title: "", file: null });
+
+  const [mockTestFiles, setMockTestFiles] = useState<File[]>([]);
+  const [mockTestsUploading, setMockTestsUploading] = useState(false);
 
   const [lessonDrawerOpen, setLessonDrawerOpen] = useState(false);
   const [lessonDraft, setLessonDraft] = useState<{
@@ -749,9 +769,37 @@ const CourseWizardPage = () => {
     createMutation.mutate(payload, { onSuccess: () => navigate("/course/courses") });
   };
 
+  /**
+   * Validate the fields the backend requires to create/update a course (title + categories).
+   * Runs RHF/zod validation so inline errors show and we never POST data that would 422.
+   * Returns false and jumps to the step owning the first invalid field.
+   */
+  const validateCoreCourseFields = async (): Promise<boolean> => {
+    const ok = await trigger(["title", "course_main_category_id", "course_sub_category_id"]);
+    if (!ok) {
+      const values = getValues();
+      const categoriesMissing =
+        !values.course_main_category_id ||
+        Number(values.course_main_category_id) <= 0 ||
+        !values.course_sub_category_id ||
+        Number(values.course_sub_category_id) <= 0;
+      if (categoriesMissing) {
+        setCurrentStep(0);
+        toast.error("Select a main and sub category first.");
+      } else {
+        setCurrentStep(1);
+        toast.error("Add a course title first.");
+      }
+    }
+    return ok;
+  };
+
   const ensureCoursePersisted = async (): Promise<number> => {
     if (editId != null && !Number.isNaN(editId)) return editId;
     if (draftCourseId != null) return draftCourseId;
+    if (!(await validateCoreCourseFields())) {
+      throw new Error("Course details are incomplete");
+    }
     const values = getValues();
     const payload: Record<string, unknown> = {
       course_main_category_id: values.course_main_category_id,
@@ -796,6 +844,10 @@ const CourseWizardPage = () => {
 
   const advanceStep = async () => {
     try {
+      if (currentStep === 0 && !viewMode && (!mainSelected || !subSelected)) {
+        toast.error("Select a main and sub category first.");
+        return;
+      }
       if (currentStep === 1 && !viewMode) {
         await ensureCoursePersisted();
       }
@@ -953,6 +1005,11 @@ const CourseWizardPage = () => {
     [quizListQuery.data]
   );
 
+  const mockTestsRows = useMemo(
+    () => getCourseListFromResponse(mockTestsListQuery.data),
+    [mockTestsListQuery.data]
+  );
+
   /** Do not mark optional steps complete until there is real content (avoids “pre-checked” stepper). */
   const stepState = [
     numId(watchedValues.course_main_category_id) > 0 &&
@@ -961,6 +1018,7 @@ const CourseWizardPage = () => {
     currentStep > 2 || selectedSubscriptionPlanIds.length > 0,
     modulesRowsStep.length >= 1 && lessonsRowsStep.length >= 1,
     resourcesRows.length >= 1,
+    mockTestsRows.length >= 1,
     quizRowsList.length >= 1,
   ];
 
@@ -1983,6 +2041,139 @@ const CourseWizardPage = () => {
             <div className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
+                  <h3 className="text-lg font-semibold text-foreground">Mock Test</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Upload one or more mock test PDFs. Learners can download them from the course
+                    view page to practice.
+                  </p>
+                </div>
+              </div>
+
+              {!viewMode ? (
+                <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+                  <MultiImageDropzone
+                    accept="application/pdf"
+                    label="Mock test files (PDF)"
+                    hint="Drag and drop or click to add multiple PDF files."
+                    maxFiles={20}
+                    value={mockTestFiles}
+                    onSelect={(files) =>
+                      setMockTestFiles(
+                        files.filter((f) => f.type === "application/pdf")
+                      )
+                    }
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      disabled={mockTestFiles.length === 0 || mockTestsUploading}
+                      onClick={() => {
+                        const cid = effectiveCourseId;
+                        if (!cid || mockTestFiles.length === 0) return;
+                        void (async () => {
+                          setMockTestsUploading(true);
+                          let failed = 0;
+                          for (const file of mockTestFiles) {
+                            try {
+                              await createMockTestMutation.mutateAsync({
+                                course_id: cid,
+                                title: file.name.replace(/\.pdf$/i, "").trim() || "Mock test",
+                                mock_test_file: file,
+                                uploaded_at: new Date().toISOString(),
+                              });
+                            } catch {
+                              failed += 1;
+                            }
+                          }
+                          setMockTestFiles([]);
+                          invalidateCourseLists();
+                          setMockTestsUploading(false);
+                          if (failed > 0) {
+                            toast.error(`${failed} mock test file(s) failed to upload.`);
+                          } else {
+                            toast.success("Mock test files uploaded.");
+                          }
+                        })();
+                      }}
+                    >
+                      {mockTestsUploading ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                          {mockTestFiles.length > 0
+                            ? `Upload ${mockTestFiles.length} file(s)`
+                            : "Upload files"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {mockTestsRows.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                  No mock tests yet — add PDF files above.
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {mockTestsRows.map((row) => {
+                    const mid = Number(row.id);
+                    const mtitle = String(row.title ?? "");
+                    const murl = String(row.mock_test_file_url ?? "");
+                    return (
+                      <div
+                        key={mid}
+                        className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        {!viewMode ? (
+                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-danger hover:text-danger"
+                              onClick={() =>
+                                deleteMockTestMutation.mutate(mid, {
+                                  onSuccess: () => invalidateCourseLists(),
+                                })
+                              }
+                              aria-label="Delete mock test"
+                            >
+                              <Trash className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                          </div>
+                        ) : null}
+                        <div className="flex items-start gap-3 pr-14">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                            <Timer className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-foreground">{mtitle}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground" title={murl}>
+                              {fileLabelFromUrl(murl) || "File attached"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentStep === 5 && effectiveCourseId == null && (
+            <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+              Save <span className="font-medium text-foreground">Course details</span> first to manage
+              mock tests.
+            </div>
+          )}
+
+          {currentStep === 6 && effectiveCourseId != null && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
                   <h3 className="text-lg font-semibold text-foreground">Quiz files</h3>
                   <p className="text-sm text-muted-foreground">
                     Upload quiz or assessment files — same flow as downloadable resources.
@@ -2173,7 +2364,7 @@ const CourseWizardPage = () => {
             </div>
           )}
 
-          {currentStep === 5 && effectiveCourseId == null && (
+          {currentStep === 6 && effectiveCourseId == null && (
             <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
               Save <span className="font-medium text-foreground">Course details</span> first to manage quiz
               files.
@@ -2197,8 +2388,20 @@ const CourseWizardPage = () => {
                 Cancel
               </Button>
               {currentStep < steps.length - 1 ? (
-                <Button type="button" onClick={() => void advanceStep()}>
-                  Next
+                <Button
+                  type="button"
+                  onClick={() => void advanceStep()}
+                  disabled={
+                    (currentStep === 0 && !viewMode && (!mainSelected || !subSelected)) ||
+                    createMutation.isPending ||
+                    updateMutation.isPending
+                  }
+                >
+                  {createMutation.isPending || updateMutation.isPending ? (
+                    <Spinner className="h-4 w-4" />
+                  ) : (
+                    "Next"
+                  )}
                 </Button>
               ) : (
                 <Button

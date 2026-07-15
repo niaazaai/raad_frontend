@@ -194,6 +194,17 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
     ],
     statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
   },
+  "mock-tests": {
+    fields: [
+      { name: "course_id", label: "Course ID", type: "number", required: true },
+      { name: "title", label: "Title", type: "text", required: true },
+      { name: "description", label: "Description", type: "textarea" },
+      { name: "mock_test_file_url", label: "Mock test file URL", type: "text", required: true },
+      { name: "status", label: "Status", type: "select", options: ACTIVE_INACTIVE },
+      { name: "uploaded_at", label: "Uploaded at", type: "date", required: true },
+    ],
+    statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
+  },
   "student-discounts": {
     fields: [
       { name: "course_id", label: "Course ID", type: "number", required: true },
@@ -304,6 +315,7 @@ export function getCreateDefaultsForEntity(
       break;
     case "downloadable-resources":
     case "quiz-files":
+    case "mock-tests":
       out.uploaded_at = today;
       out.status = "active";
       break;

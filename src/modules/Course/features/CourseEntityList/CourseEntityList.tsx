@@ -42,8 +42,6 @@ const RELATIVE_DATE_KEYS = new Set([
   "updated_at",
   "uploaded_at",
   "issue_date",
-  "purchase_date",
-  "enrollment_date",
   "approval_date",
   "subscription_start_date",
   "subscription_end_date",
@@ -52,6 +50,18 @@ const RELATIVE_DATE_KEYS = new Set([
   "instructor_feedback_date",
   "closed_at",
 ]);
+
+// Columns that must show an exact calendar date (YYYY-MM-DD), never relative time.
+const DATE_ONLY_KEYS = new Set(["purchase_date"]);
+
+function formatYmd(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toISOString().slice(0, 10);
+}
 
 const STATUS_FILTER_OPTIONS = [
   { value: "active", label: "Active" },
@@ -83,6 +93,11 @@ function getTextOrFallback(value: unknown, fallback = "—"): string {
 }
 
 function getCategoryThumbnailSrc(slug: CourseEntitySlug, row: CourseRow): string | null {
+  // Prefer the signed URL the API now returns for uploaded images.
+  const direct = row.thumbnail_url;
+  if (typeof direct === "string" && direct.trim().length > 0) return direct;
+
+  // Fallback to the session-authenticated streaming endpoint.
   const rawId = row.id;
   const id = typeof rawId === "number" ? rawId : Number(rawId);
   if (typeof id !== "number" || Number.isNaN(id)) return null;
@@ -399,6 +414,9 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
 
         const v = row[key];
         if (v === null || v === undefined) return "—";
+        if (DATE_ONLY_KEYS.has(key) && (typeof v === "string" || typeof v === "number")) {
+          return formatYmd(v);
+        }
         if (RELATIVE_DATE_KEYS.has(key) && (typeof v === "string" || typeof v === "number")) {
           return formatRelativeTime(String(v));
         }

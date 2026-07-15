@@ -602,9 +602,13 @@ const CourseEntityFormDrawer = ({
         ? `Edit ${entityTitle}`
         : `View ${entityTitle}`;
 
+  const detailThumbnailUrl =
+    typeof detail?.thumbnail_url === "string" && detail.thumbnail_url.trim() !== ""
+      ? detail.thumbnail_url.trim()
+      : null;
   const thumbnailSrc =
     THUMB_SLUGS.includes(slug) && entityId != null
-      ? courseEntityThumbnailUrl(slug, entityId)
+      ? (detailThumbnailUrl ?? courseEntityThumbnailUrl(slug, entityId))
       : null;
 
   if (mode !== "create" && entityId != null && loadingDetail && !detail) {

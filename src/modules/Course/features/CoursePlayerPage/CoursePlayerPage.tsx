@@ -146,6 +146,7 @@ const CoursePlayerPage = () => {
   const pType = playbackPayload?.type === "hls" ? "hls" : "progressive";
 
   const quizFiles = payload?.quiz_files ?? [];
+  const mockTests = payload?.mock_tests ?? [];
 
   const loading = validId == null || learnQuery.isLoading;
   const forbidden =
@@ -369,6 +370,38 @@ const CoursePlayerPage = () => {
                     {qf.download_url ? (
                       <a
                         href={qf.download_url}
+                        className="text-primary hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unavailable</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* Mock tests (course-wide) */}
+          {mockTests.length > 0 ? (
+            <section className="space-y-2">
+              <h3 className="text-base font-semibold">Mock tests</h3>
+              <p className="text-sm text-muted-foreground">
+                Download these practice tests to prepare for your exam.
+              </p>
+              <ul className="space-y-2">
+                {mockTests.map((mt) => (
+                  <li
+                    key={mt.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium">{mt.title}</span>
+                    {mt.download_url ? (
+                      <a
+                        href={mt.download_url}
                         className="text-primary hover:underline"
                         target="_blank"
                         rel="noreferrer"

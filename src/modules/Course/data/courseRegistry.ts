@@ -7,6 +7,7 @@ export type CourseEntitySlug =
   | "assignments"
   | "downloadable-resources"
   | "quiz-files"
+  | "mock-tests"
   | "student-discounts"
   | "subscription-plans"
   | "student-subscriptions"
@@ -103,6 +104,16 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
     apiPath: "/quiz-files",
     permission: "course.quiz_files.read",
     columns: ["id", "course_id", "lesson_id", "title", "status", "uploaded_at"],
+    filterParams: ["course_id"],
+  },
+  "mock-tests": {
+    slug: "mock-tests",
+    title: "Mock tests",
+    pageDescription:
+      "Upload mock test PDFs learners can download and practice with—keep exam prep tied to each course.",
+    apiPath: "/mock-tests",
+    permission: "course.mock_tests.read",
+    columns: ["id", "course_id", "title", "status", "uploaded_at"],
     filterParams: ["course_id"],
   },
   "student-discounts": {

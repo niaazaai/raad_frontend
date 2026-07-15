@@ -16,6 +16,20 @@ export function applyAdminDocumentDefaults(): void {
   root.classList.remove("website-locale-active");
 }
 
+/**
+ * Admin/dashboard shell — respect the selected locale so the whole panel
+ * (sidebar, header, page content, and portalled drawers/toasts) switches
+ * language + direction. RTL locales (Dari/Pashto) render with Vazirmatn via
+ * the `html[dir="rtl"]` rule in index.css.
+ */
+export function applyAdminLocale(locale: AppLocale): void {
+  const root = document.documentElement;
+  root.lang = locale;
+  root.dir = isRtlLocale(locale) ? "rtl" : "ltr";
+  root.dataset.locale = locale;
+  root.classList.remove("website-locale-active");
+}
+
 export function getWebsiteLocaleAttributes(locale: AppLocale): {
   lang: string;
   dir: "rtl" | "ltr";
