@@ -22,7 +22,6 @@ const DashboardPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, hasPermission } = useAuth();
   const { t } = useTranslation();
-  const fmt = useFormatMessage();
 
   useEffect(() => {
     if (searchParams.get("from") === "google") {

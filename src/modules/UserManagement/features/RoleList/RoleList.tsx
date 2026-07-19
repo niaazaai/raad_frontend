@@ -270,12 +270,14 @@ const RoleCard = ({ role, viewMode }: RoleCardProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const { mutate: deleteRole, isPending: isDeleting } = useDeleteRole(role.id);
   const { confirm } = useConfirmDialog();
+  const confirmPresets = useConfirmPresets();
+  const { t } = useTranslation();
 
   const isSystemRole = ["admin", "root", "student", "instructor"].includes(role.name.toLowerCase());
 
   const handleDelete = async () => {
     setShowMenu(false);
-    const confirmed = await confirm(confirmPresets.delete("Role"));
+    const confirmed = await confirm(confirmPresets.delete(t("userManagement.role")));
     if (confirmed) {
       deleteRole();
     }
