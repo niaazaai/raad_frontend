@@ -25,7 +25,6 @@
     "allowJs": false,
 
     /* Import paths */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -339,19 +339,6 @@ const CourseEntityFormDrawer = ({
     }));
   }, [instructorOptionsQuery.data]);
 
-  const classOptionsQuery = useCourseEntityList(
-    slug === "lms-class-students" ? "lms-classes" : null,
-    { per_page: 200 },
-    { enabled: slug === "lms-class-students" && !readOnly }
-  );
-  const lmsStudentClassOptions = useMemo(() => {
-    const rows = getCourseListFromResponse(classOptionsQuery.data);
-    return rows.map((r) => ({
-      value: String(r.id),
-      label: `${String(r.name ?? "Class")} (#${r.id})`,
-    }));
-  }, [classOptionsQuery.data]);
-
   const studentUsersQuery = useQueryApi<Record<string, unknown>[]>({
     queryKey: ["users", "student-picker", "class-students"],
     url: "/users",

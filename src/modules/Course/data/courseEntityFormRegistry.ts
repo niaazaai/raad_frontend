@@ -47,11 +47,6 @@ const ACTIVE_INACTIVE = [
   { value: "inactive", label: "Inactive" },
 ];
 
-const DISCOUNT_TYPE = [
-  { value: "percentage", label: "Percentage" },
-  { value: "fixed", label: "Fixed" },
-];
-
 const SUB_FREE_PAID = [
   { value: "free", label: "Free" },
   { value: "paid", label: "Paid" },
@@ -60,15 +55,6 @@ const SUB_FREE_PAID = [
 const CLASS_TYPE = [
   { value: "online", label: "Online" },
   { value: "offline", label: "Offline" },
-];
-
-const GRADE_OPTS = [
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "C", label: "C" },
-  { value: "D", label: "D" },
-  { value: "F", label: "F" },
-  { value: "PENDING", label: "Pending" },
 ];
 
 const CONTENT_TYPE = [

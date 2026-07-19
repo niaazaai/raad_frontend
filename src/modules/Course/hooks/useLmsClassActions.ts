@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import { callApi } from "@/services";
-import { courseQueryKeys } from "../data/constants/queryKeys";
 
 export function useNextClassCode(enabled = false) {
   return useQueryApi<{ class_code: string }>({

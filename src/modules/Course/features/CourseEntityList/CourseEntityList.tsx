@@ -263,7 +263,6 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const archiveClass = useArchiveLmsClassMutation();
   const restoreClass = useRestoreLmsClassMutation();
   const completeClass = useCompleteLmsClassMutation();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [filterCourseId, setFilterCourseId] = useState(searchParams.get("course_id") ?? "");
   const [filterClassId, setFilterClassId] = useState(searchParams.get("class_id") ?? "");
   const [filterSubscriptionStatus, setFilterSubscriptionStatus] = useState(
