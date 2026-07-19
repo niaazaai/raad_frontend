@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus, EditPencil, Shield, Prohibition, CheckCircle, Mail, Trash } from "iconoir-react";
 import { useUsers, useUpdateUserMutation, useDeleteUserMutation } from "../../hooks";
@@ -10,8 +10,10 @@ import {
 } from "../../data/models";
 import { UserFormDrawer } from "../UserForm/UserFormDrawer";
 import { UserRoleDrawer } from "../UserForm/UserRoleDrawer";
-import { Button, DataTable, useConfirmDialog, confirmPresets } from "@/components/ui";
+import { Button, DataTable, useConfirmDialog } from "@/components/ui";
 import { Can } from "@/features/auth";
+import { useConfirmPresets } from "@/i18n/useConfirmPresets";
+import { useTranslation } from "@/i18n/useTranslation";
 import { useDataTableParams } from "@/hooks";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
 import { Drawer, DrawerOverlay, DrawerContent } from "@/components/ui";
@@ -33,11 +35,13 @@ function getPaginationFromResponse(response: unknown): DataTablePaginationMeta |
 }
 
 const STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
+  { value: "active", label: "active" },
+  { value: "inactive", label: "inactive" },
 ];
 
 const UserList = () => {
+  const { t } = useTranslation();
+  const confirmPresets = useConfirmPresets();
   const [searchParams, setSearchParams] = useSearchParams();
   const editId = searchParams.get("edit");
 
@@ -109,11 +113,16 @@ const UserList = () => {
     setRoleUser(null);
   }, []);
 
+  const statusFilterOptions = useMemo(
+    () => STATUS_OPTIONS.map((o) => ({ ...o, label: t(`common.${o.label}` as "common.active") })),
+    [t],
+  );
+
   const config: DataTableConfig<UserManagement> = {
     columns: [
       {
         key: "user",
-        header: "User",
+        header: t("userManagement.user"),
         render: (user) => (
           <div className="flex items-center gap-3">
             <div className="relative flex h-10 w-10 flex-shrink-0">
@@ -157,7 +166,7 @@ const UserList = () => {
       },
       {
         key: "roles",
-        header: "Roles",
+        header: t("userManagement.roles"),
         render: (user) => (
           <div className="flex flex-wrap gap-1">
             {user.roles?.map((role) => (
@@ -170,14 +179,14 @@ const UserList = () => {
               </span>
             ))}
             {(!user.roles || user.roles.length === 0) && (
-              <span className="text-xs text-muted-foreground">No roles</span>
+              <span className="text-xs text-muted-foreground">{t("userManagement.noRoles")}</span>
             )}
           </div>
         ),
       },
       {
         key: "status",
-        header: "Status",
+        header: t("common.status"),
         render: (user) => {
           const raw = String(user.status ?? "active");
           const status =
@@ -201,11 +210,11 @@ const UserList = () => {
         },
         sortable: true,
         filterable: true,
-        filterOptions: STATUS_OPTIONS,
+        filterOptions: statusFilterOptions,
       },
       {
         key: "created_at",
-        header: "Created",
+        header: t("userManagement.created"),
         render: (user) => (
           <span className="text-sm text-muted-foreground">
             {user.created_at ? new Date(user.created_at).toLocaleDateString() : "-"}
@@ -216,23 +225,23 @@ const UserList = () => {
     ],
     rowId: (user) => user.id,
     searchable: true,
-    searchPlaceholder: "Search users...",
+    searchPlaceholder: t("userManagement.searchUsers"),
     filtersEnabled: true,
     defaultPageSize: 10,
     pageSizeOptions: [10, 25, 50, 100],
     paginationEnabled: true,
-    emptyMessage: "No users yet.",
+    emptyMessage: t("userManagement.noUsers"),
     actions: [
       {
         key: "edit",
-        label: "Edit",
+        label: t("common.edit"),
         icon: <EditPencil className="h-4 w-4" />,
         onClick: (user) => openEditDrawer(user),
         permission: "users.update",
       },
       {
         key: "role",
-        label: "Role",
+        label: t("userManagement.roleAction"),
         icon: <Shield className="h-4 w-4" />,
         onClick: (user) => openRoleDrawer(user),
         permission: "roles.update",
@@ -242,7 +251,7 @@ const UserList = () => {
         label: (user) => {
           const raw = String(user.status ?? "active");
           const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
-          return isInactive ? "Activate" : "Deactivate";
+          return isInactive ? t("common.activate") : t("common.deactivate");
         },
         icon: (user) => {
           const raw = String(user.status ?? "active");
@@ -262,8 +271,8 @@ const UserList = () => {
           const raw = String(user.status ?? "active");
           const isInactive = raw === "inactive" || raw === "suspended" || raw === "pending";
           const preset = isInactive
-            ? confirmPresets.activate("User")
-            : confirmPresets.suspend("User");
+            ? confirmPresets.activate(t("userManagement.user"))
+            : confirmPresets.suspend(t("userManagement.user"));
           const confirmed = await confirm(preset);
           if (confirmed) {
             const newStatus = isInactive ? UserStatus.ACTIVE : UserStatus.INACTIVE;
@@ -274,11 +283,11 @@ const UserList = () => {
       },
       {
         key: "delete",
-        label: "Delete",
+        label: t("common.delete"),
         icon: <Trash className="h-4 w-4" />,
         variant: "danger" as const,
         onClick: async (user) => {
-          const confirmed = await confirm(confirmPresets.delete("User"));
+          const confirmed = await confirm(confirmPresets.delete(t("userManagement.user")));
           if (confirmed) {
             deleteUser({ id: user.id });
           }
@@ -292,13 +301,13 @@ const UserList = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Users</h1>
-          <p className="text-muted-foreground">Manage user accounts and permissions</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("userManagement.usersTitle")}</h1>
+          <p className="text-muted-foreground">{t("userManagement.usersSubtitle")}</p>
         </div>
         <Can permission="users.create">
           <Button onClick={openCreateDrawer}>
             <Plus className="h-4 w-4" />
-            Add User
+            {t("userManagement.addUser")}
           </Button>
         </Can>
       </div>

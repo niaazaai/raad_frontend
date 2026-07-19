@@ -3,6 +3,7 @@ import { Search, Key, Shield, ViewGrid, List } from "iconoir-react";
 import { Spinner } from "@/components/ui/spinner";
 import { usePermissions } from "../../hooks";
 import { Permission } from "../../data/models";
+import { useTranslation } from "@/i18n/useTranslation";
 import { DataTable } from "@/components/ui";
 import { useDataTableParams } from "@/hooks";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
@@ -24,6 +25,7 @@ function getPaginationFromResponse(response: unknown): DataTablePaginationMeta |
 }
 
 const PermissionList = () => {
+  const { t } = useTranslation();
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
     defaultSortBy: "name",
@@ -61,7 +63,7 @@ const PermissionList = () => {
     columns: [
       {
         key: "name",
-        header: "Permission",
+        header: t("userManagement.permission"),
         render: (perm) => (
           <div className="flex items-center gap-2">
             <Key className="h-4 w-4 text-muted-foreground" />
@@ -72,7 +74,7 @@ const PermissionList = () => {
       },
       {
         key: "module",
-        header: "Module",
+        header: t("userManagement.module"),
         render: (perm) => {
           const [module] = perm.name.split(".");
           return <span className="capitalize text-muted-foreground">{module || "general"}</span>;
@@ -80,7 +82,7 @@ const PermissionList = () => {
       },
       {
         key: "guard_name",
-        header: "Guard",
+        header: t("userManagement.guard"),
         render: (perm) => (
           <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {perm.guard_name}
@@ -118,8 +120,8 @@ const PermissionList = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Permissions</h1>
-          <p className="text-muted-foreground">View all available system permissions</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("userManagement.permissionsTitle")}</h1>
+          <p className="text-muted-foreground">{t("userManagement.permissionsSubtitle")}</p>
         </div>
         <div className="flex rounded-lg border border-border p-1">
           <button

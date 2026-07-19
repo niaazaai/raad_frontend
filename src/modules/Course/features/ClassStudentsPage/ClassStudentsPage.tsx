@@ -15,9 +15,10 @@ import {
   PageBreadcrumb,
   SearchableSelect,
   useConfirmDialog,
-  confirmPresets,
 } from "@/components/ui";
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
+import { useConfirmPresets, useFormatMessage } from "@/i18n/useConfirmPresets";
+import { useTranslation } from "@/i18n/useTranslation";
 import { useDataTableParams } from "@/hooks";
 import { cn } from "@/lib/utils";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
@@ -41,24 +42,19 @@ function getPagination(response: unknown): DataTablePaginationMeta | null {
   return (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta?.pagination ?? null;
 }
 
-const GRADE_OPTIONS = [
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "C", label: "C" },
-  { value: "D", label: "D" },
-  { value: "F", label: "F" },
-  { value: "PENDING", label: "Pending" },
-];
+const GRADE_VALUES = ["A", "B", "C", "D", "F", "PENDING"] as const;
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "pending", label: "Pending" },
-  { value: "paid", label: "Paid" },
-  { value: "partial", label: "Partial" },
-  { value: "due", label: "Due" },
-];
+const PAYMENT_STATUS_VALUES = ["pending", "paid", "partial", "due"] as const;
 
 function PaymentStatusBadge({ value }: { value: unknown }) {
+  const { t } = useTranslation();
   const raw = String(value ?? "pending");
+  const labels: Record<string, string> = {
+    pending: t("course.paymentStatus.pending"),
+    paid: t("course.paymentStatus.paid"),
+    partial: t("course.paymentStatus.partial"),
+    due: t("course.paymentStatus.due"),
+  };
   const colors: Record<string, string> = {
     pending: "bg-warning/10 text-warning",
     paid: "bg-success/10 text-success",
@@ -67,7 +63,7 @@ function PaymentStatusBadge({ value }: { value: unknown }) {
   };
   return (
     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
-      {raw.charAt(0).toUpperCase() + raw.slice(1)}
+      {labels[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1)}
     </span>
   );
 }
@@ -78,6 +74,26 @@ const ClassStudentsPage = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { confirm } = useConfirmDialog();
+  const confirmPresets = useConfirmPresets();
+  const { t } = useTranslation();
+
+  const gradeOptions = useMemo(
+    () =>
+      GRADE_VALUES.map((value) => ({
+        value,
+        label: value === "PENDING" ? t("course.gradePending") : value,
+      })),
+    [t],
+  );
+
+  const paymentStatusOptions = useMemo(
+    () =>
+      PAYMENT_STATUS_VALUES.map((value) => ({
+        value,
+        label: t(`course.paymentStatus.${value}` as "course.paymentStatus.pending"),
+      })),
+    [t],
+  );
 
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 10,
@@ -161,22 +177,22 @@ const ClassStudentsPage = () => {
       columns: [
         {
           key: "student_code",
-          header: "Student ID",
+          header: t("course.columns.student_code"),
           render: (row) => (
             <span className="font-mono text-sm">{String(row.student_code ?? row.student_id)}</span>
           ),
         },
         {
           key: "full_name",
-          header: "Name",
+          header: t("course.columns.full_name"),
           render: (row) => (
             <span>{row.full_name || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() || "—"}</span>
           ),
         },
-        { key: "phone_number", header: "Phone", render: (row) => <span>{row.phone_number ?? "—"}</span> },
+        { key: "phone_number", header: t("course.columns.phone_number"), render: (row) => <span>{row.phone_number ?? "—"}</span> },
         {
           key: "grade",
-          header: "Grade",
+          header: t("course.columns.grade"),
           render: (row) => (
             <span>
               {row.grade ?? "—"}
@@ -186,17 +202,17 @@ const ClassStudentsPage = () => {
         },
         {
           key: "payment_status",
-          header: "Payment",
+          header: t("course.columns.payment_status"),
           render: (row) => <PaymentStatusBadge value={row.payment_status} />,
         },
         {
           key: "due_amount",
-          header: "Due",
+          header: t("course.columns.due_amount"),
           render: (row) => <span>{row.due_amount != null ? String(row.due_amount) : "—"}</span>,
         },
         {
           key: "status",
-          header: "Status",
+          header: t("course.columns.status"),
           render: (row) => (
             <span
               className={cn(
@@ -204,34 +220,34 @@ const ClassStudentsPage = () => {
                 row.status === "disabled" ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
               )}
             >
-              {row.status === "disabled" ? "Disabled" : "Active"}
+              {row.status === "disabled" ? t("course.classStudents.disabled") : t("course.classStudents.active")}
             </span>
           ),
         },
       ],
       rowId: (row) => row.id,
       searchable: true,
-      searchPlaceholder: "Search students…",
+      searchPlaceholder: t("course.classStudents.searchStudents"),
       paginationEnabled: true,
-      emptyMessage: "No students enrolled in this class yet.",
+      emptyMessage: t("course.classStudents.empty"),
       actions: [
         {
           key: "grade",
-          label: "Grade",
+          label: t("course.columns.grade"),
           icon: <EditPencil className="h-4 w-4" />,
           permission: "course.class_students.update",
           onClick: openGradeModal,
         },
         {
           key: "payment",
-          label: "Payment",
+          label: t("course.classStudents.payment"),
           icon: <Wallet className="h-4 w-4" />,
           permission: "course.class_students.update",
           onClick: openPaymentModal,
         },
         {
           key: "disable",
-          label: "Disable",
+          label: t("common.disable"),
           icon: <Prohibition className="h-4 w-4" />,
           permission: "course.class_students.update",
           onClick: (row) => {
@@ -242,18 +258,18 @@ const ClassStudentsPage = () => {
         },
         {
           key: "remove",
-          label: "Remove",
+          label: t("course.classStudents.remove"),
           icon: <Trash className="h-4 w-4" />,
           variant: "danger" as const,
           permission: "course.class_students.update",
           onClick: async (row) => {
-            if (!(await confirm(confirmPresets.delete("student from this class")))) return;
+            if (!(await confirm(confirmPresets.delete(t("course.classStudents.removeConfirmItem"))))) return;
             removeStudent.mutate(row.id);
           },
         },
       ],
     }),
-    [confirm, removeStudent]
+    [confirm, confirmPresets, removeStudent, t],
   );
 
   if (!hasPermission("course.class_students.read")) {
@@ -263,7 +279,7 @@ const ClassStudentsPage = () => {
   if (!classId || Number.isNaN(classId)) {
     return (
       <div className="p-6">
-        <p className="text-muted-foreground">Invalid class.</p>
+        <p className="text-muted-foreground">{t("course.classStudents.invalidClass")}</p>
       </div>
     );
   }
@@ -282,7 +298,7 @@ const ClassStudentsPage = () => {
         <div>
           <Button type="button" variant="ghost" size="sm" className="mb-2 gap-2" onClick={() => navigate("/classes")}>
             <ArrowLeft className="h-4 w-4" />
-            Back to classes
+            {t("course.classStudents.backToClasses")}
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">
             {className}
@@ -293,9 +309,9 @@ const ClassStudentsPage = () => {
           <div className="mt-2">
             <PageBreadcrumb
               items={[
-                { label: "Dashboard", to: "/dashboard" },
-                { label: "Classes", to: "/classes" },
-                { label: "Students" },
+                { label: t("breadcrumb.dashboard"), to: "/dashboard" },
+                { label: t("course.entities.lmsClasses.title"), to: "/classes" },
+                { label: t("course.students") },
               ]}
             />
           </div>
@@ -303,7 +319,7 @@ const ClassStudentsPage = () => {
         <Can permission="course.class_students.update">
           <Button type="button" className="gap-2" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
-            Add student
+            {t("course.classStudents.addStudent")}
           </Button>
         </Can>
       </div>
@@ -320,26 +336,26 @@ const ClassStudentsPage = () => {
       <Drawer open={addOpen} onClose={() => setAddOpen(false)}>
         <DrawerContent className="max-w-md">
           <DrawerHeader>
-            <DrawerTitle>Add registered student</DrawerTitle>
+            <DrawerTitle>{t("course.classStudents.addRegisteredStudent")}</DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="space-y-4">
             <SearchableSelect
               id="add-student-select"
-              label="Student"
+              label={t("common.student")}
               required
               options={studentOptions}
               value={selectedStudentId}
               onChange={setSelectedStudentId}
-              placeholder="Select student…"
+              placeholder={t("course.classStudents.selectStudent")}
               disabled={studentsListQuery.isFetching}
             />
           </DrawerBody>
           <DrawerFooter>
             <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="button" loading={attachStudent.isPending} onClick={handleAddStudent}>
-              Add to class
+              {t("course.classStudents.addToClass")}
             </Button>
           </DrawerFooter>
         </DrawerContent>
@@ -352,6 +368,7 @@ const ClassStudentsPage = () => {
         form={gradeForm}
         onFormChange={setGradeForm}
         onClose={() => setGradeModal(null)}
+        gradeOptions={gradeOptions}
       />
 
       <DisableModal
@@ -370,6 +387,7 @@ const ClassStudentsPage = () => {
         form={paymentForm}
         onFormChange={setPaymentForm}
         onClose={() => setPaymentModal(null)}
+        paymentStatusOptions={paymentStatusOptions}
       />
     </div>
   );
@@ -382,29 +400,34 @@ interface GradeModalProps {
   form: { grade: string; marks: string };
   onFormChange: (v: { grade: string; marks: string }) => void;
   onClose: () => void;
+  gradeOptions: { value: string; label: string }[];
 }
 
-function GradeModal({ open, row, classId, form, onFormChange, onClose }: GradeModalProps) {
+function GradeModal({ open, row, classId, form, onFormChange, onClose, gradeOptions }: GradeModalProps) {
   const updateEnrollment = useUpdateClassStudent(classId, row?.id ?? 0);
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
 
   if (!open || !row) return null;
+
+  const studentName = String(row.full_name ?? row.student_code ?? "");
 
   return (
     <Drawer open={open} onClose={onClose}>
       <DrawerContent className="max-w-md">
         <DrawerHeader>
-          <DrawerTitle>Apply grade — {row.full_name ?? row.student_code}</DrawerTitle>
+          <DrawerTitle>{fmt("course.classStudents.applyGrade", { name: studentName })}</DrawerTitle>
         </DrawerHeader>
         <DrawerBody className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="grade-select">Grade</Label>
+            <Label htmlFor="grade-select">{t("course.columns.grade")}</Label>
             <select
               id="grade-select"
               className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm"
               value={form.grade}
               onChange={(e) => onFormChange({ ...form, grade: e.target.value })}
             >
-              {GRADE_OPTIONS.map((o) => (
+              {gradeOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -412,20 +435,20 @@ function GradeModal({ open, row, classId, form, onFormChange, onClose }: GradeMo
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="marks-input">Marks (number)</Label>
+            <Label htmlFor="marks-input">{t("course.classStudents.marksNumber")}</Label>
             <Input
               id="marks-input"
               type="number"
               min={0}
               value={form.marks}
               onChange={(e) => onFormChange({ ...form, marks: e.target.value })}
-              placeholder="e.g. 85"
+              placeholder={t("course.classStudents.marksPlaceholder")}
             />
           </div>
         </DrawerBody>
         <DrawerFooter>
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -438,7 +461,7 @@ function GradeModal({ open, row, classId, form, onFormChange, onClose }: GradeMo
               onClose();
             }}
           >
-            Save grade
+            {t("course.classStudents.saveGrade")}
           </Button>
         </DrawerFooter>
       </DrawerContent>
@@ -457,6 +480,7 @@ interface DisableModalProps {
 
 function DisableModal({ open, classId, enrollmentId, reason, onReasonChange, onClose }: DisableModalProps) {
   const disableEnrollment = useDisableClassStudent(classId, enrollmentId);
+  const { t } = useTranslation();
 
   if (!open) return null;
 
@@ -464,23 +488,23 @@ function DisableModal({ open, classId, enrollmentId, reason, onReasonChange, onC
     <Drawer open={open} onClose={onClose}>
       <DrawerContent className="max-w-md">
         <DrawerHeader>
-          <DrawerTitle>Disable student</DrawerTitle>
+          <DrawerTitle>{t("course.classStudents.disableStudent")}</DrawerTitle>
         </DrawerHeader>
         <DrawerBody>
           <div className="space-y-1.5">
-            <Label htmlFor="disable-reason">Reason</Label>
+            <Label htmlFor="disable-reason">{t("course.classStudents.reason")}</Label>
             <textarea
               id="disable-reason"
               className="border-input bg-background min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
               value={reason}
               onChange={(e) => onReasonChange(e.target.value)}
-              placeholder="Why is this student being disabled for this class?"
+              placeholder={t("course.classStudents.disableReasonPlaceholder")}
             />
           </div>
         </DrawerBody>
         <DrawerFooter>
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -492,7 +516,7 @@ function DisableModal({ open, classId, enrollmentId, reason, onReasonChange, onC
               onClose();
             }}
           >
-            Disable student
+            {t("course.classStudents.disableStudent")}
           </Button>
         </DrawerFooter>
       </DrawerContent>
@@ -507,22 +531,35 @@ interface PaymentModalProps {
   form: { discount_percent: string; fee_amount: string; paid_amount: string; payment_status: string };
   onFormChange: (v: PaymentModalProps["form"]) => void;
   onClose: () => void;
+  paymentStatusOptions: { value: string; label: string }[];
 }
 
-function PaymentModal({ open, row, classId, form, onFormChange, onClose }: PaymentModalProps) {
+function PaymentModal({
+  open,
+  row,
+  classId,
+  form,
+  onFormChange,
+  onClose,
+  paymentStatusOptions,
+}: PaymentModalProps) {
   const updateEnrollment = useUpdateClassStudent(classId, row?.id ?? 0);
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
 
   if (!open || !row) return null;
+
+  const studentName = String(row.full_name ?? row.student_code ?? "");
 
   return (
     <Drawer open={open} onClose={onClose}>
       <DrawerContent className="max-w-md">
         <DrawerHeader>
-          <DrawerTitle>Payment — {row.full_name ?? row.student_code}</DrawerTitle>
+          <DrawerTitle>{fmt("course.classStudents.paymentTitle", { name: studentName })}</DrawerTitle>
         </DrawerHeader>
         <DrawerBody className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="discount-pct">Discount (%)</Label>
+            <Label htmlFor="discount-pct">{t("course.columns.discount_percent")}</Label>
             <Input
               id="discount-pct"
               type="number"
@@ -533,7 +570,7 @@ function PaymentModal({ open, row, classId, form, onFormChange, onClose }: Payme
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="fee-amount">Fee amount</Label>
+            <Label htmlFor="fee-amount">{t("course.columns.fee_amount")}</Label>
             <Input
               id="fee-amount"
               type="number"
@@ -543,7 +580,7 @@ function PaymentModal({ open, row, classId, form, onFormChange, onClose }: Payme
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="paid-amount">Paid amount</Label>
+            <Label htmlFor="paid-amount">{t("course.columns.paid_amount")}</Label>
             <Input
               id="paid-amount"
               type="number"
@@ -553,14 +590,14 @@ function PaymentModal({ open, row, classId, form, onFormChange, onClose }: Payme
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="payment-status">Payment status</Label>
+            <Label htmlFor="payment-status">{t("course.columns.payment_status")}</Label>
             <select
               id="payment-status"
               className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm"
               value={form.payment_status}
               onChange={(e) => onFormChange({ ...form, payment_status: e.target.value })}
             >
-              {PAYMENT_STATUS_OPTIONS.map((o) => (
+              {paymentStatusOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -570,7 +607,7 @@ function PaymentModal({ open, row, classId, form, onFormChange, onClose }: Payme
         </DrawerBody>
         <DrawerFooter>
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -585,7 +622,7 @@ function PaymentModal({ open, row, classId, form, onFormChange, onClose }: Payme
               onClose();
             }}
           >
-            Save payment
+            {t("course.classStudents.savePayment")}
           </Button>
         </DrawerFooter>
       </DrawerContent>

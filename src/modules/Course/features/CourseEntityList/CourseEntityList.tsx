@@ -35,7 +35,6 @@ import {
   PageBreadcrumb,
   SearchableSelect,
   useConfirmDialog,
-  confirmPresets,
 } from "@/components/ui";
 import {
   useArchiveLmsClassMutation,
@@ -43,6 +42,8 @@ import {
   useRestoreLmsClassMutation,
 } from "../../hooks/useLmsClassActions";
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
+import { useConfirmPresets } from "@/i18n/useConfirmPresets";
+import { useCourseI18n } from "../../hooks/useCourseI18n";
 import { useDataTableParams } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { API_V1_BASE } from "@/services/apiClient";
@@ -102,18 +103,7 @@ function ScheduleTimeBadge({ row }: { row: CourseRow }) {
   );
 }
 
-const LMS_CLASS_STATUS_TABS = [
-  { value: "active", label: "Active" },
-  { value: "archived", label: "Archived" },
-  { value: "completed", label: "Completed" },
-] as const;
-
-type LmsClassStatusTab = (typeof LMS_CLASS_STATUS_TABS)[number]["value"];
-
-const STATUS_FILTER_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-];
+type LmsClassStatusTab = "active" | "archived" | "completed";
 
 function isSlug(value: string | undefined): value is CourseEntitySlug {
   return !!value && (COURSE_ENTITY_SLUGS as string[]).includes(value);
@@ -199,9 +189,23 @@ function getTitleInitials(title: unknown): string {
 }
 
 function StatusBadge({ value }: { value: unknown }) {
+  const { t } = useCourseI18n();
   const normalized = String(value ?? "").toLowerCase();
   const isActive = normalized === "active";
-  const label = normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "—";
+  const statusLabels: Record<string, string> = {
+    active: t("common.active"),
+    inactive: t("common.inactive"),
+    expired: t("common.expired"),
+    cancelled: t("common.cancelled"),
+    archived: t("common.archived"),
+    completed: t("common.completed"),
+    pending: t("common.pending"),
+    paid: t("common.paid"),
+    partial: t("common.partial"),
+    due: t("common.due"),
+    disabled: t("common.disabled"),
+  };
+  const label = statusLabels[normalized] ?? (normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "—");
   return (
     <span
       className={cn(
@@ -230,9 +234,10 @@ function GradeBadge({ value }: { value: unknown }) {
 }
 
 function ClassTypeBadge({ value }: { value: unknown }) {
+  const { t } = useCourseI18n();
   const type = String(value ?? "").toLowerCase();
   const isOnline = type === "online";
-  const label = isOnline ? "Online" : type === "offline" ? "Offline" : "—";
+  const label = isOnline ? t("course.online") : type === "offline" ? t("course.offline") : "—";
   return (
     <span
       className={cn(
@@ -252,6 +257,9 @@ export type CourseEntityListProps = {
 
 const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const { hasPermission } = useAuth();
+  const { entityTitle, columnHeader, t } = useCourseI18n();
+  const confirmPresets = useConfirmPresets();
+  const { confirm } = useConfirmDialog();
   const location = useLocation();
   const navigate = useNavigate();
   const { slug: slugFromRoute } = useParams<{ slug: string }>();
@@ -295,18 +303,35 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     const list = getCourseListFromResponse(coursesForStudentFilter.data);
     return list.map((r) => ({
       value: String(r.id),
-      label: `${String(r.title ?? "Course")} (#${r.id})`,
+      label: `${String(r.title ?? t("common.course"))} (#${r.id})`,
     }));
-  }, [coursesForStudentFilter.data]);
+  }, [coursesForStudentFilter.data, t]);
+
+  const lmsClassStatusTabs = useMemo(
+    () => [
+      { value: "active" as const, label: t("course.classStatus.active") },
+      { value: "archived" as const, label: t("course.classStatus.archived") },
+      { value: "completed" as const, label: t("course.classStatus.completed") },
+    ],
+    [t],
+  );
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: "active", label: t("common.active") },
+      { value: "inactive", label: t("common.inactive") },
+    ],
+    [t],
+  );
 
   const subscriptionStatusFilterOptions = useMemo(
     () => [
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-      { value: "expired", label: "Expired" },
-      { value: "cancelled", label: "Cancelled" },
+      { value: "active", label: t("course.subscriptionStatusValues.active") },
+      { value: "inactive", label: t("course.subscriptionStatusValues.inactive") },
+      { value: "expired", label: t("course.subscriptionStatusValues.expired") },
+      { value: "cancelled", label: t("course.subscriptionStatusValues.cancelled") },
     ],
-    []
+    [t],
   );
 
   const extraParams = useMemo(() => {
@@ -349,7 +374,6 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const rows = resolvedSlug ? getCourseListFromResponse(data) : [];
   const pagination = getPaginationFromResponse(data);
 
-  const { confirm } = useConfirmDialog();
   const { mutate: deleteRow, isPending: deleting } = useDeleteCourseEntity(
     resolvedSlug ?? "main-categories"
   );
@@ -385,10 +409,10 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     const canAct = typeof id === "number" || !Number.isNaN(idNum);
     if (!canAct) return;
     const numericId = typeof id === "number" ? id : idNum;
-    const title = getTextOrFallback(row.title, "Main category");
+    const title = getTextOrFallback(row.title, t("course.category"));
     setSubCategoriesMain({ id: numericId, title });
     setSubCategoriesDrawerOpen(true);
-  }, []);
+  }, [t]);
 
   const closeSubCategoriesDrawer = useCallback(() => {
     setSubCategoriesDrawerOpen(false);
@@ -406,12 +430,14 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     setSearchParams(next, { replace: true });
   }, [filterCourseId, filterClassId, filterSubscriptionStatus, searchParams, setSearchParams]);
 
+  const localizedEntityTitle = resolvedSlug ? entityTitle(resolvedSlug) : "";
+
   const tableConfig: DataTableConfig<CourseRow> = useMemo(() => {
     if (!cfg || !resolvedSlug || !formDef) {
       return {
         columns: [],
         rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
-        emptyMessage: "No records found.",
+        emptyMessage: t("dataTable.noRecords"),
       };
     }
     const deletePerm = coursePermission(cfg.permission, "delete");
@@ -420,29 +446,10 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
 
     const mappedColumns = cfg.columns.map((key) => ({
       key,
-      header:
-        key === "main_category_name"
-          ? "Main category"
-          : key === "user_name"
-            ? resolvedSlug === "student-subscriptions"
-              ? "Student"
-              : "User name"
-            : key === "course_title"
-              ? "Course"
-              : key === "plan_name"
-                ? "Plan"
-                : key === "subscription_public_id"
-                  ? "Subscription ID"
-                  : key === "schedule_date"
-                    ? "Date"
-                    : key === "schedule_time"
-                      ? "Time"
-                      : key === "class_code"
-                        ? "Class ID"
-                        : key.replace(/_/g, " "),
+      header: columnHeader(key, resolvedSlug),
       sortable: key !== "id" && key !== "course_title" && key !== "user_name" && key !== "plan_name",
       filterable: key.includes("status"),
-      filterOptions: key.includes("status") ? STATUS_FILTER_OPTIONS : undefined,
+      filterOptions: key.includes("status") ? statusFilterOptions : undefined,
       render: (row: CourseRow) => {
         if (key === "main_category_name") {
           return getMainCategoryName(row);
@@ -463,6 +470,17 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         }
         if (key === "class_type") {
           return <ClassTypeBadge value={row[key]} />;
+        }
+        if (key === "class_fee") {
+          const fee = row[key];
+          if (fee === null || fee === undefined || fee === "") return "—";
+          const num = Number(fee);
+          if (Number.isNaN(num)) return String(fee);
+          return (
+            <span className="font-medium tabular-nums">
+              {num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </span>
+          );
         }
         if (key === "class_code") {
           return (
@@ -508,7 +526,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             ...mappedColumns.slice(0, 1),
             {
               key: "thumbnail",
-              header: "Image",
+              header: columnHeader("image", resolvedSlug),
               sortable: false,
               filterable: false,
               render: (row: CourseRow) => <CategoryImageCell slug={resolvedSlug} row={row} />,
@@ -520,14 +538,14 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     return {
       columns,
       rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
-      emptyMessage: "No records found.",
+      emptyMessage: t("dataTable.noRecords"),
       actions: [
         ...(resolvedSlug === "instructors"
           ? []
           : [
               {
                 key: "view",
-                label: "View",
+                label: t("common.view"),
                 icon: <Eye className="h-4 w-4" />,
                 permission: cfg.permission,
                 onClick: (row: CourseRow) => {
@@ -543,7 +561,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           ? [
               {
                 key: "students",
-                label: "Students",
+                label: t("course.students"),
                 icon: <CommunityIcon className="h-4 w-4" />,
                 permission: "course.class_students.read",
                 onClick: (row: CourseRow) => {
@@ -553,19 +571,19 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               },
               {
                 key: "archive",
-                label: "Archive",
+                label: t("course.archive"),
                 icon: <Archive className="h-4 w-4" />,
                 permission: updatePerm,
                 onClick: async (row: CourseRow) => {
                   const id = typeof row.id === "number" ? row.id : Number(row.id);
                   if (Number.isNaN(id)) return;
-                  if (!(await confirm({ title: "Archive class", message: "Move this class to archived?", confirmText: "Archive", variant: "warning" }))) return;
+                  if (!(await confirm({ title: t("course.archiveClassTitle"), message: t("course.archiveClassMessage"), confirmText: t("course.archive"), variant: "warning" }))) return;
                   archiveClass.mutate({ id });
                 },
               },
               {
                 key: "restore",
-                label: "Restore",
+                label: t("course.restore"),
                 icon: <RefreshDouble className="h-4 w-4" />,
                 permission: updatePerm,
                 onClick: async (row: CourseRow) => {
@@ -576,7 +594,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               },
               {
                 key: "complete",
-                label: "Complete",
+                label: t("course.complete"),
                 icon: <CheckCircle className="h-4 w-4" />,
                 permission: updatePerm,
                 onClick: (row: CourseRow) => {
@@ -595,7 +613,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           ? [
               {
                 key: "sub-categories",
-                label: "Sub-categories",
+                label: t("course.subCategories"),
                 icon: <AlbumList className="h-4 w-4" />,
                 permission: COURSE_ENTITY_REGISTRY["sub-categories"].permission,
                 onClick: (row: CourseRow) => openSubCategoriesDrawer(row),
@@ -604,7 +622,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           : []),
         {
           key: "edit",
-          label: "Edit",
+          label: t("common.edit"),
           icon: <EditPencil className="h-4 w-4" />,
           permission: updatePerm,
           onClick: (row) => {
@@ -621,7 +639,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 key: "toggle",
                 label: (row: CourseRow) => {
                   const cur = String(row[statusToggle.field] ?? "");
-                  return cur === statusToggle.activeValue ? "Deactivate" : "Activate";
+                  return cur === statusToggle.activeValue ? t("course.deactivate") : t("course.activate");
                 },
                 icon: (row: CourseRow) => {
                   const cur = String(row[statusToggle.field] ?? "");
@@ -651,7 +669,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                     { id: numericId, body: { [statusToggle.field]: nextVal } },
                     {
                       onError: (e: unknown) =>
-                        toast.error(e instanceof Error ? e.message : "Update failed"),
+                        toast.error(e instanceof Error ? e.message : t("course.updateFailed")),
                     }
                   );
                 },
@@ -660,7 +678,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           : []),
         {
           key: "delete",
-          label: "Delete",
+          label: t("common.delete"),
           icon: <Trash className="h-4 w-4" />,
           variant: "danger",
           permission: deletePerm,
@@ -670,7 +688,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             const canAct = typeof id === "number" || !Number.isNaN(idNum);
             if (!canAct || deleting) return;
             const numericId = typeof id === "number" ? id : idNum;
-            void confirm(confirmPresets.delete(cfg.title)).then((ok: boolean) => {
+            void confirm(confirmPresets.delete(localizedEntityTitle)).then((ok: boolean) => {
               if (ok) deleteRow(numericId);
             });
           },
@@ -682,6 +700,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     resolvedSlug,
     formDef,
     confirm,
+    confirmPresets,
     deleteRow,
     deleting,
     patchEntity,
@@ -693,13 +712,16 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     navigate,
     archiveClass,
     restoreClass,
-    confirm,
+    columnHeader,
+    statusFilterOptions,
+    localizedEntityTitle,
+    t,
   ]);
 
   if (!resolvedSlug || !cfg) {
     return (
       <div className="p-6">
-        <p className="text-muted-foreground">Unknown course entity.</p>
+        <p className="text-muted-foreground">{t("course.unknownEntity")}</p>
       </div>
     );
   }
@@ -733,17 +755,17 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     <div className="space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{cfg.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{localizedEntityTitle}</h1>
           <div className="mt-2">
             <PageBreadcrumb
               items={
                 isStandaloneInstructors
-                  ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
+                  ? [{ label: t("breadcrumb.dashboard"), to: "/dashboard" }, { label: localizedEntityTitle }]
                   : isStandaloneClasses
-                    ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
+                    ? [{ label: t("breadcrumb.dashboard"), to: "/dashboard" }, { label: localizedEntityTitle }]
                     : isStandaloneStudents
-                      ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
-                      : [{ label: "Course", to: "/course" }, { label: cfg.title }]
+                      ? [{ label: t("breadcrumb.dashboard"), to: "/dashboard" }, { label: localizedEntityTitle }]
+                      : [{ label: t("breadcrumb.course"), to: "/course" }, { label: localizedEntityTitle }]
               }
             />
           </div>
@@ -752,7 +774,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           <div className="flex flex-wrap items-center gap-3">
             {resolvedSlug === "lms-classes" && (
               <div className="inline-flex rounded-lg border border-border p-1">
-                {LMS_CLASS_STATUS_TABS.map((tab) => (
+                {lmsClassStatusTabs.map((tab) => (
                   <Button
                     key={tab.value}
                     type="button"
@@ -767,7 +789,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             )}
             <Button type="button" onClick={openCreateDrawer} className="shrink-0 gap-2">
               <Plus className="h-4 w-4 stroke-[1.5]" />
-              Add new
+              {t("course.addNew")}
             </Button>
           </div>
         </Can>
@@ -778,7 +800,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           {showCourseFilter && (
             <div className="space-y-1">
               <label className="text-sm font-medium" htmlFor="course-filter">
-                Course ID
+                {t("course.courseId")}
               </label>
               <input
                 id="course-filter"
@@ -792,7 +814,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           {showClassFilter && (
             <div className="space-y-1">
               <label className="text-sm font-medium" htmlFor="class-filter">
-                Class ID
+                {t("course.classId")}
               </label>
               <input
                 id="class-filter"
@@ -804,7 +826,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             </div>
           )}
           <Button type="button" variant="secondary" size="sm" onClick={applyFiltersToUrl}>
-            Apply filters
+            {t("course.applyFilters")}
           </Button>
         </div>
       )}
@@ -814,24 +836,24 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           <div className="grid w-full gap-3 sm:max-w-xl sm:grid-cols-2">
             <SearchableSelect
               id="stu-sub-filter-course"
-              label="Course"
-              options={[{ value: "", label: "All courses" }, ...studentFilterCourseOptions]}
+              label={t("course.course")}
+              options={[{ value: "", label: t("course.allCourses") }, ...studentFilterCourseOptions]}
               value={filterCourseId}
               onChange={(v) => setFilterCourseId(v)}
-              placeholder="Filter by course…"
+              placeholder={t("course.filterByCourse")}
               disabled={coursesForStudentFilter.isFetching}
             />
             <SearchableSelect
               id="stu-sub-filter-status"
-              label="Subscription status"
-              options={[{ value: "", label: "All statuses" }, ...subscriptionStatusFilterOptions]}
+              label={t("course.subscriptionStatus")}
+              options={[{ value: "", label: t("course.allStatuses") }, ...subscriptionStatusFilterOptions]}
               value={filterSubscriptionStatus}
               onChange={(v) => setFilterSubscriptionStatus(v)}
-              placeholder="Status…"
+              placeholder={t("course.statusPlaceholder")}
             />
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={applyFiltersToUrl}>
-            Apply filters
+            {t("course.applyFilters")}
           </Button>
         </div>
       )}
@@ -862,7 +884,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         >
           <CourseEntityFormDrawer
             slug={resolvedSlug}
-            entityTitle={cfg.title}
+            entityTitle={localizedEntityTitle}
             mode={drawerMode}
             entityId={drawerEntityId}
             onSuccess={closeDrawer}
@@ -881,11 +903,11 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         <DrawerOverlay />
         <DrawerContent className="max-w-md">
           <DrawerHeader>
-            <DrawerTitle>Mark class as finished</DrawerTitle>
+            <DrawerTitle>{t("course.markClassFinished")}</DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="complete-end-date">End date</Label>
+              <Label htmlFor="complete-end-date">{t("course.endDate")}</Label>
               <Input
                 id="complete-end-date"
                 type="date"
@@ -896,7 +918,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           </DrawerBody>
           <DrawerFooter>
             <Button type="button" variant="outline" onClick={() => setCompleteModalRow(null)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -913,7 +935,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 );
               }}
             >
-              This class is finished
+              {t("course.classFinished")}
             </Button>
           </DrawerFooter>
         </DrawerContent>

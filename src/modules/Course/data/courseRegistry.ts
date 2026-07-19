@@ -162,6 +162,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "course_name",
       "instructor_name",
       "class_type",
+      "class_fee",
       "schedule_date",
       "schedule_time",
     ],

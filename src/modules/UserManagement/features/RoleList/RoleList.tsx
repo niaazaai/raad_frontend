@@ -15,7 +15,9 @@ import {
 } from "iconoir-react";
 import { useRoles, useDeleteRole, useDeleteRoleMutation } from "../../hooks";
 import { Role } from "../../data/models";
-import { Button, DataTable, useConfirmDialog, confirmPresets } from "@/components/ui";
+import { useConfirmPresets } from "@/i18n/useConfirmPresets";
+import { useTranslation } from "@/i18n/useTranslation";
+import { Button, DataTable, useConfirmDialog } from "@/components/ui";
 import { Can, CanAny } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
@@ -37,6 +39,8 @@ function getPaginationFromResponse(response: unknown): DataTablePaginationMeta |
 }
 
 const RoleList = () => {
+  const { t } = useTranslation();
+  const confirmPresets = useConfirmPresets();
   const navigate = useNavigate();
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 10,
@@ -75,7 +79,7 @@ const RoleList = () => {
     columns: [
       {
         key: "name",
-        header: "Role",
+        header: t("userManagement.role"),
         render: (role) => (
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -93,12 +97,12 @@ const RoleList = () => {
       },
       {
         key: "users_count",
-        header: "Users",
+        header: t("userManagement.usersCount"),
         render: (role) => <span className="text-muted-foreground">{role.users_count ?? 0}</span>,
       },
       {
         key: "permissions_count",
-        header: "Permissions",
+        header: t("userManagement.permissionsCount"),
         render: (role) => (
           <span className="text-muted-foreground">
             {role.permissions_count ?? role.permissions?.length ?? 0}
@@ -150,8 +154,8 @@ const RoleList = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Roles</h1>
-          <p className="text-muted-foreground">Manage user roles and their permissions</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("userManagement.rolesTitle")}</h1>
+          <p className="text-muted-foreground">{t("userManagement.rolesSubtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border p-1">

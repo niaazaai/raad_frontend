@@ -15,10 +15,14 @@ import { useAuth } from "@/features/auth";
 import { useDashboardStats, useDashboardAnalytics } from "@/hooks";
 import { AnalyticsLineChart, Sparkline } from "@/components/dashboard/DashboardCharts";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n/useTranslation";
+import { useFormatMessage } from "@/i18n/useConfirmPresets";
 
 const DashboardPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, hasPermission } = useAuth();
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
 
   useEffect(() => {
     if (searchParams.get("from") === "google") {
@@ -54,8 +58,10 @@ const DashboardPage = () => {
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#004d87] via-primary to-[#0080d6] p-8 text-white">
         <div className="relative z-10">
-          <h1 className="text-3xl font-bold text-white">Welcome back, {user?.name || "User"}!</h1>
-          <p className="mt-2 text-white/90">{"Hope you're having a great day!"}</p>
+          <h1 className="text-3xl font-bold text-white">
+            {t("dashboard.welcomeBack")}, {user?.name || t("header.user")}!
+          </h1>
+          <p className="mt-2 text-white/90">{t("dashboard.greeting")}</p>
         </div>
         <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10" />
         <div className="absolute -bottom-12 -right-12 h-48 w-48 rounded-full bg-white/10" />
@@ -87,7 +93,7 @@ const DashboardPage = () => {
               )}
               {stats.total_users_count != null && (
                 <StatCard
-                  title="Total Users"
+                  title={t("dashboard.totalUsers")}
                   value={String(stats.total_users_count)}
                   icon={<Group className="h-5 w-5" />}
                   color="info"
@@ -95,7 +101,7 @@ const DashboardPage = () => {
               )}
               {stats.total_students_count != null && (
                 <StatCard
-                  title="Total Students"
+                  title={t("dashboard.totalStudents")}
                   value={String(stats.total_students_count)}
                   icon={<GraduationCap className="h-5 w-5" />}
                   color="primary"
@@ -103,7 +109,7 @@ const DashboardPage = () => {
               )}
               {stats.total_courses_count != null && (
                 <StatCard
-                  title="Total Courses"
+                  title={t("dashboard.totalCourses")}
                   value={String(stats.total_courses_count)}
                   icon={<BookStack className="h-5 w-5" />}
                   color="auxiliary"
@@ -111,7 +117,7 @@ const DashboardPage = () => {
               )}
               {stats.total_classes_count != null && (
                 <StatCard
-                  title="Total Classes"
+                  title={t("dashboard.totalClasses")}
                   value={String(stats.total_classes_count)}
                   icon={<Calendar className="h-5 w-5" />}
                   color="warning"
@@ -119,7 +125,7 @@ const DashboardPage = () => {
               )}
               {stats.total_instructors_count != null && (
                 <StatCard
-                  title="Total Instructors"
+                  title={t("dashboard.totalInstructors")}
                   value={String(stats.total_instructors_count)}
                   icon={<User className="h-5 w-5" />}
                   color="success"
@@ -144,27 +150,27 @@ const DashboardPage = () => {
               ) : (
                 <div className="grid gap-4 xl:grid-cols-4">
                   <AnalyticsLineChart
-                    title="Total Earnings Over Time"
-                    subtitle="Paid subscriptions — last 12 months"
+                    title={t("dashboard.earningsOverTime")}
+                    subtitle={t("dashboard.earningsSubtitle")}
                     data={analytics.earnings_over_time ?? []}
                     valuePrefix="$"
                     colorClass="text-primary"
                   />
                   <AnalyticsLineChart
-                    title="Student Enrolments Over Time"
-                    subtitle="New subscription records — last 12 months"
+                    title={t("dashboard.enrollmentsOverTime")}
+                    subtitle={t("dashboard.enrollmentsSubtitle")}
                     data={analytics.enrollments_over_time ?? []}
                     colorClass="text-success"
                   />
                   <AnalyticsLineChart
-                    title="Classes Conducted Over Time"
-                    subtitle="New LMS classes — last 12 months"
+                    title={t("dashboard.classesOverTime")}
+                    subtitle={t("dashboard.classesSubtitle")}
                     data={analytics.classes_over_time ?? []}
                     colorClass="text-auxiliary"
                   />
                   <AnalyticsLineChart
-                    title="User Registrations Over Time"
-                    subtitle="New user accounts — last 12 months"
+                    title={t("dashboard.registrationsOverTime")}
+                    subtitle={t("dashboard.registrationsSubtitle")}
                     data={analytics.user_registrations_over_time ?? []}
                     colorClass="text-info"
                   />
@@ -175,19 +181,19 @@ const DashboardPage = () => {
 
           {(hasUsersPermission || hasRolesPermission) && (
             <div className="rounded-xl border border-border bg-card p-6">
-              <h2 className="mb-4 font-semibold text-foreground">Quick Actions</h2>
+              <h2 className="mb-4 font-semibold text-foreground">{t("dashboard.quickActions")}</h2>
               <div className="flex flex-wrap gap-3">
                 {hasUsersPermission && (
                   <QuickAction
                     icon={<Group className="h-4 w-4" />}
-                    label="Manage Users"
+                    label={t("dashboard.manageUsers")}
                     href="/users"
                   />
                 )}
                 {hasRolesPermission && (
                   <QuickAction
                     icon={<Shield className="h-4 w-4" />}
-                    label="Manage Roles"
+                    label={t("dashboard.manageRoles")}
                     href="/roles"
                   />
                 )}
@@ -200,7 +206,7 @@ const DashboardPage = () => {
       {!hasAdminDashboard && (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
           <p className="text-muted-foreground">
-            Welcome to the dashboard. Use the sidebar to navigate.
+            {t("dashboard.noAdminAccess")}
           </p>
         </div>
       )}
@@ -221,6 +227,8 @@ const EarningsStatCard = ({
   sparkline,
   formatCurrency,
 }: EarningsStatCardProps) => {
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
   const isPositive = changePercent >= 0;
 
   return (
@@ -229,7 +237,7 @@ const EarningsStatCard = ({
         <Dollar className="h-5 w-5" />
       </div>
       <p className="pr-12 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Total Earnings
+        {t("dashboard.totalEarnings")}
       </p>
       <p className="mt-2 text-2xl font-bold tracking-tight text-foreground xl:text-3xl">
         {formatCurrency(totalEarnings)}
@@ -242,7 +250,7 @@ const EarningsStatCard = ({
           )}
         >
           {isPositive ? "+" : ""}
-          {changePercent}% monthly
+          {fmt("dashboard.monthlyChange", { percent: String(changePercent) })}
         </span>
       </div>
       {sparkline.length > 0 && (

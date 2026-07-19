@@ -25,6 +25,7 @@ import {
 } from "../../hooks/useCourseEntity";
 import { useCourseFormMeta } from "../../hooks/useCourseFormMeta";
 import { useNextClassCode, useNextStudentCode } from "../../hooks/useLmsClassActions";
+import { useCourseI18n } from "../../hooks/useCourseI18n";
 import {
   Button,
   DrawerBody,
@@ -218,11 +219,12 @@ const SUB_FREE_PAID_OPTIONS = [
 
 const CourseEntityFormDrawer = ({
   slug,
-  entityTitle,
+  entityTitle: _entityTitle,
   mode,
   entityId,
   onSuccess,
 }: CourseEntityFormDrawerProps) => {
+  const { drawerHeading } = useCourseI18n();
   const def = COURSE_ENTITY_FORM_REGISTRY[slug];
   const readOnly = mode === "view";
   const formMetaKey =
@@ -596,12 +598,7 @@ const CourseEntityFormDrawer = ({
     );
   };
 
-  const heading =
-    mode === "create"
-      ? `Create ${entityTitle}`
-      : mode === "edit"
-        ? `Edit ${entityTitle}`
-        : `View ${entityTitle}`;
+  const heading = drawerHeading(mode, slug);
 
   const detailThumbnailUrl =
     typeof detail?.thumbnail_url === "string" && detail.thumbnail_url.trim() !== ""
@@ -889,6 +886,20 @@ const CourseEntityFormDrawer = ({
                   <p className="mt-1 text-base font-medium capitalize">
                     {String(detail.class_type ?? "—")}
                   </p>
+                </div>
+                <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
+                  <Cash className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Class fee</p>
+                    <p className="mt-1 text-base font-semibold tabular-nums">
+                      {detail.class_fee != null && detail.class_fee !== ""
+                        ? Number(detail.class_fee).toLocaleString(undefined, {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          })
+                        : "—"}
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
