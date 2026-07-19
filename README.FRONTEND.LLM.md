@@ -768,7 +768,7 @@ Production URL examples: `https://your-domain.com` for the SPA, `https://your-do
 | `/instructors` | Instructor list (uses `forcedSlug="instructors"`) | `course.instructors.read` |
 | `/learn/course/:courseId` | Student **CoursePlayerPage** with lesson video | none (enrollment-enforced) |
 
-**`COURSE_ENTITY_REGISTRY`** (`src/modules/Course/data/courseRegistry.ts`): maps every `CourseEntitySlug` to `{ slug, title, apiPath, permission, columns, filterParams? }`. Entity slugs: `main-categories`, `sub-categories`, `course-faasls`, `courses`, `lessons`, `assignments`, `downloadable-resources`, `quiz-files`, `student-discounts`, `subscription-plans`, `student-subscriptions`, `instructors`, `lms-classes`, `lms-class-students`.
+**`COURSE_ENTITY_REGISTRY`** (`src/modules/Course/data/courseRegistry.ts`): maps every `CourseEntitySlug` to `{ slug, title, apiPath, permission, columns, filterParams? }`. Entity slugs: `main-categories`, `sub-categories`, `course-faasls`, `courses`, `lessons`, `assignments`, `downloadable-resources`, `quiz-files`, `subscription-plans`, `student-subscriptions`, `instructors`, `lms-classes`, `lms-class-students`. **Standalone nav:** `/classes` (LMS classes), `/students` (student profiles), `/classes/:classId/students` (class enrollment management).
 
 Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `useUpdateCourseEntity` from `modules/Course/hooks/useCourseEntity.ts`. Mutations set `hasFiles` automatically when the body includes a `File`; multipart uses POST + `_method` for PATCH when files are present (see `callApi`).
 
@@ -778,18 +778,17 @@ Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `us
 
 ### LMS classes + class students (current behavior)
 
-- **LMS classes (`/course/lms-classes`)**
-  - List uses relation fields (`course_name`, `instructor_name`) instead of raw IDs.
-  - `class_type` is rendered as badges (`online` = green, `offline` = blue).
-  - Create/edit drawer uses searchable selects for optional course and required instructor; class name can auto-fill from selected course title.
-  - View drawer shows richer cards with icons and separated schedule blocks (human-readable date + normalized `YYYY-MM-DD`; time in `HH:mm:ss`).
-- **Class students (`/course/lms-class-students`)**
-  - Frontend slug remains `lms-class-students`, but API path is `/students`.
-  - Create/edit supports hybrid enrollment (online/offline): required class select, optional user select, manual profile fields, optional profile picture upload, grade + note.
-  - Students can appear in multiple classes; do not enforce unique `user_id` in client assumptions.
-  - View drawer includes profile picture, full profile details, status, and classes-taken summary when provided by API.
-- **UI/layout notes**
-  - Drawer forms for these entities are `flex` + `min-h-0` layouts so body scroll and footer actions remain stable with large searchable dropdown content.
+- **LMS classes (`/classes`)**
+  - List filtered by `class_status` tab: `active` | `archived` | `completed` (segmented control left of Add new).
+  - Columns: `class_code` (not numeric id), DATE badge (`start_date – end_date`), TIME badge, archive/complete/restore row actions, **Students** navigates to `/classes/:classId/students`.
+  - Create drawer previews next `class_code` (`RC{YY}-{4-digit}`) and includes `class_fee`.
+  - Complete action opens drawer with prefilled `end_date` and **This class is finished**.
+- **Students (`/students`)**
+  - Independent student profiles (no class select on create/edit). Auto `student_code` (`RS{YY}-{5-digit}`) preview on create.
+  - API path remains `/students`; slug `lms-class-students`.
+- **Class student management (`/classes/:classId/students`)**
+  - Enroll existing students, remove, grade+marks, disable with reason, payment/discount fields per enrollment (pivot `class_student`).
+- **Removed:** `student-discounts` entity and routes (discount handled per enrollment on class students page).
 
 ### Course categories (main / sub) — current behavior
 
