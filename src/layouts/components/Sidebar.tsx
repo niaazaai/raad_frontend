@@ -13,6 +13,8 @@ import {
   PageSearch,
   Hat,
   GraduationCap,
+  Group,
+  Calendar,
 } from "iconoir-react";
 import { useLayoutStore } from "@/store";
 import { cn } from "@/lib/utils";
@@ -57,19 +59,19 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Courses: "sidebar.courses",
   Overview: "sidebar.overview",
   Instructors: "sidebar.instructors",
+  Students: "sidebar.students",
+  Classes: "sidebar.classes",
   "My learning": "sidebar.myLearning",
   "Main categories": "sidebar.mainCategories",
   "Sub categories": "sidebar.subCategories",
   "Student discounts": "sidebar.studentDiscounts",
-  "Subscription plans": "sidebar.subscriptionPlans",
-  "Student subscriptions": "sidebar.studentSubscriptions",
-  Classes: "sidebar.classes",
-  "Class students": "sidebar.classStudents",
   "Modules (faasl)": "sidebar.modules",
   Lessons: "sidebar.lessons",
   Assignments: "sidebar.assignments",
   "Downloadable resources": "sidebar.downloadableResources",
   "Quiz files": "sidebar.quizFiles",
+  "Subscription plans": "sidebar.subscriptionPlans",
+  "Student subscriptions": "sidebar.studentSubscriptions",
 };
 
 function linkIsActive(pathname: string, itemPath: string): boolean {
@@ -85,6 +87,12 @@ function linkIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === "/instructors") {
     return pathname === "/instructors";
+  }
+  if (itemPath === "/classes") {
+    return pathname === "/classes" || pathname.startsWith("/classes/");
+  }
+  if (itemPath === "/students") {
+    return pathname === "/students";
   }
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
@@ -190,10 +198,22 @@ const Sidebar = () => {
         skipChildPermissionFilter: true,
       },
       {
+        title: "Classes",
+        path: "/classes",
+        icon: <Calendar className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
+      },
+      {
         title: "Instructors",
         path: "/instructors",
         icon: <Hat className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
         permission: COURSE_ENTITY_REGISTRY.instructors.permission,
+      },
+      {
+        title: "Students",
+        path: "/students",
+        icon: <Group className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
       },
       ...baseNavItems.slice(1),
     ],
