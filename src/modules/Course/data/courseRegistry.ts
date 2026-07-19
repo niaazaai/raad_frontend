@@ -8,7 +8,6 @@ export type CourseEntitySlug =
   | "downloadable-resources"
   | "quiz-files"
   | "mock-tests"
-  | "student-discounts"
   | "subscription-plans"
   | "student-subscriptions"
   | "instructors"
@@ -116,16 +115,6 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
     columns: ["id", "course_id", "title", "status", "uploaded_at"],
     filterParams: ["course_id"],
   },
-  "student-discounts": {
-    slug: "student-discounts",
-    title: "Student discounts",
-    pageDescription:
-      "Reward loyal cohorts or partners—percentage or fixed reductions per learner and course, with clear status.",
-    apiPath: "/student-discounts",
-    permission: "course.discounts.read",
-    columns: ["id", "course_id", "user_id", "discount_type", "discount_status", "created_at"],
-    filterParams: ["course_id"],
-  },
   "subscription-plans": {
     slug: "subscription-plans",
     title: "Subscription plans",
@@ -167,16 +156,24 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Schedule live or on-demand cohorts—dates, instructors, and status for every ACCA class instance.",
     apiPath: "/lms-classes",
     permission: "course.lms_classes.read",
-    columns: ["id", "name", "course_name", "instructor_name", "class_type", "start_date", "end_date"],
+    columns: [
+      "class_code",
+      "name",
+      "course_name",
+      "instructor_name",
+      "class_type",
+      "schedule_date",
+      "schedule_time",
+    ],
   },
   "lms-class-students": {
     slug: "lms-class-students",
-    title: "Class students",
+    title: "Students",
     pageDescription:
-      "Roster, grades, and feedback per cohort—close the loop from enrollment to instructor sign-off.",
+      "Independent student profiles—register learners once, then enroll them in classes from the class management page.",
     apiPath: "/students",
     permission: "course.class_students.read",
-    columns: ["id", "class_name", "user_name", "grade", "status", "enrollment_date", "phone_number"],
+    columns: ["student_code", "first_name", "user_name", "phone_number", "email", "status"],
   },
 };
 

@@ -13,11 +13,8 @@ export const COURSE_SIDEBAR_ORDER: CourseEntitySlug[] = [
   "main-categories",
   "sub-categories",
   "courses",
-  "student-discounts",
   "subscription-plans",
   "student-subscriptions",
-  "lms-classes",
-  "lms-class-students",
 ];
 
 export type CourseSidebarRow = { kind: "overview" } | { kind: "entity"; slug: CourseEntitySlug };
