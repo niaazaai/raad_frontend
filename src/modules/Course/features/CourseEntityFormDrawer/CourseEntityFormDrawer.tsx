@@ -24,6 +24,7 @@ import {
   useUpdateCourseEntity,
 } from "../../hooks/useCourseEntity";
 import { useCourseFormMeta } from "../../hooks/useCourseFormMeta";
+import { useNextClassCode, useNextStudentCode } from "../../hooks/useLmsClassActions";
 import {
   Button,
   DrawerBody,
@@ -297,6 +298,19 @@ const CourseEntityFormDrawer = ({
 
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [studentProfileImage, setStudentProfileImage] = useState<File | null>(null);
+
+  const isCreateMode = mode === "create";
+  const nextClassCodeQuery = useNextClassCode(slug === "lms-classes" && isCreateMode && !readOnly);
+  const nextStudentCodeQuery = useNextStudentCode(
+    slug === "lms-class-students" && isCreateMode && !readOnly
+  );
+  const nextClassCode =
+    (nextClassCodeQuery.data as { data?: { class_code?: string } } | undefined)?.data?.class_code ??
+    (nextClassCodeQuery.data as { class_code?: string } | undefined)?.class_code;
+  const nextStudentCode =
+    (nextStudentCodeQuery.data as { data?: { student_code?: string } } | undefined)?.data
+      ?.student_code ??
+    (nextStudentCodeQuery.data as { student_code?: string } | undefined)?.student_code;
 
   const courseOptionsQuery = useCourseEntityList(
     slug === "lms-classes" ? "courses" : null,
@@ -872,9 +886,17 @@ const CourseEntityFormDrawer = ({
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Class ID</p>
+                  <p className="mt-1 font-mono text-base font-semibold text-primary">
+                    {String(detail.class_code ?? detail.id ?? "—")}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Class name</p>
                   <p className="mt-1 text-base font-semibold">{String(detail.name ?? "—")}</p>
                 </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Type</p>
                   <p className="mt-1 text-base font-medium capitalize">
@@ -1238,6 +1260,12 @@ const CourseEntityFormDrawer = ({
 
           {slug === "lms-classes" && !readOnly && (
             <div className="space-y-4">
+              {isCreateMode && nextClassCode ? (
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Next class ID</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-primary">{nextClassCode}</p>
+                </div>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-4">
                 <div className="space-y-1.5 sm:col-span-3">
                   <Label htmlFor="cef-class-name">
@@ -1289,6 +1317,17 @@ const CourseEntityFormDrawer = ({
                   )}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cef-class-fee">Class fee (default for enrolled students)</Label>
+                <Input
+                  id="cef-class-fee"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  {...register("class_fee")}
+                  placeholder="e.g. 5000"
+                />
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-start-date">Start date</Label>
@@ -1314,39 +1353,27 @@ const CourseEntityFormDrawer = ({
 
           {slug === "lms-class-students" && !readOnly && (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Controller
-                  name="class_id"
-                  control={control}
-                  render={({ field }) => (
-                    <SearchableSelect
-                      id="cef-student-class"
-                      label="Class"
-                      required
-                      options={lmsStudentClassOptions}
-                      value={String(field.value ?? "")}
-                      onChange={field.onChange}
-                      placeholder="Select class…"
-                      disabled={classOptionsQuery.isFetching}
-                    />
-                  )}
-                />
-                <Controller
-                  name="user_id"
-                  control={control}
-                  render={({ field }) => (
-                    <SearchableSelect
-                      id="cef-student-user"
-                      label="User (optional)"
-                      options={classStudentUserOptions}
-                      value={String(field.value ?? "")}
-                      onChange={field.onChange}
-                      placeholder="Search user…"
-                      disabled={studentUsersQuery.isFetching}
-                    />
-                  )}
-                />
-              </div>
+              {isCreateMode && nextStudentCode ? (
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Next student ID</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-primary">{nextStudentCode}</p>
+                </div>
+              ) : null}
+              <Controller
+                name="user_id"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    id="cef-student-user"
+                    label="User (optional)"
+                    options={classStudentUserOptions}
+                    value={String(field.value ?? "")}
+                    onChange={field.onChange}
+                    placeholder="Search user…"
+                    disabled={studentUsersQuery.isFetching}
+                  />
+                )}
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-first-name">

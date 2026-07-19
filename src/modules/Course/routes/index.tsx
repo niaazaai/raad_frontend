@@ -4,7 +4,9 @@ import { ProtectedRouteType } from "@/types/routes";
 
 const CourseHub = lazy(() => import("../features/CourseHub/CourseHub"));
 const CourseEntityList = lazy(() => import("../features/CourseEntityList/CourseEntityList"));
+const ClassStudentsPage = lazy(() => import("../features/ClassStudentsPage/ClassStudentsPage"));
 const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
+
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
 const courseAnyPermissions = [
@@ -16,7 +18,6 @@ const courseAnyPermissions = [
   "course.assignments.read",
   "course.resources.read",
   "course.quiz_files.read",
-  "course.discounts.read",
   "course.subscription_plans.read",
   "course.student_subscriptions.read",
   "course.instructors.read",
@@ -25,6 +26,24 @@ const courseAnyPermissions = [
 ];
 
 export const CourseModuleRoutes: ProtectedRouteType[] = [
+  {
+    path: "/classes/:classId/students",
+    component: <ClassStudentsPage />,
+    permission: "course.class_students.read",
+    anyPermission: courseAnyPermissions,
+  },
+  {
+    path: "/classes",
+    component: <CourseEntityList forcedSlug="lms-classes" />,
+    permission: "course.lms_classes.read",
+    anyPermission: courseAnyPermissions,
+  },
+  {
+    path: "/students",
+    component: <CourseEntityList forcedSlug="lms-class-students" />,
+    permission: "course.class_students.read",
+    anyPermission: courseAnyPermissions,
+  },
   {
     path: "/instructors",
     component: <CourseEntityList forcedSlug="instructors" />,

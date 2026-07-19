@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
-import { useParams, useSearchParams, useLocation } from "react-router-dom";
-import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList } from "iconoir-react";
+import { useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble } from "iconoir-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
@@ -24,13 +24,24 @@ import {
   Button,
   DataTable,
   Drawer,
+  DrawerBody,
   DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
   DrawerOverlay,
+  Input,
+  Label,
   PageBreadcrumb,
   SearchableSelect,
   useConfirmDialog,
   confirmPresets,
 } from "@/components/ui";
+import {
+  useArchiveLmsClassMutation,
+  useCompleteLmsClassMutation,
+  useRestoreLmsClassMutation,
+} from "../../hooks/useLmsClassActions";
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { cn } from "@/lib/utils";
@@ -62,6 +73,42 @@ function formatYmd(value: unknown): string {
   if (Number.isNaN(d.getTime())) return raw;
   return d.toISOString().slice(0, 10);
 }
+
+function formatTimePart(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  return raw.length >= 5 ? raw.slice(0, 5) : raw;
+}
+
+function ScheduleDateBadge({ row }: { row: CourseRow }) {
+  const start = formatYmd(row.start_date);
+  const end = formatYmd(row.end_date);
+  if (start === "—" && end === "—") return <span>—</span>;
+  return (
+    <span className="inline-flex rounded-md border border-border px-2 py-0.5 font-mono text-xs text-foreground">
+      {start} – {end}
+    </span>
+  );
+}
+
+function ScheduleTimeBadge({ row }: { row: CourseRow }) {
+  const start = formatTimePart(row.start_time);
+  const end = formatTimePart(row.end_time);
+  if (!start && !end) return <span>—</span>;
+  return (
+    <span className="inline-flex rounded-md border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground">
+      {start || "—"} – {end || "—"}
+    </span>
+  );
+}
+
+const LMS_CLASS_STATUS_TABS = [
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+  { value: "completed", label: "Completed" },
+] as const;
+
+type LmsClassStatusTab = (typeof LMS_CLASS_STATUS_TABS)[number]["value"];
 
 const STATUS_FILTER_OPTIONS = [
   { value: "active", label: "Active" },
@@ -206,8 +253,16 @@ export type CourseEntityListProps = {
 const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const { hasPermission } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { slug: slugFromRoute } = useParams<{ slug: string }>();
   const slug = forcedSlug ?? slugFromRoute;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [classStatusTab, setClassStatusTab] = useState<LmsClassStatusTab>("active");
+  const [completeModalRow, setCompleteModalRow] = useState<CourseRow | null>(null);
+  const [completeEndDate, setCompleteEndDate] = useState("");
+  const archiveClass = useArchiveLmsClassMutation();
+  const restoreClass = useRestoreLmsClassMutation();
+  const completeClass = useCompleteLmsClassMutation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterCourseId, setFilterCourseId] = useState(searchParams.get("course_id") ?? "");
   const [filterClassId, setFilterClassId] = useState(searchParams.get("class_id") ?? "");
@@ -268,6 +323,9 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         o.class_id = filterClassId.trim();
       }
     }
+    if (resolvedSlug === "lms-classes") {
+      o.class_status = classStatusTab;
+    }
     return o;
   }, [
     cfg,
@@ -275,6 +333,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     filterCourseId,
     filterClassId,
     filterSubscriptionStatus,
+    classStatusTab,
   ]);
 
   const apiParams = {
@@ -375,7 +434,13 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 ? "Plan"
                 : key === "subscription_public_id"
                   ? "Subscription ID"
-                  : key.replace(/_/g, " "),
+                  : key === "schedule_date"
+                    ? "Date"
+                    : key === "schedule_time"
+                      ? "Time"
+                      : key === "class_code"
+                        ? "Class ID"
+                        : key.replace(/_/g, " "),
       sortable: key !== "id" && key !== "course_title" && key !== "user_name" && key !== "plan_name",
       filterable: key.includes("status"),
       filterOptions: key.includes("status") ? STATUS_FILTER_OPTIONS : undefined,
@@ -399,6 +464,19 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         }
         if (key === "class_type") {
           return <ClassTypeBadge value={row[key]} />;
+        }
+        if (key === "class_code") {
+          return (
+            <span className="font-mono text-sm font-medium text-primary">
+              {getTextOrFallback(row.class_code)}
+            </span>
+          );
+        }
+        if (key === "schedule_date") {
+          return <ScheduleDateBadge row={row} />;
+        }
+        if (key === "schedule_time") {
+          return <ScheduleTimeBadge row={row} />;
         }
         if (key === "grade") {
           return <GradeBadge value={row[key]} />;
@@ -462,6 +540,58 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 },
               },
             ]),
+        ...(resolvedSlug === "lms-classes"
+          ? [
+              {
+                key: "students",
+                label: "Students",
+                icon: <CommunityIcon className="h-4 w-4" />,
+                permission: "course.class_students.read",
+                onClick: (row: CourseRow) => {
+                  const id = typeof row.id === "number" ? row.id : Number(row.id);
+                  if (!Number.isNaN(id)) navigate(`/classes/${id}/students`);
+                },
+              },
+              {
+                key: "archive",
+                label: "Archive",
+                icon: <Archive className="h-4 w-4" />,
+                permission: updatePerm,
+                onClick: async (row: CourseRow) => {
+                  const id = typeof row.id === "number" ? row.id : Number(row.id);
+                  if (Number.isNaN(id)) return;
+                  if (!(await confirm({ title: "Archive class", message: "Move this class to archived?", confirmText: "Archive", variant: "warning" }))) return;
+                  archiveClass.mutate({ id });
+                },
+              },
+              {
+                key: "restore",
+                label: "Restore",
+                icon: <RefreshDouble className="h-4 w-4" />,
+                permission: updatePerm,
+                onClick: async (row: CourseRow) => {
+                  const id = typeof row.id === "number" ? row.id : Number(row.id);
+                  if (Number.isNaN(id)) return;
+                  restoreClass.mutate({ id });
+                },
+              },
+              {
+                key: "complete",
+                label: "Complete",
+                icon: <CheckCircle className="h-4 w-4" />,
+                permission: updatePerm,
+                onClick: (row: CourseRow) => {
+                  setCompleteModalRow(row);
+                  setCompleteEndDate(formatYmd(row.end_date) !== "—" ? formatYmd(row.end_date) : "");
+                },
+              },
+            ].filter((action) => {
+              if (action.key === "archive") return classStatusTab === "active";
+              if (action.key === "restore") return classStatusTab === "archived";
+              if (action.key === "complete") return classStatusTab === "active";
+              return true;
+            })
+          : []),
         ...(resolvedSlug === "main-categories"
           ? [
               {
@@ -560,6 +690,11 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     openViewDrawer,
     openEditDrawer,
     openSubCategoriesDrawer,
+    classStatusTab,
+    navigate,
+    archiveClass,
+    restoreClass,
+    confirm,
   ]);
 
   if (!resolvedSlug || !cfg) {
@@ -588,6 +723,12 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const isStandaloneInstructors =
     resolvedSlug === "instructors" &&
     (forcedSlug === "instructors" || location.pathname === "/instructors");
+  const isStandaloneClasses =
+    resolvedSlug === "lms-classes" &&
+    (forcedSlug === "lms-classes" || location.pathname === "/classes");
+  const isStandaloneStudents =
+    resolvedSlug === "lms-class-students" &&
+    (forcedSlug === "lms-class-students" || location.pathname === "/students");
 
   return (
     <div className="space-y-6 p-6">
@@ -599,16 +740,37 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               items={
                 isStandaloneInstructors
                   ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
-                  : [{ label: "Course", to: "/course" }, { label: cfg.title }]
+                  : isStandaloneClasses
+                    ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
+                    : isStandaloneStudents
+                      ? [{ label: "Dashboard", to: "/dashboard" }, { label: cfg.title }]
+                      : [{ label: "Course", to: "/course" }, { label: cfg.title }]
               }
             />
           </div>
         </div>
         <Can permission={createPerm}>
-          <Button type="button" onClick={openCreateDrawer} className="shrink-0 gap-2">
-            <Plus className="h-4 w-4 stroke-[1.5]" />
-            Add new
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {resolvedSlug === "lms-classes" && (
+              <div className="inline-flex rounded-lg border border-border p-1">
+                {LMS_CLASS_STATUS_TABS.map((tab) => (
+                  <Button
+                    key={tab.value}
+                    type="button"
+                    size="sm"
+                    variant={classStatusTab === tab.value ? "default" : "ghost"}
+                    onClick={() => setClassStatusTab(tab.value)}
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <Button type="button" onClick={openCreateDrawer} className="shrink-0 gap-2">
+              <Plus className="h-4 w-4 stroke-[1.5]" />
+              Add new
+            </Button>
+          </div>
         </Can>
       </div>
 
@@ -715,6 +877,48 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         mainCategoryId={subCategoriesMain?.id ?? null}
         mainCategoryTitle={subCategoriesMain?.title ?? ""}
       />
+
+      <Drawer open={!!completeModalRow} onClose={() => setCompleteModalRow(null)}>
+        <DrawerOverlay />
+        <DrawerContent className="max-w-md">
+          <DrawerHeader>
+            <DrawerTitle>Mark class as finished</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="complete-end-date">End date</Label>
+              <Input
+                id="complete-end-date"
+                type="date"
+                value={completeEndDate}
+                onChange={(e) => setCompleteEndDate(e.target.value)}
+              />
+            </div>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button type="button" variant="outline" onClick={() => setCompleteModalRow(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              loading={completeClass.isPending}
+              onClick={() => {
+                const id =
+                  typeof completeModalRow?.id === "number"
+                    ? completeModalRow.id
+                    : Number(completeModalRow?.id);
+                if (Number.isNaN(id)) return;
+                completeClass.mutate(
+                  { id, end_date: completeEndDate || undefined },
+                  { onSuccess: () => setCompleteModalRow(null) }
+                );
+              }}
+            >
+              This class is finished
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
