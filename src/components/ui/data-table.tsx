@@ -33,6 +33,8 @@ import type {
   SortDirection,
 } from "@/types/datatable";
 import { useAuth } from "@/features/auth";
+import { useTranslation } from "@/i18n/useTranslation";
+import { useFormatMessage } from "@/i18n/useConfirmPresets";
 
 export interface DataTableProps<T = unknown> {
   data: T[];
@@ -143,6 +145,7 @@ function ActionsCell<T>({
   actions: NonNullable<DataTableConfig<T>["actions"]>;
   rowId: (r: T) => string | number;
 }) {
+  const { t } = useTranslation();
   const resolveLabel = (action: DataTableActionItem<T>) =>
     typeof action.label === "function" ? action.label(row) : action.label;
   const resolveIcon = (action: DataTableActionItem<T>) =>
@@ -154,7 +157,7 @@ function ActionsCell<T>({
     <td className="whitespace-nowrap px-4 py-3 text-right">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t("dataTable.actions")}>
             <MoreHoriz className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -193,18 +196,23 @@ export function DataTable<T>({
   pagination,
   isLoading = false,
 }: DataTableProps<T>) {
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
   const {
     columns,
     rowId,
     actions,
     searchable = true,
-    searchPlaceholder = "Search...",
+    searchPlaceholder,
     filtersEnabled = true,
     pageSizeOptions = PAGE_SIZE_OPTIONS,
     paginationEnabled = true,
     showRecordCount = true,
-    emptyMessage = "No records found.",
+    emptyMessage,
   } = config;
+
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t("dataTable.search");
+  const resolvedEmptyMessage = emptyMessage ?? t("dataTable.noRecords");
 
   const visibleActions = usePermissionFilteredActions(actions);
   const hasActions = visibleActions.length > 0;
@@ -242,11 +250,11 @@ export function DataTable<T>({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder={searchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
             value={params.search}
             onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
             className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            aria-label="Search"
+            aria-label={t("dataTable.searchLabel")}
           />
         </div>
       )}
@@ -268,7 +276,7 @@ export function DataTable<T>({
               ))}
               {hasActions && (
                 <th className="w-14 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Actions
+                  {t("dataTable.actions")}
                 </th>
               )}
             </tr>
@@ -289,7 +297,7 @@ export function DataTable<T>({
                   colSpan={columns.length + (hasActions ? 1 : 0)}
                   className="px-4 py-12 text-center text-muted-foreground"
                 >
-                  {emptyMessage}
+                  {resolvedEmptyMessage}
                 </td>
               </tr>
             ) : (
@@ -322,13 +330,17 @@ export function DataTable<T>({
           <div className="flex items-center gap-3">
             {showRecordCount && (
               <span className="text-sm text-muted-foreground">
-                {from} to {to} of {total} records
+                {fmt("dataTable.recordsRange", {
+                  from: String(from),
+                  to: String(to),
+                  total: String(total),
+                })}
               </span>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  {perPage} per page
+                  {fmt("dataTable.perPage", { count: String(perPage) })}
                   <NavArrowDown className="ml-1 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -338,7 +350,7 @@ export function DataTable<T>({
                     key={size}
                     onSelect={() => onParamsChange({ per_page: size, page: 1 })}
                   >
-                    {size} per page
+                    {fmt("dataTable.perPage", { count: String(size) })}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -352,10 +364,13 @@ export function DataTable<T>({
               disabled={currentPage <= 1}
             >
               <NavArrowLeft className="h-4 w-4" />
-              Previous
+              {t("dataTable.previous")}
             </Button>
             <span className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
+              {fmt("dataTable.pageOf", {
+                current: String(currentPage),
+                total: String(totalPages),
+              })}
             </span>
             <Button
               variant="outline"
@@ -363,7 +378,7 @@ export function DataTable<T>({
               onClick={() => onParamsChange({ page: currentPage + 1 })}
               disabled={currentPage >= totalPages}
             >
-              Next
+              {t("dataTable.next")}
               <NavArrowRight className="h-4 w-4" />
             </Button>
           </div>
