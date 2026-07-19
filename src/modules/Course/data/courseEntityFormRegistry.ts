@@ -205,22 +205,6 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
     ],
     statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
   },
-  "student-discounts": {
-    fields: [
-      { name: "course_id", label: "Course ID", type: "number", required: true },
-      { name: "user_id", label: "User ID", type: "number", required: true },
-      { name: "discount_type", label: "Discount type", type: "select", options: DISCOUNT_TYPE },
-      { name: "discount_value", label: "Discount value", type: "number" },
-      {
-        name: "discount_status",
-        label: "Discount status",
-        type: "select",
-        options: ACTIVE_INACTIVE,
-      },
-      { name: "discounted_at", label: "Discounted at", type: "date", required: true },
-    ],
-    statusToggle: { field: "discount_status", activeValue: "active", inactiveValue: "inactive" },
-  },
   "subscription-plans": {
     fields: [
       { name: "plan_name", label: "Plan name", type: "text", required: true },
@@ -259,6 +243,7 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "course_id", label: "Course", type: "select" },
       { name: "instructor_id", label: "Instructor", type: "select", required: true },
       { name: "class_type", label: "Class type", type: "select", options: CLASS_TYPE },
+      { name: "class_fee", label: "Class fee", type: "number" },
       { name: "start_date", label: "Start date", type: "date" },
       { name: "end_date", label: "End date", type: "date" },
       { name: "start_time", label: "Start time", type: "time" },
@@ -267,15 +252,12 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   },
   "lms-class-students": {
     fields: [
-      { name: "class_id", label: "Class", type: "select", required: true },
       { name: "user_id", label: "User (optional)", type: "select" },
       { name: "first_name", label: "First name", type: "text", required: true },
       { name: "last_name", label: "Last name", type: "text" },
       { name: "phone_number", label: "Phone number", type: "text" },
       { name: "national_id", label: "National ID", type: "text" },
       { name: "email", label: "Email", type: "text" },
-      { name: "enrollment_date", label: "Enrollment date", type: "date" },
-      { name: "grade", label: "Grade", type: "select", options: GRADE_OPTS },
       { name: "notes", label: "Note", type: "textarea" },
     ],
     statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
@@ -319,19 +301,12 @@ export function getCreateDefaultsForEntity(
       out.uploaded_at = today;
       out.status = "active";
       break;
-    case "student-discounts":
-      out.discounted_at = today;
-      out.discount_status = "active";
-      out.discount_type = "percentage";
-      break;
     case "student-subscriptions":
       break;
     case "lms-classes":
       out.class_type = "online";
       break;
     case "lms-class-students":
-      out.enrollment_date = today;
-      out.grade = "PENDING";
       out.status = "active";
       break;
     default:
