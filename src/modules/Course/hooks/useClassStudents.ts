@@ -1,0 +1,96 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationApi, useQueryApi } from "@/hooks";
+import { RequestMethod } from "@/data/constants/methods";
+import { callApi } from "@/services";
+
+export interface ClassStudentRow {
+  id: number;
+  class_id: number;
+  student_id: number;
+  student_code?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
+  phone_number?: string;
+  user_name?: string;
+  grade?: string;
+  marks?: number | string | null;
+  enrollment_date?: string;
+  status?: string;
+  disable_reason?: string | null;
+  discount_percent?: number | string;
+  fee_amount?: number | string;
+  paid_amount?: number | string;
+  due_amount?: number | string;
+  payment_status?: string;
+  notes?: string | null;
+}
+
+export const classStudentsQueryKey = (classId: number, params?: Record<string, unknown>) =>
+  ["lms-classes", classId, "students", params] as const;
+
+export function useClassStudents(classId: number, params?: Record<string, unknown>) {
+  return useQueryApi<ClassStudentRow[]>({
+    queryKey: classStudentsQueryKey(classId, params),
+    url: `/lms-classes/${classId}/students`,
+    method: RequestMethod.GET,
+    params,
+    options: { enabled: classId > 0 },
+  });
+}
+
+export function useAttachClassStudent(classId: number) {
+  return useMutationApi<ClassStudentRow, { student_id: number }>({
+    url: `/lms-classes/${classId}/students`,
+    method: RequestMethod.POST,
+    invalidateKeys: [classStudentsQueryKey(classId)],
+  });
+}
+
+export function useUpdateClassStudent(classId: number, enrollmentId: number) {
+  return useMutationApi<ClassStudentRow, Record<string, unknown>>({
+    url: `/lms-classes/${classId}/students/${enrollmentId}`,
+    method: RequestMethod.PUT,
+    invalidateKeys: [classStudentsQueryKey(classId)],
+  });
+}
+
+export function useRemoveClassStudent(classId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enrollmentId: number) => {
+      const response = await callApi({
+        url: `/lms-classes/${classId}/students/${enrollmentId}`,
+        method: RequestMethod.DELETE,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Remove failed");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lms-classes", classId, "students"] });
+    },
+  });
+}
+
+export function useDisableClassStudent(classId: number, enrollmentId: number) {
+  return useMutationApi<ClassStudentRow, { disable_reason: string }>({
+    url: `/lms-classes/${classId}/students/${enrollmentId}/disable`,
+    method: RequestMethod.POST,
+    invalidateKeys: [classStudentsQueryKey(classId)],
+  });
+}
+
+function extractList(response: unknown): ClassStudentRow[] {
+  if (!response || typeof response !== "object") return [];
+  const envelope = response as { data?: ClassStudentRow[] | { data?: ClassStudentRow[] } };
+  if (Array.isArray(envelope.data)) return envelope.data;
+  if (envelope.data && typeof envelope.data === "object" && Array.isArray(envelope.data.data)) {
+    return envelope.data.data;
+  }
+  return [];
+}
+
+export { extractList as extractClassStudentsFromResponse };
