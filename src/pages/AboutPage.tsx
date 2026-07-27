@@ -1,7 +1,7 @@
 import LandingNavbar from "@/components/website/LandingNavbar";
 import WebsiteFooter from "@/components/website/WebsiteFooter";
-import WebsiteShell from "@/components/website/WebsiteShell";
 import MissionVisionSection from "@/components/website/sections/MissionVisionSection";
+import TeamSection from "@/components/website/sections/TeamSection";
 import ScrollReveal from "@/components/website/ScrollReveal";
 import { Globe, ShieldCheck, HeartSolid } from "iconoir-react";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -19,37 +19,6 @@ function resolveLoginHref(): string {
   return "/login";
 }
 
-const timelineEvents = [
-  { year: "2012", label: "Founded", description: "Raad Professional Development Institute opens its doors in Kabul." },
-  { year: "2015", label: "ACCA Partnership", description: "Officially recognized as an ACCA Gold Approved Learning Partner." },
-  { year: "2020", label: "Online Programs", description: "Launched online learning platform, expanding access across Afghanistan." },
-  { year: "2024", label: "5,000+ Alumni", description: "Over five thousand graduates working in top firms and organizations." },
-];
-
-const values = [
-  {
-    icon: ShieldCheck,
-    titleKey: "about.excellence" as const,
-    description:
-      "We hold ourselves to the highest academic standards, ensuring every program delivers measurable, real-world impact for our students.",
-    color: "primary" as const,
-  },
-  {
-    icon: HeartSolid,
-    titleKey: "about.integrity" as const,
-    description:
-      "Honesty and transparency are at the core of everything we do — from our teaching methods to our relationships with students and partners.",
-    color: "auxiliary" as const,
-  },
-  {
-    icon: Globe,
-    titleKey: "about.accessibility" as const,
-    description:
-      "We believe world-class professional education should be within reach for every Afghan learner, regardless of background or circumstance.",
-    color: "primary" as const,
-  },
-];
-
 const valueStyles = {
   primary: { icon: "bg-primary/10 text-primary", border: "border-primary/20 hover:border-primary/35" },
   auxiliary: { icon: "bg-auxiliary/10 text-auxiliary", border: "border-auxiliary/20 hover:border-auxiliary/35" },
@@ -59,8 +28,37 @@ const AboutPage = () => {
   const loginHref = resolveLoginHref();
   const { t } = useTranslation();
 
+  const timelineEvents = [
+    { year: "2012", label: t("aboutPage.timeline2012Label"), description: t("aboutPage.timeline2012Desc") },
+    { year: "2015", label: t("aboutPage.timeline2015Label"), description: t("aboutPage.timeline2015Desc") },
+    { year: "2020", label: t("aboutPage.timeline2020Label"), description: t("aboutPage.timeline2020Desc") },
+    { year: "2024", label: t("aboutPage.timeline2024Label"), description: t("aboutPage.timeline2024Desc") },
+    { year: "2026", label: t("aboutPage.timeline2026Label"), description: t("aboutPage.timeline2026Desc") },
+  ];
+
+  const values = [
+    {
+      icon: ShieldCheck,
+      titleKey: "about.excellence" as const,
+      descriptionKey: "aboutPage.excellenceDesc" as const,
+      color: "primary" as const,
+    },
+    {
+      icon: HeartSolid,
+      titleKey: "about.integrity" as const,
+      descriptionKey: "aboutPage.integrityDesc" as const,
+      color: "auxiliary" as const,
+    },
+    {
+      icon: Globe,
+      titleKey: "about.accessibility" as const,
+      descriptionKey: "aboutPage.accessibilityDesc" as const,
+      color: "primary" as const,
+    },
+  ];
+
   return (
-    <WebsiteShell>
+    <>
       <LandingNavbar loginHref={loginHref} />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
@@ -75,30 +73,27 @@ const AboutPage = () => {
 
       <section className={`${sectionShellClass} border-y border-border/60 bg-muted/15`}>
         <div className={sectionInnerClass}>
-          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-            <ScrollReveal>
-              <span className={sectionBadgeClass}>{t("about.storyBadge")}</span>
-              <h2 className={`${sectionTitleClass} mt-4`}>{t("about.storyTitle")}</h2>
-              <p className={`${sectionSubtitleClass} mt-5`}>
-                Raad was founded in 2012 by Afghan finance professionals who recognized a critical gap in access to
-                globally recognized qualifications.
-              </p>
-            </ScrollReveal>
-            <ScrollReveal delay={80}>
-              <ol className="relative border-s border-border ps-8">
-                {timelineEvents.map((event) => (
-                  <li key={event.year} className="relative pb-8 last:pb-0">
-                    <span className="absolute -start-[9px] top-0 h-[18px] w-[18px] rounded-full border-2 border-background bg-primary" aria-hidden />
-                    <span className="mb-1 inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                      {event.year}
-                    </span>
-                    <p className="text-sm font-semibold text-foreground">{event.label}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
-                  </li>
-                ))}
-              </ol>
-            </ScrollReveal>
-          </div>
+          <ScrollReveal className="mb-12 max-w-2xl">
+            <span className={sectionBadgeClass}>{t("about.storyBadge")}</span>
+            <h2 className={`${sectionTitleClass} mt-4`}>{t("about.storyTitle")}</h2>
+            <p className={`${sectionSubtitleClass} mt-5`}>{t("aboutPage.storyBody")}</p>
+          </ScrollReveal>
+
+          <ScrollReveal>
+            <ol className="relative mx-auto max-w-2xl border-s-2 border-primary/25 ps-8 ms-3 md:ms-4">
+              {timelineEvents.map((event) => (
+                <li key={event.year} className="relative pb-10 last:pb-0">
+                  <span
+                    className="absolute -start-[calc(0.5rem+5px)] top-1.5 h-4 w-4 rounded-full border-[3px] border-primary bg-background shadow-sm"
+                    aria-hidden
+                  />
+                  <p className="text-xs font-bold tracking-wide text-primary">{event.year}</p>
+                  <p className="mt-1 text-base font-semibold text-foreground">{event.label}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
+                </li>
+              ))}
+            </ol>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -109,16 +104,18 @@ const AboutPage = () => {
             <h2 className={`${sectionTitleClass} mt-4`}>{t("about.valuesTitle")}</h2>
           </ScrollReveal>
           <ScrollReveal className="grid gap-5 sm:grid-cols-3">
-            {values.map(({ icon: Icon, titleKey, description, color }) => (
+            {values.map(({ icon: Icon, titleKey, descriptionKey, color }) => (
               <div
                 key={titleKey}
                 className={`rounded-2xl border bg-card p-6 shadow-sm transition hover:shadow-md ${valueStyles[color].border}`}
               >
-                <span className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${valueStyles[color].icon}`}>
+                <span
+                  className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${valueStyles[color].icon}`}
+                >
                   <Icon className="h-6 w-6" />
                 </span>
                 <h3 className="text-lg font-bold text-foreground">{t(titleKey)}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t(descriptionKey)}</p>
               </div>
             ))}
           </ScrollReveal>
@@ -126,8 +123,9 @@ const AboutPage = () => {
       </section>
 
       <MissionVisionSection />
+      <TeamSection />
       <WebsiteFooter />
-    </WebsiteShell>
+    </>
   );
 };
 
