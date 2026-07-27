@@ -1,28 +1,26 @@
 export const CONTACT_INFO = {
-  location: "Kabul, Afghanistan",
-  phone: "+93 (0) 700 000 000",
+  location: "Between Gul Surkh square & Prozha-e-Taimani, Kabul, Afghanistan",
+  phone: "+93 74 844 9000",
   email: "info@raad.af",
-  phoneHref: "https://wa.me/message/5YEFIGBL3BP5B1",
+  phoneHref: "tel:+93748449000",
   emailHref: "mailto:info@raad.af",
-  mapsHref: "https://maps.google.com/?q=Kabul,Afghanistan",
+  mapsHref: "https://maps.google.com/?q=Raad+Educational+Institute+Kabul",
 } as const;
 
-export type QualificationColor = "primary" | "auxiliary" | "success" | "warning";
+export type QualificationColor = "primary" | "auxiliary" | "success";
 
 export interface QualificationItem {
   name: string;
   full: string;
   badge: string;
   color: QualificationColor;
+  slug: "acca" | "fia" | "cia";
 }
 
 export const QUALIFICATIONS: QualificationItem[] = [
-  { name: "ACCA", full: "Association of Chartered Certified Accountants", badge: "Gold Partner", color: "primary" },
-  { name: "CMA", full: "Certified Management Accountant", badge: "Authorized Center", color: "auxiliary" },
-  { name: "CPA", full: "Certified Public Accountant", badge: "Preparation", color: "success" },
-  { name: "CFA", full: "Chartered Financial Analyst", badge: "Preparation", color: "warning" },
-  { name: "CIMA", full: "Chartered Inst. of Management Accountants", badge: "Approved", color: "primary" },
-  { name: "CAT", full: "Certified Accounting Technician", badge: "Authorized", color: "auxiliary" },
+  { name: "ACCA", full: "Association of Chartered Certified Accountants", badge: "Gold Partner", color: "primary", slug: "acca" },
+  { name: "FIA", full: "Foundations in Accountancy", badge: "Entry Level", color: "auxiliary", slug: "fia" },
+  { name: "CIA", full: "Certified Internal Auditor", badge: "Specialized", color: "success", slug: "cia" },
 ];
 
 export type TeamMemberColor = "primary" | "auxiliary";
@@ -85,7 +83,6 @@ export const badgeColorStyles: Record<QualificationColor, string> = {
   primary: "bg-primary/10 text-primary",
   auxiliary: "bg-auxiliary/10 text-auxiliary",
   success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
 };
 
 export const memberColorStyles: Record<TeamMemberColor, { avatar: string; role: string }> = {
