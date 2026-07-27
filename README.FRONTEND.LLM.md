@@ -844,7 +844,14 @@ For nav labels whose identifier must stay stable (e.g. group-expand keys), keep 
 4. Add the module to the central aggregate in `src/routes/Routes.ts` (e.g. `myFeature: MyFeatureRoutes`)
 5. Add sidebar link in `src/layouts/components/Sidebar.tsx` (and for course catalog entities, register icons in `src/modules/Course/data/courseEntitySidebarIcons.tsx` if applicable)
 
-All new features are **protected dashboard modules** under `MainLayout`. There is no separate public marketing site in this template.
+All new features are **protected dashboard modules** under `MainLayout`.
+
+### Public marketing site
+
+- Wrapped once by `PublicWebsiteLayout` (`WebsiteShell` + Lenis) so SPA navigations (e.g. `/` ↔ `/qualifications/:slug`) do not remount scroll/locale state.
+- **Do not** nest another `WebsiteShell` inside page components.
+- Admin blogs: `/blogs` (permission `blogs.read`). Public blog list/detail: `/blog` and `/blog/:id` (avoids route clash with admin).
+- Public blogs API only returns `status=published`. Landing blog cards use the same public endpoint.
 
 ---
 
