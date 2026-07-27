@@ -57,7 +57,7 @@ const ScrollReveal = ({
         ...(direction === "scale" && { scale: 0.96, y: distance * 0.4 }),
       };
 
-      const tween = gsap.fromTo(targets, fromVars, {
+      const toVars: gsap.TweenVars = {
         opacity: 1,
         x: 0,
         y: 0,
@@ -66,15 +66,41 @@ const ScrollReveal = ({
         delay: delaySeconds,
         stagger,
         ease: "power2.out",
+        overwrite: "auto",
+      };
+
+      gsap.set(targets, fromVars);
+
+      const tween = gsap.to(targets, {
+        ...toVars,
         scrollTrigger: {
           trigger: container,
           start: triggerStart,
           once,
           toggleActions: once ? "play none none none" : "play none none reverse",
+          invalidateOnRefresh: true,
         },
       });
 
+      // Ensure above-the-fold content reveals after Lenis/layout settles
+      requestAnimationFrame(() => {
+        ScrollTrigger.refresh();
+        const st = tween.scrollTrigger;
+        if (st && st.progress > 0 && tween.progress() === 0) {
+          tween.progress(1);
+        }
+      });
+
+      // Safety: never leave content invisible if ScrollTrigger missed
+      const safety = window.setTimeout(() => {
+        const stillHidden = targets.some((el) => Number(gsap.getProperty(el, "opacity")) < 0.05);
+        if (stillHidden) {
+          gsap.set(targets, { opacity: 1, x: 0, y: 0, scale: 1 });
+        }
+      }, 900);
+
       return () => {
+        window.clearTimeout(safety);
         tween.scrollTrigger?.kill();
         tween.kill();
       };
