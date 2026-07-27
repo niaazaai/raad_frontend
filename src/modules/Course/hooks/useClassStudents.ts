@@ -10,20 +10,26 @@ export interface ClassStudentRow {
   student_code?: string;
   first_name?: string;
   last_name?: string;
+  father_name?: string | null;
   full_name?: string;
   email?: string;
   phone_number?: string;
+  national_id?: string | null;
   user_name?: string;
   grade?: string;
   marks?: number | string | null;
   enrollment_date?: string;
   status?: string;
   disable_reason?: string | null;
+  class_fee?: number | string | null;
   discount_percent?: number | string;
+  discount_type?: string;
+  discount_amount?: number | string;
   fee_amount?: number | string;
   paid_amount?: number | string;
   due_amount?: number | string;
   payment_status?: string;
+  currency?: string;
   notes?: string | null;
 }
 
@@ -41,7 +47,7 @@ export function useClassStudents(classId: number, params?: Record<string, unknow
 }
 
 export function useAttachClassStudent(classId: number) {
-  return useMutationApi<ClassStudentRow, { student_id: number }>({
+  return useMutationApi<ClassStudentRow | ClassStudentRow[], { student_id?: number; student_ids?: number[] }>({
     url: `/lms-classes/${classId}/students`,
     method: RequestMethod.POST,
     invalidateKeys: [classStudentsQueryKey(classId)],

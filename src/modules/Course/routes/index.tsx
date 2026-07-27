@@ -5,6 +5,7 @@ import { ProtectedRouteType } from "@/types/routes";
 const CourseHub = lazy(() => import("../features/CourseHub/CourseHub"));
 const CourseEntityList = lazy(() => import("../features/CourseEntityList/CourseEntityList"));
 const ClassStudentsPage = lazy(() => import("../features/ClassStudentsPage/ClassStudentsPage"));
+const ClassAttendancePage = lazy(() => import("../features/ClassAttendancePage/ClassAttendancePage"));
 const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
@@ -30,6 +31,12 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
     path: "/classes/:classId/students",
     component: <ClassStudentsPage />,
     permission: "course.class_students.read",
+    anyPermission: courseAnyPermissions,
+  },
+  {
+    path: "/classes/:classId/attendance",
+    component: <ClassAttendancePage />,
+    permission: "course.lms_classes.read",
     anyPermission: courseAnyPermissions,
   },
   {

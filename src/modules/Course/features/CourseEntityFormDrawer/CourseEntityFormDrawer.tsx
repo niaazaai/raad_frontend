@@ -978,7 +978,11 @@ const CourseEntityFormDrawer = ({
                   <p className="mt-1 text-base font-medium">{String(detail.class_name ?? "—")}</p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Father name</p>
+                  <p className="text-sm font-medium">{String(detail.father_name ?? "—")}</p>
+                </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Grade</p>
                   <p className="text-sm font-medium">{String(detail.grade ?? "PENDING")}</p>
@@ -1383,6 +1387,10 @@ const CourseEntityFormDrawer = ({
                   <Label htmlFor="cef-last-name">Last name</Label>
                   <Input id="cef-last-name" {...register("last_name")} />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cef-father-name">Father name</Label>
+                <Input id="cef-father-name" {...register("father_name")} />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">

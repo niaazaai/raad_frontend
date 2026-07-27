@@ -162,16 +162,18 @@ function ActionsCell<T>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {actions.map((action) => (
-            <DropdownMenuItem
-              key={action.key}
-              variant={resolveVariant(action)}
-              onSelect={() => action.onClick(row)}
-            >
-              {resolveIcon(action)}
-              {resolveLabel(action)}
-            </DropdownMenuItem>
-          ))}
+          {actions
+            .filter((action) => !action.hidden?.(row))
+            .map((action) => (
+              <DropdownMenuItem
+                key={action.key}
+                variant={resolveVariant(action)}
+                onSelect={() => action.onClick(row)}
+              >
+                {resolveIcon(action)}
+                {resolveLabel(action)}
+              </DropdownMenuItem>
+            ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </td>
@@ -243,7 +245,7 @@ export function DataTable<T>({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       {/* Search - top left */}
       {searchable && (
         <div className="relative max-w-md">
@@ -259,9 +261,9 @@ export function DataTable<T>({
         </div>
       )}
 
-      {/* Table - horizontal scroll container */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full min-w-max">
+      {/* Table scrolls horizontally inside this container so the page does not */}
+      <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card">
+        <table className="w-max min-w-full">
           <thead className="border-b border-border bg-muted/50">
             <tr>
               {columns.map((col) => (

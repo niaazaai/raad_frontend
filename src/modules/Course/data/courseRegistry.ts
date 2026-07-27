@@ -159,7 +159,6 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
     columns: [
       "class_code",
       "name",
-      "course_name",
       "instructor_name",
       "class_type",
       "class_fee",
@@ -174,7 +173,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Independent student profiles—register learners once, then enroll them in classes from the class management page.",
     apiPath: "/students",
     permission: "course.class_students.read",
-    columns: ["student_code", "first_name", "user_name", "phone_number", "email", "status"],
+    columns: ["student_code", "first_name", "father_name", "user_name", "phone_number", "email", "status"],
   },
 };
 

@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import { useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble } from "iconoir-react";
+import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble, Calendar } from "iconoir-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
@@ -567,6 +567,16 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 onClick: (row: CourseRow) => {
                   const id = typeof row.id === "number" ? row.id : Number(row.id);
                   if (!Number.isNaN(id)) navigate(`/classes/${id}/students`);
+                },
+              },
+              {
+                key: "attendance",
+                label: t("course.attendance.title"),
+                icon: <Calendar className="h-4 w-4" />,
+                permission: "course.lms_classes.read",
+                onClick: (row: CourseRow) => {
+                  const id = typeof row.id === "number" ? row.id : Number(row.id);
+                  if (!Number.isNaN(id)) navigate(`/classes/${id}/attendance`);
                 },
               },
               {

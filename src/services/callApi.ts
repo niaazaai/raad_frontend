@@ -177,24 +177,41 @@ const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>)
     return;
   }
 
-  if (response.status === 422 && response.data?.errors) {
-    // Validation errors - show first error
-    const errors = response.data.errors;
-    const firstError = Object.values(errors)[0];
-    if (Array.isArray(firstError) && firstError.length > 0) {
-      toast.error(firstError[0]);
+  if (response.status === 422) {
+    // Validation errors - show first field error when present
+    const errors = response.data?.errors;
+    if (errors && typeof errors === "object") {
+      const firstError = Object.values(errors)[0];
+      if (Array.isArray(firstError) && typeof firstError[0] === "string") {
+        toast.error(firstError[0]);
+        return;
+      }
     }
+    toast.error(
+      typeof response.data?.message === "string" && response.data.message
+        ? response.data.message
+        : "Validation failed"
+    );
     return;
   }
 
-  // Generic error
-  const errorMessage =
-    response.data?.message ||
-    response.data?.error?.messages ||
-    response.originalError?.message ||
-    "An unexpected error occurred";
+  // Never surface raw Laravel / SQL dumps in the UI
+  if (response.status != null && response.status >= 500) {
+    toast.error("An unexpected error occurred");
+    return;
+  }
 
-  toast.error(typeof errorMessage === "string" ? errorMessage : "An error occurred");
+  const rawMessage =
+    (typeof response.data?.message === "string" && response.data.message) ||
+    (typeof response.data?.error?.messages === "string" && response.data.error.messages) ||
+    "";
+
+  const looksLikeInternalError =
+    /SQLSTATE|Illuminate\\|QueryException|Stack trace|Connection: mysql/i.test(rawMessage);
+
+  toast.error(
+    looksLikeInternalError || !rawMessage ? "An unexpected error occurred" : rawMessage
+  );
 };
 
 /**

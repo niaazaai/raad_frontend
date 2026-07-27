@@ -241,6 +241,7 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "user_id", label: "User (optional)", type: "select" },
       { name: "first_name", label: "First name", type: "text", required: true },
       { name: "last_name", label: "Last name", type: "text" },
+      { name: "father_name", label: "Father name", type: "text" },
       { name: "phone_number", label: "Phone number", type: "text" },
       { name: "national_id", label: "National ID", type: "text" },
       { name: "email", label: "Email", type: "text" },

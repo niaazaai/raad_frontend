@@ -25,6 +25,18 @@ export {
   DrawerTitle,
   DrawerDescription,
 } from "./drawer";
+export {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalTitle,
+  ModalDescription,
+} from "./modal";
+export { default as SearchableMultiSelect } from "./searchable-multi-select";
+export type { SearchableMultiSelectProps } from "./searchable-multi-select";
 export { Stepper } from "./stepper";
 export type { Step } from "./stepper";
 export {
@@ -48,6 +60,7 @@ export {
 } from "./dropdown-menu";
 export { DataTable } from "./data-table";
 export { Switch } from "./switch";
+export { Checkbox } from "./checkbox";
 export { default as PageBreadcrumb } from "./page-breadcrumb";
 export { default as ImageDropzone } from "./image-dropzone";
 export type { ImageDropzoneProps } from "./image-dropzone";

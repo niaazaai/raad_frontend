@@ -52,6 +52,8 @@ export interface DataTableActionItem<T = unknown> {
   variant?: "default" | "danger" | "success" | ((row: T) => "default" | "danger" | "success");
   /** When set, the action is only rendered if the user holds this permission. */
   permission?: string;
+  /** When true for a row, the action is omitted from that row's menu. */
+  hidden?: (row: T) => boolean;
 }
 
 export interface DataTableConfig<T = unknown> {
