@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import LandingNavbar from "@/components/website/LandingNavbar";
 import WebsiteFooter from "@/components/website/WebsiteFooter";
-import WebsiteShell from "@/components/website/WebsiteShell";
 import PublicCourseCard from "@/components/website/PublicCourseCard";
 import { Button } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
@@ -35,7 +34,7 @@ const ExploreCoursesPage = () => {
   const pagination = useMemo(() => getPublicCoursesPagination(data), [data]);
 
   return (
-    <WebsiteShell>
+    <>
       <LandingNavbar loginHref={loginHref} />
 
       <main className={`${sectionShellClass} pt-28 md:pt-32`}>
@@ -94,7 +93,7 @@ const ExploreCoursesPage = () => {
       </main>
 
       <WebsiteFooter />
-    </WebsiteShell>
+    </>
   );
 };
 
