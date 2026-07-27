@@ -4,6 +4,7 @@ import { UserManagementRoutes } from "@/modules/UserManagement";
 import { CourseModuleRoutes } from "@/modules/Course/routes";
 
 import { ActivityLogRoutes } from "@/modules/ActivityLog";
+import { BlogRoutes } from "@/modules/Blog/routes";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
@@ -34,6 +35,7 @@ const ProtectedRoutes: ProtectedRouteType[] = [
   },
   ...UserManagementRoutes,
   ...ActivityLogRoutes,
+  ...BlogRoutes,
   ...CourseModuleRoutes,
 ];
 
