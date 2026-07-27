@@ -1,6 +1,5 @@
 import LandingNavbar from "@/components/website/LandingNavbar";
 import WebsiteFooter from "@/components/website/WebsiteFooter";
-import WebsiteShell from "@/components/website/WebsiteShell";
 import ContactSection from "@/components/website/sections/ContactSection";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
@@ -22,7 +21,7 @@ const ContactPage = () => {
   const { t } = useTranslation();
 
   return (
-    <WebsiteShell>
+    <>
       <LandingNavbar loginHref={loginHref} />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
@@ -35,7 +34,7 @@ const ContactPage = () => {
 
       <ContactSection />
       <WebsiteFooter />
-    </WebsiteShell>
+    </>
   );
 };
 
