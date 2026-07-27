@@ -1,14 +1,12 @@
-import { useMemo } from "react";
 import LandingNavbar from "@/components/website/LandingNavbar";
 import WebsiteFooter from "@/components/website/WebsiteFooter";
-import WebsiteShell from "@/components/website/WebsiteShell";
 import HeroSection from "@/components/website/sections/HeroSection";
-import StatsSection from "@/components/website/sections/StatsSection";
 import AboutSection from "@/components/website/sections/AboutSection";
 import MissionVisionSection from "@/components/website/sections/MissionVisionSection";
 import QualificationsSection from "@/components/website/sections/QualificationsSection";
 import SuccessStoriesSection from "@/components/website/sections/SuccessStoriesSection";
-import ContactSection from "@/components/website/sections/ContactSection";
+import BlogPreviewSection from "@/components/website/sections/BlogPreviewSection";
+import ContactCtaSection from "@/components/website/sections/ContactCtaSection";
 import ScrollReveal from "@/components/website/ScrollReveal";
 import PublicCourseCard from "@/components/website/PublicCourseCard";
 import { Button } from "@/components/ui";
@@ -16,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { NavArrowRight } from "iconoir-react";
 import { getPublicCoursesFromResponse, usePublicCourses } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
+import { useMemo } from "react";
 import {
   sectionBadgeClass,
   sectionInnerClass,
@@ -81,18 +80,18 @@ const LandingPage = () => {
   const loginHref = resolveLoginHref();
 
   return (
-    <WebsiteShell>
+    <>
       <LandingNavbar loginHref={loginHref} />
       <HeroSection />
-      <StatsSection />
       <AboutSection />
       <MissionVisionSection />
       <ProgramsSection />
       <QualificationsSection />
+      <BlogPreviewSection />
       <SuccessStoriesSection />
-      <ContactSection />
+      <ContactCtaSection />
       <WebsiteFooter />
-    </WebsiteShell>
+    </>
   );
 };
 
