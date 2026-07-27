@@ -449,6 +449,7 @@ Use `UserStatusDisplayLabels` (not `UserStatusLabels`) for read-only display. `U
 10. Add route aggregate to `src/routes/Routes.ts`
 11. Add sidebar link in `src/layouts/components/Sidebar.tsx`
 12. Verify permission guards on route **and** every UI action
+13. For public pages: register under `PublicWebsiteLayout` in `AppRoutes.tsx` (never remount `WebsiteShell` per page)
 
 ---
 
