@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import ProtectedRoutes from "./ProtectedRoutes";
 import { AuthWrapper, ProtectedRoute } from "@/features/auth";
 import Layout from "@/layouts/MainLayout";
+import PublicWebsiteLayout from "@/layouts/PublicWebsiteLayout";
 
 // Auth pages
 const LoginPage = lazy(() => import("@/pages/auth/Login"));
@@ -16,6 +17,10 @@ const AboutPage = lazy(() => import("@/pages/AboutPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const CookiePolicyPage = lazy(() => import("@/pages/CookiePolicyPage"));
 const ContactPage = lazy(() => import("@/pages/ContactPage"));
+const QualificationPage = lazy(() => import("@/pages/QualificationPage"));
+const BlogsPage = lazy(() => import("@/pages/BlogsPage"));
+const BlogDetailPage = lazy(() => import("@/pages/BlogDetailPage"));
+const StudentSuccessPage = lazy(() => import("@/pages/StudentSuccessPage"));
 const ExploreCoursesPage = lazy(() => import("@/pages/ExploreCoursesPage"));
 const CourseViewPage = lazy(() => import("@/modules/Course/features/CourseViewPage/CourseViewPage"));
 
@@ -102,68 +107,98 @@ const AppRoutes = () => {
         }
       />
 
-      <Route
-        path="/"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <LandingPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/about"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <AboutPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/privacy-policy"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <PrivacyPolicyPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/cookie-policy"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <CookiePolicyPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/contact"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <ContactPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/explore-courses"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <ExploreCoursesPage />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="/course/courses/:courseId/view"
-        element={
-          <Suspense fallback={<PageLoader />}>
-            <CourseViewPage />
-          </Suspense>
-        }
-      />
+      {/* Public marketing site — one WebsiteShell so Lenis/ScrollTrigger survive SPA nav */}
+      <Route element={<PublicWebsiteLayout />}>
+        <Route
+          path="/"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <LandingPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <AboutPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacy-policy"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PrivacyPolicyPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/cookie-policy"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <CookiePolicyPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/qualifications/:slug"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <QualificationPage />
+            </Suspense>
+          }
+        />
+        {/* Public blog listing/detail — /blog* avoids clash with admin /blogs */}
+        <Route
+          path="/blog"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <BlogsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/blog/:id"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <BlogDetailPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/student-success"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <StudentSuccessPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <ContactPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/explore-courses"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <ExploreCoursesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/course/courses/:courseId/view"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <CourseViewPage />
+            </Suspense>
+          }
+        />
+      </Route>
 
       {/* Redirects */}
       <Route path="/home" element={<Navigate to="/dashboard" replace />} />
