@@ -1,4 +1,10 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { NavArrowRight } from "iconoir-react";
 import ScrollReveal from "@/components/website/ScrollReveal";
+import { Spinner } from "@/components/ui/spinner";
+import { usePublicStudentSuccess, getPublicListFromResponse } from "@/hooks";
+import { useTranslation } from "@/i18n/useTranslation";
 import {
   sectionBadgeClass,
   sectionInnerClass,
@@ -8,74 +14,68 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-const stories = [
-  {
-    name: "Khalid Rahmani",
-    role: "Senior Auditor, Big4 Firm",
-    company: "Kabul, Afghanistan",
-    text: "Raad's ACCA preparation program gave me the foundation I needed to pass all my exams on the first attempt.",
-    initials: "KR",
-    outcome: "ACCA Qualified",
-  },
-  {
-    name: "Fatima Sultani",
-    role: "Finance Manager",
-    company: "International NGO",
-    text: "Two years later, I'm managing finances for an international organization. Raad made this possible.",
-    initials: "FS",
-    outcome: "CMA Certified",
-  },
-  {
-    name: "Omar Hashimi",
-    role: "CFO",
-    company: "Leading Afghan Bank",
-    text: "The practical approach and real-world case studies prepared me for challenges I face every day in banking.",
-    initials: "OH",
-    outcome: "CPA Qualified",
-  },
-];
-
 const SuccessStoriesSection = () => {
+  const { t } = useTranslation();
+  const { data, isLoading } = usePublicStudentSuccess(4);
+  const students = useMemo(() => getPublicListFromResponse<{
+    id: number;
+    full_name: string;
+    profile_image_url?: string | null;
+    grade?: string | null;
+  }>(data), [data]);
+
   return (
     <section id="success-stories" className={`${sectionShellClass} ${sectionSurface.primary}`}>
       <div className={sectionInnerClass}>
         <ScrollReveal className="mb-12 flex flex-col items-center text-center md:mb-14">
-          <span className={sectionBadgeClass}>Success Stories</span>
-          <h2 className={`${sectionTitleClass} mt-4 max-w-2xl`}>Our Graduates Are Making Their Mark</h2>
-          <p className={`${sectionSubtitleClass} mx-auto`}>
-            Hear from professionals who transformed their careers with Raad.
-          </p>
+          <span className={sectionBadgeClass}>{t("success.badge")}</span>
+          <h2 className={`${sectionTitleClass} mt-4 max-w-2xl`}>{t("success.title")}</h2>
+          <p className={`${sectionSubtitleClass} mx-auto`}>{t("success.subtitle")}</p>
         </ScrollReveal>
 
-        <ScrollReveal className="grid gap-5 md:grid-cols-3">
-          {stories.map((story) => (
-            <article
-              key={story.name}
-              className="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm transition hover:border-primary/25 md:p-7"
-            >
-              <span className="mb-2 select-none font-serif text-5xl leading-none text-primary/20" aria-hidden>
-                &ldquo;
-              </span>
-              <p className="text-sm italic leading-relaxed text-foreground/80">{story.text}</p>
-              <div className="my-5 h-px w-full bg-border" />
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-                  {story.initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{story.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {story.role} · {story.company}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  {story.outcome}
-                </span>
-              </div>
-            </article>
-          ))}
+        {isLoading ? (
+          <div className="flex min-h-[200px] items-center justify-center">
+            <Spinner className="h-8 w-8 text-muted-foreground" />
+          </div>
+        ) : students.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground">{t("success.empty")}</p>
+        ) : (
+          <ScrollReveal className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {students.map((student) => (
+              <article
+                key={student.id}
+                className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm"
+              >
+                {student.profile_image_url ? (
+                  <img
+                    src={student.profile_image_url}
+                    alt={student.full_name}
+                    className="h-20 w-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary">
+                    {student.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </div>
+                )}
+                <h3 className="mt-4 text-base font-semibold text-foreground">{student.full_name}</h3>
+                {student.grade ? (
+                  <span className="mt-2 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
+                    {student.grade}
+                  </span>
+                ) : null}
+              </article>
+            ))}
+          </ScrollReveal>
+        )}
+
+        <ScrollReveal className="mt-10 flex justify-center">
+          <Link
+            to="/student-success"
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-6 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/15"
+          >
+            {t("success.viewAll")}
+            <NavArrowRight className="h-4 w-4" />
+          </Link>
         </ScrollReveal>
       </div>
     </section>
