@@ -12,6 +12,7 @@ import { useLocaleStore } from "@/store";
 import { useSubmitContactForm } from "@/hooks";
 import { fetchCsrfCookie } from "@/services";
 import { Spinner } from "@/components/ui/spinner";
+import { GOOGLE_MAPS_EMBED_URL } from "@/components/website/qualificationData";
 import {
   sectionBadgeClass,
   sectionInnerClass,
@@ -133,6 +134,17 @@ const ContactSection = () => {
                 <Icon className="h-4 w-4" strokeWidth={2} />
               </a>
             ))}
+          </div>
+
+          <div className="mt-8 overflow-hidden rounded-2xl border border-border/70 shadow-sm">
+            <iframe
+              title={t("contact.mapTitle")}
+              src={GOOGLE_MAPS_EMBED_URL}
+              className="h-64 w-full border-0 md:h-72"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           </div>
         </ScrollReveal>
 
