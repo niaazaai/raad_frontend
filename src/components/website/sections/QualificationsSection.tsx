@@ -1,9 +1,13 @@
+import { Link } from "react-router-dom";
+import { NavArrowRight } from "iconoir-react";
 import ScrollReveal from "@/components/website/ScrollReveal";
+import { useTranslation } from "@/i18n/useTranslation";
 import {
-  QUALIFICATIONS,
-  TEAM_MEMBERS,
-  badgeColorStyles,
-  memberColorStyles,
+  LANDING_QUALIFICATIONS,
+  QUALIFICATION_DETAILS,
+  type QualificationSlug,
+} from "@/components/website/qualificationData";
+import {
   sectionBadgeClass,
   sectionInnerClass,
   sectionShellClass,
@@ -11,7 +15,12 @@ import {
   sectionSubtitleClass,
   sectionTitleClass,
 } from "@/components/website/websiteData";
-import { useTranslation } from "@/i18n/useTranslation";
+
+const colorStyles = {
+  primary: "border-primary/20 hover:border-primary/40 bg-primary/5",
+  auxiliary: "border-auxiliary/20 hover:border-auxiliary/40 bg-auxiliary/5",
+  success: "border-success/20 hover:border-success/40 bg-success/5",
+};
 
 const QualificationsSection = () => {
   const { t } = useTranslation();
@@ -25,44 +34,26 @@ const QualificationsSection = () => {
           <p className={`${sectionSubtitleClass} mx-auto`}>{t("qualifications.subtitle")}</p>
         </ScrollReveal>
 
-        <ScrollReveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {QUALIFICATIONS.map((q) => (
-            <article
-              key={q.name}
-              className="flex flex-col rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition hover:border-primary/30 hover:shadow-md md:p-6"
-            >
-              <span className="text-3xl font-black tracking-tight text-foreground md:text-4xl">{q.name}</span>
-              <span className="mt-1 text-sm text-muted-foreground">{q.full}</span>
-              <div className="mt-auto pt-5">
-                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeColorStyles[q.color]}`}>
-                  {q.badge}
-                </span>
-              </div>
-            </article>
-          ))}
-        </ScrollReveal>
-
-        <ScrollReveal className="mt-16 flex flex-col items-center text-center md:mt-20">
-          <span className={sectionBadgeClass}>{t("qualifications.teamBadge")}</span>
-          <h3 className={`${sectionTitleClass} mt-4 text-2xl md:text-3xl`}>{t("qualifications.teamTitle")}</h3>
-        </ScrollReveal>
-
-        <ScrollReveal className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {TEAM_MEMBERS.map(({ name, role, bio, initials, color }) => (
-            <article
-              key={name}
-              className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center transition-all duration-300 hover:border-primary/30 hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:border-primary/30 dark:hover:bg-white/[0.07]"
-            >
-              <div
-                className={`flex h-20 w-20 items-center justify-center rounded-full text-xl font-bold ${memberColorStyles[color].avatar}`}
+        <ScrollReveal className="grid gap-5 md:grid-cols-3">
+          {LANDING_QUALIFICATIONS.map((slug: QualificationSlug) => {
+            const q = QUALIFICATION_DETAILS[slug];
+            return (
+              <Link
+                key={slug}
+                to={`/qualifications/${slug}`}
+                className={`group flex flex-col rounded-2xl border bg-card p-6 shadow-sm transition hover:shadow-md ${colorStyles[q.color]}`}
               >
-                {initials}
-              </div>
-              <h4 className="mt-4 text-lg font-semibold text-foreground">{name}</h4>
-              <p className={`mt-1 text-sm font-medium ${memberColorStyles[color].role}`}>{role}</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{bio}</p>
-            </article>
-          ))}
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{q.badge}</span>
+                <span className="mt-3 text-4xl font-black tracking-tight text-foreground">{q.name}</span>
+                <span className="mt-1 text-sm text-muted-foreground">{q.full}</span>
+                <p className="mt-4 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-3">{q.about}</p>
+                <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                  {t("qualifications.learnMore")}
+                  <NavArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            );
+          })}
         </ScrollReveal>
       </div>
     </section>
