@@ -8,16 +8,27 @@ interface WebsiteShellProps {
   className?: string;
 }
 
+/** Ref-count so nested/remounted shells during SPA nav don't flip html to admin defaults mid-transition. */
+let websiteShellMounts = 0;
+
 const WebsiteShell = ({ children, className }: WebsiteShellProps) => {
   const locale = useLocaleStore((s) => s.locale);
   const { lang, dir } = getWebsiteLocaleAttributes(locale);
 
   useEffect(() => {
+    websiteShellMounts += 1;
     document.documentElement.classList.add("website-locale-active");
+    document.documentElement.setAttribute("lang", lang);
+    document.documentElement.setAttribute("dir", dir);
+
     return () => {
-      applyAdminDocumentDefaults();
+      websiteShellMounts -= 1;
+      if (websiteShellMounts <= 0) {
+        websiteShellMounts = 0;
+        applyAdminDocumentDefaults();
+      }
     };
-  }, []);
+  }, [lang, dir]);
 
   return (
     <SmoothScrollProvider>
