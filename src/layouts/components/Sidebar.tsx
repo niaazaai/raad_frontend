@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Group,
   Calendar,
+  JournalPage,
 } from "iconoir-react";
 import { useLayoutStore } from "@/store";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Instructors: "sidebar.instructors",
   Students: "sidebar.students",
   Classes: "sidebar.classes",
+  Blogs: "sidebar.blogs",
   "My learning": "sidebar.myLearning",
   "Main categories": "sidebar.mainCategories",
   "Sub categories": "sidebar.subCategories",
@@ -214,6 +216,12 @@ const Sidebar = () => {
         path: "/students",
         icon: <Group className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
         permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+      },
+      {
+        title: "Blogs",
+        path: "/blogs",
+        icon: <JournalPage className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        permission: "blogs.read",
       },
       ...baseNavItems.slice(1),
     ],
