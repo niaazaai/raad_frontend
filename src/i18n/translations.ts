@@ -13,8 +13,8 @@ const en = {
     closeMenu: "Close menu",
   },
   hero: {
-    badge: "Raad Professional Development",
-    title: "Empowering the Next Generation of Global Professionals",
+    badge: "Raad Institute",
+    title: "Dedicated Home of ACCA and CIA in Afghanistan",
     subtitle:
       "Premier professional education in Afghanistan — globally recognized qualifications, world-class instructors, and a community of driven learners.",
     explorePrograms: "Explore Programs",
@@ -311,9 +311,8 @@ const ps = {
   },
   hero: {
     badge: "د راد مسلکي پراختیا",
-    title: "د نړیوالو مسلکي کسانو راتلونکی پیاوړی کول",
-    subtitle:
-      "په افغانستان کې مخکښ مسلکي زده کړه — نړیوال پېژندل شوي وړتیاوې، ډېر تجربه لرونکي استادان او هڅونکي زده کوونکي.",
+    title: "په افغانستان کې ACCA او CIA ځانګړی کور", 
+    subtitle: "په افغانستان کې مخکښ مسلکي زده کړه — نړیوال پېژندل شوي وړتیاوې، ډېر تجربه لرونکي استادان او هڅونکي زده کوونکي.",
     explorePrograms: "پروګرامونه وګورئ",
     getInTouch: "موږ سره اړیکه ونیسئ",
     scroll: "ښکته",
@@ -601,7 +600,7 @@ const fa = {
   },
   hero: {
     badge: "راد توسعه حرفه‌ای",
-    title: "توانمندسازی نسل بعدی متخصصان جهانی",
+    title: "خانه اختصاصی ACCA و CIA در افغانستان",
     subtitle:
       "آموزش حرفه‌ای برتر در افغانستان — صلاحیت‌های بین‌المللی، اساتید برجسته و جامعه‌ای از فراگیران باانگیزه.",
     explorePrograms: "مشاهده برنامه‌ها",
