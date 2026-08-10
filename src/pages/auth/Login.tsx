@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeClosed } from "iconoir-react";
@@ -16,10 +16,16 @@ const authFormLightScope =
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, pending2FA } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const registrationState = location.state as { registered?: boolean; email?: string } | null;
+  const registrationNotice =
+    registrationState?.registered === true
+      ? `Account created${registrationState.email ? ` for ${registrationState.email}` : ""}. You can sign in now.`
+      : null;
 
   const {
     register,
@@ -79,6 +85,9 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {registrationNotice ? (
+              <p className="rounded-lg bg-primary/10 px-4 py-2 text-sm text-primary">{registrationNotice}</p>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input
