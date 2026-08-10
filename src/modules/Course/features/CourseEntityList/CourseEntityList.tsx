@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import { useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble, Calendar } from "iconoir-react";
+import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble, Calendar, Star } from "iconoir-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
@@ -20,6 +20,7 @@ import CourseEntityFormDrawer, {
   type CourseEntityDrawerMode,
 } from "../CourseEntityFormDrawer/CourseEntityFormDrawer";
 import MainCategorySubCategoriesDrawer from "../MainCategorySubCategoriesDrawer/MainCategorySubCategoriesDrawer";
+import StudentSuccessStoryDrawer from "../StudentSuccessStoryDrawer/StudentSuccessStoryDrawer";
 import {
   Button,
   DataTable,
@@ -267,6 +268,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [classStatusTab, setClassStatusTab] = useState<LmsClassStatusTab>("active");
   const [completeModalRow, setCompleteModalRow] = useState<CourseRow | null>(null);
+  const [successStoryModalRow, setSuccessStoryModalRow] = useState<CourseRow | null>(null);
   const [completeEndDate, setCompleteEndDate] = useState("");
   const archiveClass = useArchiveLmsClassMutation();
   const restoreClass = useRestoreLmsClassMutation();
@@ -447,6 +449,16 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     const mappedColumns = cfg.columns.map((key) => ({
       key,
       header: columnHeader(key, resolvedSlug),
+      minWidth:
+        resolvedSlug === "lms-classes"
+          ? key === "name"
+            ? "160px"
+            : key === "main_category_name" || key === "sub_category_name"
+              ? "140px"
+              : key === "schedule_date" || key === "schedule_time"
+                ? "130px"
+                : "100px"
+          : undefined,
       sortable: key !== "id" && key !== "course_title" && key !== "user_name" && key !== "plan_name",
       filterable: key.includes("status"),
       filterOptions: key.includes("status") ? statusFilterOptions : undefined,
@@ -489,6 +501,19 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             </span>
           );
         }
+        if (key === "main_category_name" || key === "sub_category_name") {
+          return getTextOrFallback(row[key]);
+        }
+        if (key === "schedule_days") {
+          const raw = String(row.schedule_days ?? "").trim();
+          if (!raw) return "—";
+          const labels: Record<string, string> = {
+            odd: "Odd days",
+            even: "Even days",
+            both: "Both odd & even",
+          };
+          return labels[raw] ?? raw;
+        }
         if (key === "schedule_date") {
           return <ScheduleDateBadge row={row} />;
         }
@@ -498,10 +523,37 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         if (key === "grade") {
           return <GradeBadge value={row[key]} />;
         }
+        if (key === "success_story") {
+          const count = Number(row.success_stories_count ?? 0);
+          const hasLegacy =
+            typeof row.success_story_image_url === "string" && row.success_story_image_url.trim() !== "";
+          const hasStory = count > 0 || hasLegacy;
+          return hasStory ? (
+            <span className="inline-flex rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
+              {count > 1 ? `${count} ${t("course.successStoryPublished")}` : t("course.successStoryPublished")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        }
+        if (resolvedSlug === "lms-class-students" && key === "full_name") {
+          const full =
+            String(row.full_name ?? "").trim() ||
+            `${String(row.first_name ?? "").trim()} ${String(row.last_name ?? "").trim()}`.trim() ||
+            "—";
+          return <span className="font-medium">{full}</span>;
+        }
         if (resolvedSlug === "lms-class-students" && key === "user_name") {
-          const name = getTextOrFallback(row.user_name, "—");
+          const userName = String(row.user_name ?? "").trim();
+          if (!userName) {
+            return (
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                None
+              </span>
+            );
+          }
           const userId = getTextOrFallback(row.user_id, "");
-          return userId !== "—" ? `${name} (#${userId})` : name;
+          return userId !== "—" ? `${userName} (#${userId})` : userName;
         }
         if (key === "thumbnail") {
           return <CategoryImageCell slug={resolvedSlug} row={row} />;
@@ -643,6 +695,17 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             openEditDrawer(typeof id === "number" ? id : idNum);
           },
         },
+        ...(resolvedSlug === "lms-class-students"
+          ? [
+              {
+                key: "success-story",
+                label: t("course.successStory"),
+                icon: <Star className="h-4 w-4" />,
+                permission: updatePerm,
+                onClick: (row: CourseRow) => setSuccessStoryModalRow(row),
+              },
+            ]
+          : []),
         ...(statusToggle
           ? [
               {
@@ -762,7 +825,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     (forcedSlug === "lms-class-students" || location.pathname === "/students");
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-w-0 max-w-full space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{localizedEntityTitle}</h1>
@@ -868,6 +931,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         </div>
       )}
 
+      <div className="min-w-0 max-w-full">
       <DataTable<CourseRow>
         data={rows}
         config={tableConfig}
@@ -882,6 +946,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         pagination={pagination}
         isLoading={isFetching}
       />
+      </div>
 
       <Drawer open={drawerOpen} onClose={closeDrawer}>
         <DrawerOverlay />
@@ -889,7 +954,11 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           className={
             resolvedSlug === "student-subscriptions"
               ? "w-[min(920px,96vw)] min-w-[300px]"
-              : undefined
+              : resolvedSlug === "lms-classes"
+                ? "w-[min(720px,96vw)] min-w-[320px]"
+                : resolvedSlug === "lms-class-students"
+                  ? "w-[42%] min-w-[480px]"
+                  : undefined
           }
         >
           <CourseEntityFormDrawer
@@ -950,6 +1019,12 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <StudentSuccessStoryDrawer
+        open={!!successStoryModalRow}
+        onClose={() => setSuccessStoryModalRow(null)}
+        row={successStoryModalRow}
+      />
     </div>
   );
 };
