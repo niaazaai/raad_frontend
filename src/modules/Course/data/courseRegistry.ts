@@ -62,7 +62,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Publish ACCA-facing programs with pricing, level, and visibility—your storefront for skills and exam prep.",
     apiPath: "/courses",
     permission: "course.courses.read",
-    columns: ["id", "title", "language", "level", "status", "price", "created_at"],
+    columns: ["id", "title", "language", "level", "status", "created_at"],
     filterParams: ["course_main_category_id", "course_sub_category_id", "course_module_id"],
   },
   lessons: {
@@ -158,9 +158,12 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
     permission: "course.lms_classes.read",
     columns: [
       "class_code",
+      "main_category_name",
+      "sub_category_name",
       "name",
       "instructor_name",
       "class_type",
+      "schedule_days",
       "class_fee",
       "schedule_date",
       "schedule_time",
@@ -173,7 +176,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Independent student profiles—register learners once, then enroll them in classes from the class management page.",
     apiPath: "/students",
     permission: "course.class_students.read",
-    columns: ["student_code", "first_name", "father_name", "user_name", "phone_number", "email", "status"],
+    columns: ["student_code", "full_name", "father_name", "user_name", "phone_number", "email", "success_story", "status"],
   },
 };
 
