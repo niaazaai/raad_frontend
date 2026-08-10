@@ -33,8 +33,12 @@ export interface ClassStudentRow {
   notes?: string | null;
 }
 
+/** Prefix for all class-student list queries (matches any pagination/filter params). */
+export const classStudentsListPrefix = (classId: number) =>
+  ["lms-classes", classId, "students"] as const;
+
 export const classStudentsQueryKey = (classId: number, params?: Record<string, unknown>) =>
-  ["lms-classes", classId, "students", params] as const;
+  [...classStudentsListPrefix(classId), params] as const;
 
 export function useClassStudents(classId: number, params?: Record<string, unknown>) {
   return useQueryApi<ClassStudentRow[]>({
@@ -50,7 +54,7 @@ export function useAttachClassStudent(classId: number) {
   return useMutationApi<ClassStudentRow | ClassStudentRow[], { student_id?: number; student_ids?: number[] }>({
     url: `/lms-classes/${classId}/students`,
     method: RequestMethod.POST,
-    invalidateKeys: [classStudentsQueryKey(classId)],
+    invalidateKeys: [classStudentsListPrefix(classId)],
   });
 }
 
@@ -58,7 +62,7 @@ export function useUpdateClassStudent(classId: number, enrollmentId: number) {
   return useMutationApi<ClassStudentRow, Record<string, unknown>>({
     url: `/lms-classes/${classId}/students/${enrollmentId}`,
     method: RequestMethod.PUT,
-    invalidateKeys: [classStudentsQueryKey(classId)],
+    invalidateKeys: [classStudentsListPrefix(classId)],
   });
 }
 
@@ -76,7 +80,7 @@ export function useRemoveClassStudent(classId: number) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lms-classes", classId, "students"] });
+      queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
     },
   });
 }
@@ -85,7 +89,7 @@ export function useDisableClassStudent(classId: number, enrollmentId: number) {
   return useMutationApi<ClassStudentRow, { disable_reason: string }>({
     url: `/lms-classes/${classId}/students/${enrollmentId}/disable`,
     method: RequestMethod.POST,
-    invalidateKeys: [classStudentsQueryKey(classId)],
+    invalidateKeys: [classStudentsListPrefix(classId)],
   });
 }
 
