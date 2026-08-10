@@ -27,6 +27,7 @@ const StudentSuccessPage = () => {
     id: number;
     full_name: string;
     profile_image_url?: string | null;
+    success_story_image_url?: string | null;
     grade?: string | null;
     student_code?: string;
   }>(data), [data]);
@@ -53,13 +54,15 @@ const StudentSuccessPage = () => {
             <p className="py-16 text-center text-sm text-muted-foreground">{t("success.empty")}</p>
           ) : (
             <ScrollReveal className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {students.map((student) => (
+              {students.map((student) => {
+                const imageUrl = student.success_story_image_url ?? student.profile_image_url;
+                return (
                 <article
                   key={student.id}
                   className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm transition hover:border-primary/30 hover:shadow-md"
                 >
-                  {student.profile_image_url ? (
-                    <img src={student.profile_image_url} alt={student.full_name} className="h-24 w-24 rounded-full object-cover" />
+                  {imageUrl ? (
+                    <img src={imageUrl} alt={student.full_name} className="h-24 w-24 rounded-full object-cover" />
                   ) : (
                     <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/15 text-xl font-bold text-primary">
                       {student.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -75,7 +78,8 @@ const StudentSuccessPage = () => {
                     </span>
                   ) : null}
                 </article>
-              ))}
+              );
+              })}
             </ScrollReveal>
           )}
         </div>
