@@ -81,7 +81,7 @@ const DrawerContent = ({ children, className, side = "right" }: DrawerContentPro
   return (
     <div
       className={cn(
-        "fixed z-50 flex h-full flex-col bg-card shadow-xl transition-transform duration-300 ease-in-out",
+        "fixed z-50 flex h-full min-h-0 flex-col overflow-hidden bg-card shadow-xl transition-transform duration-300 ease-in-out",
         side === "right" ? "right-0 top-0" : "left-0 top-0",
         side === "right"
           ? open
@@ -112,7 +112,7 @@ const DrawerHeader = ({ children, className }: DrawerHeaderProps) => {
   return (
     <div
       className={cn(
-        "flex items-center justify-between border-b border-border px-6 py-4",
+        "flex shrink-0 items-center justify-between border-b border-border px-6 py-4",
         className
       )}
     >
@@ -133,7 +133,7 @@ interface DrawerBodyProps {
 }
 
 const DrawerBody = ({ children, className }: DrawerBodyProps) => {
-  return <div className={cn("flex-1 overflow-y-auto px-6 py-4", className)}>{children}</div>;
+  return <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-4", className)}>{children}</div>;
 };
 
 interface DrawerFooterProps {
@@ -145,7 +145,7 @@ const DrawerFooter = ({ children, className }: DrawerFooterProps) => {
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-3 border-t border-border px-6 py-4",
+        "flex shrink-0 items-center justify-end gap-3 border-t border-border px-6 py-4",
         className
       )}
     >
