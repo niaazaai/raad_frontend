@@ -65,12 +65,6 @@ const CoursesPage = () => {
           render: (row) => String(row.level ?? "—"),
         },
         {
-          key: "price",
-          header: "Price",
-          sortable: true,
-          render: (row) => String(row.price ?? "—"),
-        },
-        {
           key: "status",
           header: "Status",
           sortable: true,
@@ -168,8 +162,7 @@ const CoursesPage = () => {
                   <span>{String(row.level ?? "—")}</span>
                   <span>{String(row.language ?? "—")}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{String(row.price ?? "—")}</span>
+                <div className="flex items-center justify-end">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
