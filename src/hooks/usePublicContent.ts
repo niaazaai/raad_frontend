@@ -26,6 +26,7 @@ export interface PublicStudentSuccess {
   first_name: string;
   last_name: string;
   profile_image_url?: string | null;
+  success_story_image_url?: string | null;
   grade?: string | null;
   result?: string | null;
 }
