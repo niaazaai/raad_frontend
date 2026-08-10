@@ -21,6 +21,7 @@ const SuccessStoriesSection = () => {
     id: number;
     full_name: string;
     profile_image_url?: string | null;
+    success_story_image_url?: string | null;
     grade?: string | null;
   }>(data), [data]);
 
@@ -41,14 +42,16 @@ const SuccessStoriesSection = () => {
           <p className="text-center text-sm text-muted-foreground">{t("success.empty")}</p>
         ) : (
           <ScrollReveal className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {students.map((student) => (
+            {students.map((student) => {
+              const imageUrl = student.success_story_image_url ?? student.profile_image_url;
+              return (
               <article
                 key={student.id}
                 className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm"
               >
-                {student.profile_image_url ? (
+                {imageUrl ? (
                   <img
-                    src={student.profile_image_url}
+                    src={imageUrl}
                     alt={student.full_name}
                     className="h-20 w-20 rounded-full object-cover"
                   />
@@ -64,7 +67,8 @@ const SuccessStoriesSection = () => {
                   </span>
                 ) : null}
               </article>
-            ))}
+            );
+            })}
           </ScrollReveal>
         )}
 
