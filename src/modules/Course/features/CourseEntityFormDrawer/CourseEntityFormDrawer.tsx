@@ -38,6 +38,11 @@ import {
   Label,
   RichTextEditor,
   SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   useConfirmDialog,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -85,6 +90,17 @@ function formatTimeHms(value: unknown): string {
   if (!raw) return "—";
   if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
   return raw;
+}
+
+function voucherIsPdf(detail: Record<string, unknown> | null | undefined): boolean {
+  if (!detail) return false;
+  if (detail.voucher_is_pdf === true) return true;
+  const path = String(detail.voucher_file_url ?? detail.voucher_url ?? "");
+  return /\.pdf(\?|$)/i.test(path);
+}
+
+function openVoucherInNewTab(url: string): void {
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function validateRequired(values: FormValues, slug: CourseEntitySlug): string | null {
@@ -278,6 +294,7 @@ const CourseEntityFormDrawer = ({
   });
 
   const watchedCourseId = useWatch({ control, name: "course_id", defaultValue: "" });
+  const watchedMainCategoryId = useWatch({ control, name: "main_category_id", defaultValue: "" });
   const courseIdNum = Number(watchedCourseId) || 0;
 
   const attachedPlansQuery = useCourseEntityList(
@@ -300,6 +317,7 @@ const CourseEntityFormDrawer = ({
 
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [studentProfileImage, setStudentProfileImage] = useState<File | null>(null);
+  const [studentNationalIdAttachment, setStudentNationalIdAttachment] = useState<File | null>(null);
 
   const isCreateMode = mode === "create";
   const nextClassCodeQuery = useNextClassCode(slug === "lms-classes" && isCreateMode && !readOnly);
@@ -340,6 +358,36 @@ const CourseEntityFormDrawer = ({
       label: `${String(r.user_name ?? "Instructor")} (#${String(r.id)})`,
     }));
   }, [instructorOptionsQuery.data]);
+
+  const mainCategoryOptionsQuery = useCourseEntityList(
+    slug === "lms-classes" ? "main-categories" : null,
+    { per_page: 200, status: "active" },
+    { enabled: slug === "lms-classes" && !readOnly }
+  );
+  const lmsClassMainCategoryOptions = useMemo(() => {
+    const rows = getCourseListFromResponse(mainCategoryOptionsQuery.data);
+    return rows.map((r) => ({
+      value: String(r.id),
+      label: String(r.title ?? `Category #${String(r.id)}`),
+    }));
+  }, [mainCategoryOptionsQuery.data]);
+
+  const subCategoryOptionsQuery = useCourseEntityList(
+    slug === "lms-classes" ? "sub-categories" : null,
+    { per_page: 500, status: "active" },
+    { enabled: slug === "lms-classes" && !readOnly }
+  );
+  const lmsClassSubCategoryOptions = useMemo(() => {
+    const rows = getCourseListFromResponse(subCategoryOptionsQuery.data);
+    const mainId = String(watchedMainCategoryId ?? "").trim();
+    const filtered = mainId
+      ? rows.filter((r) => String(r.main_category_id ?? "") === mainId)
+      : rows;
+    return filtered.map((r) => ({
+      value: String(r.id),
+      label: String(r.title ?? `Sub category #${String(r.id)}`),
+    }));
+  }, [subCategoryOptionsQuery.data, watchedMainCategoryId]);
 
   const studentUsersQuery = useQueryApi<Record<string, unknown>[]>({
     queryKey: ["users", "student-picker", "class-students"],
@@ -396,6 +444,27 @@ const CourseEntityFormDrawer = ({
     getValues,
     setValue,
     formState.dirtyFields.name,
+  ]);
+
+  useEffect(() => {
+    if (slug !== "lms-classes" || readOnly) return;
+    const mainId = String(watchedMainCategoryId ?? "").trim();
+    const subId = String(getValues("sub_category_id") ?? "").trim();
+    if (!mainId || !subId) return;
+    const rows = getCourseListFromResponse(subCategoryOptionsQuery.data);
+    const stillValid = rows.some(
+      (r) => String(r.id) === subId && String(r.main_category_id ?? "") === mainId
+    );
+    if (!stillValid) {
+      setValue("sub_category_id", "", { shouldDirty: true });
+    }
+  }, [
+    slug,
+    readOnly,
+    watchedMainCategoryId,
+    subCategoryOptionsQuery.data,
+    getValues,
+    setValue,
   ]);
 
   const watchedStudentUserId = useWatch({ control, name: "user_id", defaultValue: "" });
@@ -462,6 +531,7 @@ const CourseEntityFormDrawer = ({
         });
         setVoucherFile(null);
         setStudentProfileImage(null);
+        setStudentNationalIdAttachment(null);
       }
       return;
     }
@@ -470,6 +540,7 @@ const CourseEntityFormDrawer = ({
       setThumbnailFile(null);
       setVoucherFile(null);
       setStudentProfileImage(null);
+      setStudentNationalIdAttachment(null);
       return;
     }
     if (detail) {
@@ -477,8 +548,16 @@ const CourseEntityFormDrawer = ({
       setThumbnailFile(null);
       setVoucherFile(null);
       setStudentProfileImage(null);
+      setStudentNationalIdAttachment(null);
     }
   }, [mode, slug, detail, reset, def.fields]);
+
+  useEffect(() => {
+    if (!readOnly || slug !== "student-subscriptions" || !detail) return;
+    const voucherUrl = typeof detail.voucher_url === "string" ? detail.voucher_url : "";
+    if (!voucherUrl || !voucherIsPdf(detail)) return;
+    openVoucherInNewTab(voucherUrl);
+  }, [readOnly, slug, detail]);
 
   const onSubmit = (values: FormValues) => {
     if (readOnly) return;
@@ -488,6 +567,32 @@ const CourseEntityFormDrawer = ({
         const raw = String(normalizedValues[key] ?? "").trim();
         if (/^\d{2}:\d{2}$/.test(raw)) {
           normalizedValues[key] = `${raw}:00`;
+        }
+      }
+      const startDate = String(normalizedValues.start_date ?? "").trim();
+      const endDate = String(normalizedValues.end_date ?? "").trim();
+      const startTime = String(normalizedValues.start_time ?? "").trim();
+      const endTime = String(normalizedValues.end_time ?? "").trim();
+      if (!startDate || !endDate || !startTime || !endTime) {
+        toast.error("Start date, end date, start time, and end time are required.");
+        return;
+      }
+      if (endDate < startDate) {
+        toast.error("End date must be on or after start date.");
+        return;
+      }
+      if (startDate === endDate && endTime <= startTime) {
+        toast.error("End time must be after start time when dates are the same.");
+        return;
+      }
+    }
+
+    if (slug === "lms-class-students") {
+      for (const phoneKey of ["phone_number", "whatsapp_number", "emergency_phone_number"] as const) {
+        const phone = String(normalizedValues[phoneKey] ?? "").trim();
+        if (phone && !/^\+?[0-9]{7,15}$/.test(phone)) {
+          toast.error("Phone numbers must be 7–15 digits (optional + prefix).");
+          return;
         }
       }
     }
@@ -500,21 +605,16 @@ const CourseEntityFormDrawer = ({
         toast.error("Course, student, and plan are required.");
         return;
       }
-      if (!values.subscription_start_date || !values.purchase_date) {
-        toast.error("Start date and purchase date are required.");
-        return;
-      }
-      const body: Record<string, unknown> = {
-        course_id: courseId,
-        user_id: userId,
-        plan_id: planId,
-        subscription_start_date: values.subscription_start_date,
-        subscription_end_date: values.subscription_end_date || null,
-        purchase_date: values.purchase_date,
-      };
-      if (voucherFile) body.voucher_file = voucherFile;
 
+      // Create: dates are server-owned (StoreStudentSubscriptionRequest marks them prohibited).
+      // Edit: dates may be updated via UpdateStudentSubscriptionRequest.
       if (mode === "create") {
+        const body: Record<string, unknown> = {
+          course_id: courseId,
+          user_id: userId,
+          plan_id: planId,
+        };
+        if (voucherFile) body.voucher_file = voucherFile;
         createEntity(body, {
           onSuccess: () => onSuccess(),
           onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Create failed"),
@@ -522,6 +622,15 @@ const CourseEntityFormDrawer = ({
         return;
       }
       if (entityId == null) return;
+      const body: Record<string, unknown> = {
+        course_id: courseId,
+        user_id: userId,
+        plan_id: planId,
+        subscription_start_date: values.subscription_start_date || undefined,
+        subscription_end_date: values.subscription_end_date || null,
+        purchase_date: values.purchase_date || undefined,
+      };
+      if (voucherFile) body.voucher_file = voucherFile;
       updateEntity(
         { id: entityId, body },
         {
@@ -578,6 +687,9 @@ const CourseEntityFormDrawer = ({
     }
     if (slug === "lms-class-students" && studentProfileImage) {
       payload.profile_image_file = studentProfileImage;
+    }
+    if (slug === "lms-class-students" && studentNationalIdAttachment) {
+      payload.national_id_attachment_file = studentNationalIdAttachment;
     }
 
     if (mode === "create") {
@@ -696,8 +808,11 @@ const CourseEntityFormDrawer = ({
         <DrawerDescription>{drawerDescription}</DrawerDescription>
       </DrawerHeader>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex h-full min-h-0 flex-col">
-        <DrawerBody className="min-h-0 space-y-4 overflow-visible pb-6">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <DrawerBody className="min-h-0 flex-1 space-y-4 overflow-y-auto scroll-smooth pb-4">
           {readOnly && (slug === "main-categories" || slug === "sub-categories")
             ? renderCategoryReadOnly()
             : null}
@@ -814,13 +929,29 @@ const CourseEntityFormDrawer = ({
                   Voucher
                 </p>
                 {typeof detail.voucher_url === "string" && detail.voucher_url.length > 0 ? (
-                  <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                    <img
-                      src={detail.voucher_url}
-                      alt="Voucher"
-                      className="max-h-[420px] w-full object-contain"
-                    />
-                  </div>
+                  voucherIsPdf(detail) ? (
+                    <div className="rounded-xl border border-border bg-muted/10 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        This voucher is a PDF. It opens in a new browser tab for viewing.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3"
+                        onClick={() => openVoucherInNewTab(String(detail.voucher_url))}
+                      >
+                        View PDF voucher
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
+                      <img
+                        src={String(detail.voucher_url)}
+                        alt="Voucher"
+                        className="max-h-[420px] w-full object-contain"
+                      />
+                    </div>
+                  )
                 ) : (
                   <p className="text-sm text-muted-foreground">No voucher on file.</p>
                 )}
@@ -906,6 +1037,22 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Page className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Main category</p>
+                    <p className="mt-1 text-sm font-medium">{String(detail.main_category_name ?? "—")}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
+                  <Page className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Sub category</p>
+                    <p className="mt-1 text-sm font-medium">{String(detail.sub_category_name ?? "—")}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
+                  <Page className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Course</p>
                     <p className="mt-1 text-sm font-medium">{String(detail.course_name ?? "—")}</p>
                   </div>
@@ -916,6 +1063,14 @@ const CourseEntityFormDrawer = ({
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Instructor</p>
                     <p className="mt-1 text-sm font-medium">{String(detail.instructor_name ?? "—")}</p>
                   </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-border bg-muted/15 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Schedule days</p>
+                  <p className="mt-1 text-sm font-medium capitalize">
+                    {String(detail.schedule_days ?? "—").replace(/_/g, " ")}
+                  </p>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -957,47 +1112,117 @@ const CourseEntityFormDrawer = ({
 
           {readOnly && slug === "lms-class-students" && detail ? (
             <div className="space-y-4">
-              {typeof detail.profile_image_url === "string" && detail.profile_image_url ? (
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                  <img
-                    src={detail.profile_image_url}
-                    alt="Student profile"
-                    className="mx-auto h-36 w-36 rounded-full object-cover"
-                  />
+                  {typeof detail.profile_image_url === "string" && detail.profile_image_url ? (
+                    <img
+                      src={detail.profile_image_url}
+                      alt="Student profile"
+                      className="mx-auto h-36 w-36 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
+                      No profile photo
+                    </div>
+                  )}
                 </div>
-              ) : null}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Student</p>
-                  <p className="mt-1 text-base font-semibold">
-                    {String(detail.user_name ?? `${String(detail.first_name ?? "")} ${String(detail.last_name ?? "")}`)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Class</p>
-                  <p className="mt-1 text-base font-medium">{String(detail.class_name ?? "—")}</p>
+                <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
+                  {typeof detail.national_id_attachment_url === "string" && detail.national_id_attachment_url ? (
+                    detail.national_id_attachment_url.toLowerCase().includes(".pdf") ? (
+                      <a
+                        href={detail.national_id_attachment_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex h-36 flex-col items-center justify-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Page className="h-10 w-10" />
+                        View national ID attachment
+                      </a>
+                    ) : (
+                      <img
+                        src={detail.national_id_attachment_url}
+                        alt="National ID"
+                        className="mx-auto h-36 w-full rounded-lg object-contain"
+                      />
+                    )
+                  ) : (
+                    <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
+                      No national ID attachment
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Student</p>
+                <p className="mt-1 text-base font-semibold">
+                  {String(
+                    detail.full_name ??
+                      detail.user_name ??
+                      (`${String(detail.first_name ?? "")} ${String(detail.last_name ?? "")}`.trim() || "—")
+                  )}
+                </p>
+                {detail.student_code ? (
+                  <p className="mt-1 font-mono text-sm text-primary">{String(detail.student_code)}</p>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Father name</p>
-                  <p className="text-sm font-medium">{String(detail.father_name ?? "—")}</p>
+                  <p className="text-xs text-muted-foreground">Date of birth</p>
+                  <p className="text-sm font-medium">{String(detail.date_of_birth ?? "—")}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Grade</p>
-                  <p className="text-sm font-medium">{String(detail.grade ?? "PENDING")}</p>
+                  <p className="text-xs text-muted-foreground">Gender</p>
+                  <p className="text-sm font-medium capitalize">{String(detail.gender ?? "—")}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="text-sm font-medium capitalize">{String(detail.status ?? "active")}</p>
+                  <p className="text-xs text-muted-foreground">ACCA ID</p>
+                  <p className="text-sm font-medium">{String(detail.acca_id ?? "—")}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Academic background</p>
+                  <p className="text-sm font-medium">{String(detail.academic_background ?? "—").replace(/_/g, " ")}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/15 p-4">
+                <p className="text-xs text-muted-foreground">Address</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm">{String(detail.address ?? "—")}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium">{String(detail.email ?? "—")}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">National ID</p>
+                  <p className="text-sm font-medium">{String(detail.national_id ?? "—")}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Phone</p>
                   <p className="text-sm font-medium">{String(detail.phone_number ?? "—")}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">National ID</p>
-                  <p className="text-sm font-medium">{String(detail.national_id ?? "—")}</p>
+                  <p className="text-xs text-muted-foreground">WhatsApp</p>
+                  <p className="text-sm font-medium">{String(detail.whatsapp_number ?? "—")}</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Emergency phone</p>
+                  <p className="text-sm font-medium">{String(detail.emergency_phone_number ?? "—")}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Father name</p>
+                  <p className="text-sm font-medium">{String(detail.father_name ?? "—")}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p className="text-sm font-medium capitalize">{String(detail.status ?? "active")}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/15 p-3">
+                  <p className="text-xs text-muted-foreground">Linked user</p>
+                  <p className="text-sm font-medium">
+                    {detail.user_id ? String(detail.user_name ?? detail.user_id) : "None"}
+                  </p>
                 </div>
               </div>
               <div className="rounded-lg border border-border bg-muted/15 p-4">
@@ -1139,20 +1364,27 @@ const CourseEntityFormDrawer = ({
                   )}
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cef-sub-start">Subscription start</Label>
-                  <Input id="cef-sub-start" type="date" {...register("subscription_start_date")} />
+              {mode === "edit" ? (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cef-sub-start">Subscription start</Label>
+                    <Input id="cef-sub-start" type="date" {...register("subscription_start_date")} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cef-sub-end">Subscription end</Label>
+                    <Input id="cef-sub-end" type="date" {...register("subscription_end_date")} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cef-sub-purchase">Purchase date</Label>
+                    <Input id="cef-sub-purchase" type="date" {...register("purchase_date")} />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="cef-sub-end">Subscription end</Label>
-                  <Input id="cef-sub-end" type="date" {...register("subscription_end_date")} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="cef-sub-purchase">Purchase date</Label>
-                  <Input id="cef-sub-purchase" type="date" {...register("purchase_date")} />
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Purchase and subscription dates are set automatically on create. End date is
+                  assigned when the subscription is approved.
+                </p>
+              )}
               <ImageDropzone
                 accept="image/*,application/pdf"
                 label="Voucher"
@@ -1268,19 +1500,85 @@ const CourseEntityFormDrawer = ({
                   <p className="mt-1 font-mono text-sm font-semibold text-primary">{nextClassCode}</p>
                 </div>
               ) : null}
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div className="space-y-1.5 sm:col-span-3">
-                  <Label htmlFor="cef-class-name">
-                    Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input id="cef-class-name" {...register("name")} placeholder="Class name" />
-                </div>
-                <div className="space-y-1.5 sm:col-span-1">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Controller
+                  name="main_category_id"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      id="cef-class-main-category"
+                      label="Main category"
+                      options={lmsClassMainCategoryOptions}
+                      value={String(field.value ?? "")}
+                      onChange={field.onChange}
+                      placeholder="Select main category…"
+                      disabled={mainCategoryOptionsQuery.isFetching}
+                    />
+                  )}
+                />
+                <Controller
+                  name="sub_category_id"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      id="cef-class-sub-category"
+                      label="Sub category"
+                      options={lmsClassSubCategoryOptions}
+                      value={String(field.value ?? "")}
+                      onChange={field.onChange}
+                      placeholder="Select sub category…"
+                      disabled={subCategoryOptionsQuery.isFetching || !String(watchedMainCategoryId ?? "").trim()}
+                    />
+                  )}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cef-class-name">
+                  Name <span className="text-destructive">*</span>
+                </Label>
+                <Input id="cef-class-name" {...register("name")} placeholder="Class name" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="cef-class-type">Class type</Label>
-                  <select id="cef-class-type" className={inputClass} {...register("class_type")}>
-                    <option value="online">Online</option>
-                    <option value="offline">Offline</option>
-                  </select>
+                  <Controller
+                    name="class_type"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={String(field.value ?? "online")} onValueChange={field.onChange}>
+                        <SelectTrigger id="cef-class-type" className="w-full">
+                          <SelectValue placeholder="Select class type…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="online">Online</SelectItem>
+                          <SelectItem value="offline">Offline</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cef-schedule-days">Days (odd/even)</Label>
+                  <Controller
+                    name="schedule_days"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={String(field.value ?? "") || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger id="cef-schedule-days" className="w-full">
+                          <SelectValue placeholder="Select days…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Select days…</SelectItem>
+                          <SelectItem value="odd">Odd days</SelectItem>
+                          <SelectItem value="even">Even days</SelectItem>
+                          <SelectItem value="both">Both odd &amp; even</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1290,7 +1588,7 @@ const CourseEntityFormDrawer = ({
                   render={({ field }) => (
                     <SearchableSelect
                       id="cef-class-course"
-                      label="Course (optional)"
+                      label="Course"
                       options={lmsClassCourseOptions.map((o) => ({
                         value: o.value,
                         label: o.label,
@@ -1332,21 +1630,29 @@ const CourseEntityFormDrawer = ({
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-start-date">Start date</Label>
+                  <Label htmlFor="cef-start-date">
+                    Start date <span className="text-destructive">*</span>
+                  </Label>
                   <Input id="cef-start-date" type="date" {...register("start_date")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-end-date">End date</Label>
+                  <Label htmlFor="cef-end-date">
+                    End date <span className="text-destructive">*</span>
+                  </Label>
                   <Input id="cef-end-date" type="date" {...register("end_date")} />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-start-time">Start time</Label>
+                  <Label htmlFor="cef-start-time">
+                    Start time <span className="text-destructive">*</span>
+                  </Label>
                   <Input id="cef-start-time" type="time" {...register("start_time")} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-end-time">End time</Label>
+                  <Label htmlFor="cef-end-time">
+                    End time <span className="text-destructive">*</span>
+                  </Label>
                   <Input id="cef-end-time" type="time" {...register("end_time")} />
                 </div>
               </div>
@@ -1367,7 +1673,7 @@ const CourseEntityFormDrawer = ({
                 render={({ field }) => (
                   <SearchableSelect
                     id="cef-student-user"
-                    label="User (optional)"
+                    label="User"
                     options={classStudentUserOptions}
                     value={String(field.value ?? "")}
                     onChange={field.onChange}
@@ -1392,11 +1698,44 @@ const CourseEntityFormDrawer = ({
                 <Label htmlFor="cef-father-name">Father name</Label>
                 <Input id="cef-father-name" {...register("father_name")} />
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-phone-number">Phone number</Label>
-                  <Input id="cef-phone-number" {...register("phone_number")} />
+                  <Label htmlFor="cef-acca-id">ACCA ID</Label>
+                  <Input id="cef-acca-id" {...register("acca_id")} placeholder="ACCA registration ID" />
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cef-academic-background">Academic background</Label>
+                  <select id="cef-academic-background" className={inputClass} {...register("academic_background")}>
+                    <option value="">Select background…</option>
+                    <option value="grade_12">12th Grade</option>
+                    <option value="undergraduate">Undergraduate</option>
+                    <option value="bachelor">Bachelor</option>
+                    <option value="master">Master</option>
+                    <option value="doctorate">Doctorate</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cef-gender">Gender</Label>
+                  <select id="cef-gender" className={inputClass} {...register("gender")}>
+                    <option value="">Select gender…</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cef-dob">Date of birth</Label>
+                  <Input id="cef-dob" type="date" {...register("date_of_birth")} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cef-address">Address</Label>
+                <textarea id="cef-address" className={cn(inputClass, "min-h-[72px]")} {...register("address")} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-national-id">National ID</Label>
                   <Input id="cef-national-id" {...register("national_id")} />
@@ -1406,38 +1745,51 @@ const CourseEntityFormDrawer = ({
                   <Input id="cef-email" type="email" {...register("email")} />
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-enrollment-date">Enrollment date</Label>
-                  <Input id="cef-enrollment-date" type="date" {...register("enrollment_date")} />
+                  <Label htmlFor="cef-phone-number">Phone number</Label>
+                  <Input id="cef-phone-number" {...register("phone_number")} placeholder="+937XXXXXXXX" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="cef-student-grade">Grade</Label>
-                  <select id="cef-student-grade" className={inputClass} {...register("grade")}>
-                    <option value="PENDING">Pending</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                    <option value="F">F</option>
-                  </select>
+                  <Label htmlFor="cef-whatsapp">WhatsApp number</Label>
+                  <Input id="cef-whatsapp" {...register("whatsapp_number")} placeholder="+937XXXXXXXX" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cef-emergency-phone">Emergency phone number</Label>
+                  <Input id="cef-emergency-phone" {...register("emergency_phone_number")} placeholder="+937XXXXXXXX" />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cef-student-note">Note</Label>
                 <textarea id="cef-student-note" className={cn(inputClass, "min-h-[96px]")} {...register("notes")} />
               </div>
-              <ImageDropzone
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                label="Profile picture (optional)"
-                hint="Upload student profile image"
-                value={studentProfileImage}
-                onSelect={setStudentProfileImage}
-                previewMode="square"
-                initialPreviewUrl={
-                  studentProfileImage ? null : (typeof detail?.profile_image_url === "string" ? detail.profile_image_url : null)
-                }
-              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ImageDropzone
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  label="Profile picture"
+                  hint="Upload student profile image"
+                  value={studentProfileImage}
+                  onSelect={setStudentProfileImage}
+                  previewMode="square"
+                  initialPreviewUrl={
+                    studentProfileImage ? null : (typeof detail?.profile_image_url === "string" ? detail.profile_image_url : null)
+                  }
+                />
+                <ImageDropzone
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  label="National ID attachment"
+                  hint="Upload national ID image or PDF"
+                  value={studentNationalIdAttachment}
+                  onSelect={setStudentNationalIdAttachment}
+                  previewMode="square"
+                  mediaPreview="file"
+                  initialPreviewUrl={
+                    studentNationalIdAttachment
+                      ? null
+                      : (typeof detail?.national_id_attachment_url === "string" ? detail.national_id_attachment_url : null)
+                  }
+                />
+              </div>
             </div>
           )}
 
@@ -1453,7 +1805,7 @@ const CourseEntityFormDrawer = ({
         </DrawerBody>
 
         {!readOnly && (
-          <DrawerFooter>
+          <DrawerFooter className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-card shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.12)]">
             <Button type="submit" disabled={submitting}>
               {submitting ? (
                 <>
