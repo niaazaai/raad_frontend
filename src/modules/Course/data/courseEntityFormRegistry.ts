@@ -57,6 +57,27 @@ const CLASS_TYPE = [
   { value: "offline", label: "Offline" },
 ];
 
+const SCHEDULE_DAYS = [
+  { value: "odd", label: "Odd days" },
+  { value: "even", label: "Even days" },
+  { value: "both", label: "Both odd & even" },
+];
+
+const GENDER = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
+const ACADEMIC_BACKGROUND = [
+  { value: "grade_12", label: "12th Grade" },
+  { value: "undergraduate", label: "Undergraduate" },
+  { value: "bachelor", label: "Bachelor" },
+  { value: "master", label: "Master" },
+  { value: "doctorate", label: "Doctorate" },
+  { value: "other", label: "Other" },
+];
+
 const CONTENT_TYPE = [
   { value: "video", label: "Video" },
   { value: "content", label: "Content" },
@@ -96,7 +117,6 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "level", label: "Level", type: "select", options: LEVEL },
       { name: "thumbnail", label: "Thumbnail URL", type: "text" },
       { name: "banner", label: "Banner URL", type: "text" },
-      { name: "price", label: "Price", type: "number" },
       { name: "is_featured", label: "Featured", type: "checkbox" },
       { name: "is_popular", label: "Popular", type: "checkbox" },
       { name: "is_new", label: "New", type: "checkbox" },
@@ -225,24 +245,34 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   },
   "lms-classes": {
     fields: [
+      { name: "main_category_id", label: "Main category", type: "select" },
+      { name: "sub_category_id", label: "Sub category", type: "select" },
       { name: "name", label: "Name", type: "text", required: true },
       { name: "course_id", label: "Course", type: "select" },
       { name: "instructor_id", label: "Instructor", type: "select", required: true },
       { name: "class_type", label: "Class type", type: "select", options: CLASS_TYPE },
+      { name: "schedule_days", label: "Schedule days", type: "select", options: SCHEDULE_DAYS },
       { name: "class_fee", label: "Class fee", type: "number" },
-      { name: "start_date", label: "Start date", type: "date" },
-      { name: "end_date", label: "End date", type: "date" },
-      { name: "start_time", label: "Start time", type: "time" },
-      { name: "end_time", label: "End time", type: "time" },
+      { name: "start_date", label: "Start date", type: "date", required: true },
+      { name: "end_date", label: "End date", type: "date", required: true },
+      { name: "start_time", label: "Start time", type: "time", required: true },
+      { name: "end_time", label: "End time", type: "time", required: true },
     ],
   },
   "lms-class-students": {
     fields: [
-      { name: "user_id", label: "User (optional)", type: "select" },
+      { name: "user_id", label: "User", type: "select" },
       { name: "first_name", label: "First name", type: "text", required: true },
       { name: "last_name", label: "Last name", type: "text" },
       { name: "father_name", label: "Father name", type: "text" },
+      { name: "date_of_birth", label: "Date of birth", type: "date" },
+      { name: "gender", label: "Gender", type: "select", options: GENDER },
+      { name: "acca_id", label: "ACCA ID", type: "text" },
+      { name: "academic_background", label: "background", type: "select", options: ACADEMIC_BACKGROUND },
+      { name: "address", label: "Address", type: "textarea" },
       { name: "phone_number", label: "Phone number", type: "text" },
+      { name: "whatsapp_number", label: "WhatsApp number", type: "text" },
+      { name: "emergency_phone_number", label: "Emergency phone number", type: "text" },
       { name: "national_id", label: "National ID", type: "text" },
       { name: "email", label: "Email", type: "text" },
       { name: "notes", label: "Note", type: "textarea" },
@@ -363,6 +393,11 @@ export function courseRowToFormValuesForSlug(
   if (slug === "sub-categories") {
     out.main_category_id = stringifyForInput(row.main_category_id);
     out.status = stringifyForInput(row.status);
+  }
+  if (slug === "lms-classes") {
+    out.main_category_id = stringifyForInput(row.main_category_id);
+    out.sub_category_id = stringifyForInput(row.sub_category_id);
+    out.schedule_days = stringifyForInput(row.schedule_days);
   }
   return out;
 }
