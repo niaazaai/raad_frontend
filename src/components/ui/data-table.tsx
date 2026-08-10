@@ -245,7 +245,7 @@ export function DataTable<T>({
   );
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-4">
+    <div className="w-full min-w-0 max-w-full overflow-hidden space-y-4">
       {/* Search - top left */}
       {searchable && (
         <div className="relative max-w-md">
@@ -262,8 +262,8 @@ export function DataTable<T>({
       )}
 
       {/* Table scrolls horizontally inside this container so the page does not */}
-      <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card">
-        <table className="w-max min-w-full">
+      <div className="relative w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card">
+        <table className="w-max min-w-full border-collapse">
           <thead className="border-b border-border bg-muted/50">
             <tr>
               {columns.map((col) => (
@@ -309,7 +309,7 @@ export function DataTable<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        "px-4 py-3 text-sm",
+                        "whitespace-nowrap px-4 py-3 text-sm",
                         col.align === "center" && "text-center",
                         col.align === "right" && "text-right"
                       )}
