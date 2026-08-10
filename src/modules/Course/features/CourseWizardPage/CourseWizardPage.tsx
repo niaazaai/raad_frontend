@@ -108,7 +108,6 @@ const schema = z.object({
   level: courseLevelSchema.default(CourseLevel.INTERMEDIATE),
   thumbnail: z.string().optional(),
   banner: z.string().optional(),
-  price: z.coerce.number().optional(),
   instructor_id: z.coerce.number().optional(),
   is_featured: z.boolean().default(false),
   is_popular: z.boolean().default(false),
@@ -671,7 +670,6 @@ const CourseWizardPage = () => {
     setValue("level", normalizeCourseLevel(detail.level));
     setValue("thumbnail", String(detail.thumbnail ?? ""));
     setValue("banner", String(detail.banner ?? ""));
-    setValue("price", Number(detail.price ?? 0));
     const instructorId = Number(detail.instructor_id ?? 0);
     setValue("instructor_id", instructorId > 0 ? instructorId : undefined);
     setValue("is_featured", Boolean(detail.is_featured));
@@ -735,7 +733,6 @@ const CourseWizardPage = () => {
       prerequisites: values.prerequisites,
       language: values.language,
       level: values.level,
-      price: values.price,
       instructor_id: values.instructor_id,
       is_featured: values.is_featured,
       is_popular: values.is_popular,
@@ -814,7 +811,6 @@ const CourseWizardPage = () => {
       prerequisites: values.prerequisites,
       language: values.language,
       level: values.level,
-      price: values.price,
       instructor_id: values.instructor_id,
       is_featured: values.is_featured,
       is_popular: values.is_popular,
@@ -1370,17 +1366,6 @@ const CourseWizardPage = () => {
                         </SelectContent>
                       </Select>
                     )}
-                  />
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <FieldLabel htmlFor="course-price">Price</FieldLabel>
-                  <Input
-                    id="course-price"
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    {...register("price")}
-                    disabled={viewMode}
                   />
                 </div>
                 <div className="min-w-0 space-y-1.5">
