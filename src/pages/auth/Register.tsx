@@ -44,9 +44,23 @@ const RegisterPage = () => {
         },
       });
 
-      const body = response.data as { message?: string; email?: string };
+      const body = response.data as {
+        message?: string;
+        email?: string;
+        requires_email_verification?: boolean;
+      };
       if (response.ok) {
-        navigate("/verify-email", { replace: true, state: { email: body?.email ?? data.email } });
+        if (body?.requires_email_verification) {
+          navigate("/verify-email", {
+            replace: true,
+            state: { email: body?.email ?? data.email },
+          });
+        } else {
+          navigate("/login", {
+            replace: true,
+            state: { registered: true, email: body?.email ?? data.email },
+          });
+        }
       } else {
         setSubmitError((body?.message as string) || "Registration failed. Please try again.");
       }
