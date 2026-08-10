@@ -164,15 +164,21 @@ const ClassStudentsPage = () => {
     { enabled: addOpen }
   );
   const availableStudents = getCourseListFromResponse(studentsListQuery.data);
-  const studentOptions = availableStudents.map((s) => {
-    const name = `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() || "—";
-    const code = String(s.student_code ?? s.id);
-    const nationalId = String(s.national_id ?? "—");
-    return {
-      value: String(s.id),
-      label: `${code} - ${name} : ${nationalId}`,
-    };
-  });
+  const enrolledStudentIds = useMemo(
+    () => new Set(rows.map((r) => Number(r.student_id)).filter((id) => !Number.isNaN(id))),
+    [rows]
+  );
+  const studentOptions = availableStudents
+    .filter((s) => !enrolledStudentIds.has(Number(s.id)))
+    .map((s) => {
+      const name = `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() || "—";
+      const code = String(s.student_code ?? s.id);
+      const nationalId = String(s.national_id ?? "—");
+      return {
+        value: String(s.id),
+        label: `${code} - ${name} : ${nationalId}`,
+      };
+    });
 
   const openGradeModal = (row: ClassStudentRow) => {
     setGradeForm({
@@ -323,6 +329,10 @@ const ClassStudentsPage = () => {
           icon: <Trash className="h-4 w-4" />,
           variant: "danger" as const,
           permission: "course.class_students.update",
+          hidden: (row) => {
+            const status = String(row.payment_status ?? "pending");
+            return status === "paid" || status === "partial";
+          },
           onClick: async (row) => {
             if (!(await confirm(confirmPresets.delete(t("course.classStudents.removeConfirmItem"))))) return;
             removeStudent.mutate(row.id);
@@ -409,7 +419,7 @@ const ClassStudentsPage = () => {
               value={selectedStudentIds}
               onChange={setSelectedStudentIds}
               placeholder={t("course.classStudents.selectStudents")}
-              disabled={studentsListQuery.isFetching}
+              disabled={studentsListQuery.isLoading && !studentsListQuery.data}
               max={10}
             />
           </ModalBody>
