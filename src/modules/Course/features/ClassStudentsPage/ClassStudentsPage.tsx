@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, EditPencil, Page, Plus, Prohibition, Trash, Undo, Wallet } from "iconoir-react";
+import { ArrowLeft, EditPencil, Minus, Page, Plus, Prohibition, Trash, Undo, Wallet } from "iconoir-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -27,6 +27,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   useConfirmDialog,
 } from "@/components/ui";
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
@@ -58,9 +59,9 @@ function getPagination(response: unknown): DataTablePaginationMeta | null {
   return (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta?.pagination ?? null;
 }
 
-const GRADE_VALUES = ["A", "B", "C", "D", "F", "PENDING"] as const;
 const DISCOUNT_TYPES = ["none", "percentage", "fixed"] as const;
 const CURRENCIES = ["AFN", "USD", "GBP"] as const;
+const RECEIVABLE_STATUSES = ["pending", "mof_pending", "other_party"] as const;
 
 function PaymentStatusBadge({ value }: { value: unknown }) {
   const { t } = useTranslation();
@@ -69,11 +70,15 @@ function PaymentStatusBadge({ value }: { value: unknown }) {
     pending: t("course.paymentStatus.pending"),
     paid: t("course.paymentStatus.paid"),
     partial: t("course.paymentStatus.partial"),
+    mof_pending: t("course.paymentStatus.mof_pending"),
+    other_party: t("course.paymentStatus.other_party"),
   };
   const colors: Record<string, string> = {
     pending: "bg-warning/10 text-warning",
     paid: "bg-success/10 text-success",
     partial: "bg-info/10 text-info",
+    mof_pending: "bg-auxiliary/10 text-auxiliary",
+    other_party: "bg-info/10 text-info",
   };
   return (
     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
@@ -112,8 +117,14 @@ function computeFeeAfterDiscount(classFee: number, discountType: string, discoun
   return Math.max(0, classFee);
 }
 
-function resolveStatus(fee: number, paid: number): "pending" | "paid" | "partial" {
+function resolveStatus(
+  fee: number,
+  paid: number,
+  receivableStatus?: string,
+): "pending" | "paid" | "partial" | "mof_pending" | "other_party" {
   if (fee <= 0 || paid >= fee) return "paid";
+  if (receivableStatus === "mof_pending") return "mof_pending";
+  if (receivableStatus === "other_party") return "other_party";
   if (paid <= 0) return "pending";
   return "partial";
 }
@@ -130,6 +141,9 @@ type PaymentFormState = {
   exchange_rate: string;
   next_due_date: string;
   transaction_date: string;
+  receivable_status: string;
+  other_party_name: string;
+  irrecoverable_debt: string;
 };
 
 type RefundFormState = {
@@ -146,15 +160,6 @@ const ClassStudentsPage = () => {
   const { confirm } = useConfirmDialog();
   const confirmPresets = useConfirmPresets();
   const { t } = useTranslation();
-
-  const gradeOptions = useMemo(
-    () =>
-      GRADE_VALUES.map((value) => ({
-        value,
-        label: value === "PENDING" ? t("course.gradePending") : value,
-      })),
-    [t],
-  );
 
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 10,
@@ -189,7 +194,6 @@ const ClassStudentsPage = () => {
   const [disableModal, setDisableModal] = useState<ClassStudentRow | null>(null);
   const [paymentModal, setPaymentModal] = useState<ClassStudentRow | null>(null);
   const [refundModal, setRefundModal] = useState<ClassStudentRow | null>(null);
-  const [gradeForm, setGradeForm] = useState({ grade: "PENDING", marks: "" });
   const [disableReason, setDisableReason] = useState("");
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>({
     discount_type: "none",
@@ -199,6 +203,9 @@ const ClassStudentsPage = () => {
     exchange_rate: "1",
     next_due_date: "",
     transaction_date: todayIsoDate(),
+    receivable_status: "pending",
+    other_party_name: "",
+    irrecoverable_debt: "",
   });
   const [refundForm, setRefundForm] = useState<RefundFormState>({
     amount: "",
@@ -235,10 +242,6 @@ const ClassStudentsPage = () => {
     });
 
   const openGradeModal = (row: ClassStudentRow) => {
-    setGradeForm({
-      grade: String(row.grade ?? "PENDING"),
-      marks: row.marks != null ? String(row.marks) : "",
-    });
     setGradeModal(row);
   };
 
@@ -247,8 +250,13 @@ const ClassStudentsPage = () => {
     const discountType = String(row.discount_type ?? "none");
     const discountAmount = row.discount_amount != null ? Number(row.discount_amount) : 0;
     const alreadyPaid = Number(row.paid_amount ?? 0);
+    const irrecoverable = Number(row.irrecoverable_debt ?? 0);
     const feeAfter = computeFeeAfterDiscount(feeSource, discountType, discountAmount);
-    const remaining = Math.max(0, Math.round((feeAfter - alreadyPaid) * 100) / 100);
+    const remaining = Math.max(0, Math.round((feeAfter - alreadyPaid - irrecoverable) * 100) / 100);
+    const currentStatus = String(row.payment_status ?? "pending");
+    const receivableStatus = RECEIVABLE_STATUSES.includes(currentStatus as (typeof RECEIVABLE_STATUSES)[number])
+      ? currentStatus
+      : "pending";
 
     setPaymentForm({
       discount_type: discountType,
@@ -258,6 +266,9 @@ const ClassStudentsPage = () => {
       exchange_rate: "1",
       next_due_date: row.next_due_date ? String(row.next_due_date).slice(0, 10) : "",
       transaction_date: todayIsoDate(),
+      receivable_status: receivableStatus,
+      other_party_name: String(row.other_party_name ?? ""),
+      irrecoverable_debt: irrecoverable > 0 ? String(irrecoverable) : "",
     });
     setPaymentModal(row);
   };
@@ -326,12 +337,36 @@ const ClassStudentsPage = () => {
         {
           key: "grade",
           header: t("course.columns.grade"),
-          render: (row) => (
-            <span>
-              {row.grade ?? "—"}
-              {row.marks != null ? ` (${row.marks})` : ""}
-            </span>
-          ),
+          render: (row) => {
+            const mocks = Array.isArray(row.mock_results) ? row.mock_results : [];
+            const mockLabel = mocks.length > 0 ? mocks.join(" / ") : null;
+            const finalLabel =
+              row.final_passed == null
+                ? null
+                : `${row.final_passed ? t("course.classStudents.passed") : t("course.classStudents.failed")}${
+                    row.final_score != null ? ` (${row.final_score})` : ""
+                  }`;
+            if (!mockLabel && !finalLabel) {
+              return <span>{row.grade ?? "—"}</span>;
+            }
+            return (
+              <div className="min-w-[7rem] space-y-0.5">
+                {mockLabel ? <div className="font-mono text-sm tabular-nums">{mockLabel}</div> : null}
+                {finalLabel ? (
+                  <div
+                    className={cn(
+                      "text-xs font-medium",
+                      row.final_passed ? "text-success" : "text-danger",
+                    )}
+                  >
+                    {finalLabel}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">{t("course.gradePending")}</div>
+                )}
+              </div>
+            );
+          },
         },
         {
           key: "class_fee",
@@ -448,7 +483,7 @@ const ClassStudentsPage = () => {
           permission: "course.class_students.update",
           hidden: (row) => {
             const status = String(row.payment_status ?? "pending");
-            return status === "paid" || status === "partial";
+            return status === "paid" || status === "partial" || status === "mof_pending" || status === "other_party";
           },
           onClick: async (row) => {
             if (!(await confirm(confirmPresets.delete(t("course.classStudents.removeConfirmItem"))))) return;
@@ -560,10 +595,7 @@ const ClassStudentsPage = () => {
         open={!!gradeModal}
         row={gradeModal}
         classId={classId}
-        form={gradeForm}
-        onFormChange={setGradeForm}
         onClose={() => setGradeModal(null)}
-        gradeOptions={gradeOptions}
       />
 
       <DisableModal
@@ -601,20 +633,57 @@ interface GradeModalProps {
   open: boolean;
   row: ClassStudentRow | null;
   classId: number;
-  form: { grade: string; marks: string };
-  onFormChange: (v: { grade: string; marks: string }) => void;
   onClose: () => void;
-  gradeOptions: { value: string; label: string }[];
 }
 
-function GradeModal({ open, row, classId, form, onFormChange, onClose, gradeOptions }: GradeModalProps) {
+function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
   const updateEnrollment = useUpdateClassStudent(classId, row?.id ?? 0);
   const { t } = useTranslation();
   const fmt = useFormatMessage();
+  const [view, setView] = useState<"mocks" | "final">("mocks");
+  const [mockScores, setMockScores] = useState<string[]>([""]);
+  const [finalScore, setFinalScore] = useState("");
+  const [finalPassed, setFinalPassed] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!open || !row) return;
+    const existing = Array.isArray(row.mock_results) && row.mock_results.length > 0
+      ? row.mock_results.map((n) => String(n))
+      : [""];
+    setMockScores(existing);
+    setFinalScore(row.final_score != null ? String(row.final_score) : "");
+    setFinalPassed(Boolean(row.final_passed));
+    setProofFile(null);
+    setView("mocks");
+  }, [open, row]);
 
   if (!open || !row) return null;
 
   const studentName = String(row.full_name ?? row.student_code ?? "");
+  const parsedMocks = mockScores
+    .map((s) => s.trim())
+    .filter((s) => s !== "")
+    .map((s) => Number(s));
+  const mocksValid = parsedMocks.every((n) => Number.isInteger(n) && n >= 0);
+  const finalScoreValid = finalScore.trim() === "" || Number.isInteger(Number(finalScore));
+
+  const saveMocks = async () => {
+    if (!mocksValid) return;
+    await updateEnrollment.mutateAsync({ mock_results: parsedMocks });
+    onClose();
+  };
+
+  const saveFinal = async () => {
+    if (!finalScoreValid || finalScore.trim() === "") return;
+    const body: Record<string, unknown> = {
+      final_score: Number(finalScore),
+      final_passed: finalPassed,
+    };
+    if (proofFile) body.final_proof_file = proofFile;
+    await updateEnrollment.mutateAsync(body);
+    onClose();
+  };
 
   return (
     <Drawer open={open} onClose={onClose}>
@@ -623,50 +692,127 @@ function GradeModal({ open, row, classId, form, onFormChange, onClose, gradeOpti
           <DrawerTitle>{fmt("course.classStudents.applyGrade", { name: studentName })}</DrawerTitle>
         </DrawerHeader>
         <DrawerBody className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="grade-select">{t("course.columns.grade")}</Label>
-            <select
-              id="grade-select"
-              className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm"
-              value={form.grade}
-              onChange={(e) => onFormChange({ ...form, grade: e.target.value })}
-            >
-              {gradeOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="marks-input">{t("course.classStudents.marksNumber")}</Label>
-            <Input
-              id="marks-input"
-              type="number"
-              min={0}
-              value={form.marks}
-              onChange={(e) => onFormChange({ ...form, marks: e.target.value })}
-              placeholder={t("course.classStudents.marksPlaceholder")}
-            />
-          </div>
+          {view === "mocks" ? (
+            <>
+              <div>
+                <Label>{t("course.classStudents.mockResults")}</Label>
+                <p className="mt-1 text-xs text-muted-foreground">{t("course.classStudents.mockHint")}</p>
+              </div>
+              <div className="space-y-2">
+                {mockScores.map((score, index) => (
+                  <div key={`mock-${index}`} className="flex items-center gap-2">
+                    <Input
+                      id={`mock-score-${index}`}
+                      type="number"
+                      inputMode="numeric"
+                      step={1}
+                      min={0}
+                      value={score}
+                      onChange={(e) => {
+                        const next = [...mockScores];
+                        next[index] = e.target.value;
+                        setMockScores(next);
+                      }}
+                      placeholder={fmt("course.classStudents.mockScore", { n: String(index + 1) })}
+                    />
+                    {mockScores.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => setMockScores(mockScores.filter((_, i) => i !== index))}
+                      >
+                        <Minus className="h-4 w-4" />
+                        <span className="sr-only">{t("course.classStudents.removeMock")}</span>
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              {!mocksValid ? (
+                <p className="text-sm text-danger">{t("course.classStudents.mockHint")}</p>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setMockScores([...mockScores, ""])}
+              >
+                <Plus className="h-4 w-4" />
+                {t("course.classStudents.addMock")}
+              </Button>
+              <Button type="button" variant="secondary" className="w-full" onClick={() => setView("final")}>
+                {t("course.classStudents.finalAcca")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" size="sm" className="gap-2 px-0" onClick={() => setView("mocks")}>
+                {t("course.classStudents.backToMocks")}
+              </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="final-score">{t("course.classStudents.finalScore")}</Label>
+                <Input
+                  id="final-score"
+                  type="number"
+                  inputMode="numeric"
+                  step={1}
+                  min={0}
+                  value={finalScore}
+                  onChange={(e) => setFinalScore(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">{t("course.classStudents.passFail")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {finalPassed ? t("course.classStudents.passed") : t("course.classStudents.failed")}
+                  </p>
+                </div>
+                <Switch checked={finalPassed} onCheckedChange={setFinalPassed} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="final-proof">{t("course.classStudents.proofAttachment")}</Label>
+                <Input
+                  id="final-proof"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                />
+                <p className="text-xs text-muted-foreground">{t("course.classStudents.proofHint")}</p>
+                {row.final_proof_url ? (
+                  <a
+                    href={row.final_proof_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    {t("course.classStudents.existingProof")}
+                  </a>
+                ) : null}
+              </div>
+            </>
+          )}
         </DrawerBody>
         <DrawerFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button
-            type="button"
-            loading={updateEnrollment.isPending}
-            onClick={async () => {
-              await updateEnrollment.mutateAsync({
-                grade: form.grade,
-                marks: form.marks ? Number(form.marks) : null,
-              });
-              onClose();
-            }}
-          >
-            {t("course.classStudents.saveGrade")}
-          </Button>
+          {view === "mocks" ? (
+            <Button type="button" loading={updateEnrollment.isPending} disabled={!mocksValid} onClick={() => void saveMocks()}>
+              {t("course.classStudents.saveMocks")}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              loading={updateEnrollment.isPending}
+              disabled={!finalScoreValid || finalScore.trim() === ""}
+              onClick={() => void saveFinal()}
+            >
+              {t("course.classStudents.saveFinal")}
+            </Button>
+          )}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
@@ -750,20 +896,26 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
   const discountAmount = form.discount_amount ? Number(form.discount_amount) : 0;
   const paymentAmount = form.payment_amount ? Number(form.payment_amount) : 0;
   const alreadyPaid = Number(row.paid_amount ?? 0);
+  const irrecoverable = form.irrecoverable_debt ? Number(form.irrecoverable_debt) : 0;
   const feeAfterDiscount = computeFeeAfterDiscount(feeSource, form.discount_type, discountAmount);
-  const remainingBefore = Math.max(0, Math.round((feeAfterDiscount - alreadyPaid) * 100) / 100);
+  const remainingBefore = Math.max(0, Math.round((feeAfterDiscount - alreadyPaid - irrecoverable) * 100) / 100);
   const projectedPaid = alreadyPaid + paymentAmount;
-  const previewStatus = resolveStatus(feeAfterDiscount, projectedPaid);
-  const dueAfter = Math.max(0, Math.round((feeAfterDiscount - projectedPaid) * 100) / 100);
+  const dueAfter = Math.max(0, Math.round((feeAfterDiscount - projectedPaid - irrecoverable) * 100) / 100);
+  const previewStatus = resolveStatus(feeAfterDiscount - irrecoverable, projectedPaid, dueAfter > 0.009 ? form.receivable_status : undefined);
   const needsExchangeRate = form.currency === "USD" || form.currency === "GBP";
-  const needsNextDue = dueAfter > 0.009;
-  const canSubmit = paymentAmount > 0 && paymentAmount <= remainingBefore + 0.01 && remainingBefore > 0;
+  const needsNextDue = dueAfter > 0.009 && form.receivable_status === "pending";
+  const classifying = dueAfter > 0.009 && (form.receivable_status === "mof_pending" || form.receivable_status === "other_party");
+  const otherPartyOk = form.receivable_status !== "other_party" || form.other_party_name.trim() !== "";
+  const canSubmit =
+    otherPartyOk &&
+    paymentAmount <= remainingBefore + 0.01 &&
+    (paymentAmount > 0 || classifying);
 
   const applyDiscountChange = (next: Partial<PaymentFormState>) => {
     const merged = { ...form, ...next };
     const nextDiscountAmount = merged.discount_amount ? Number(merged.discount_amount) : 0;
     const nextFee = computeFeeAfterDiscount(feeSource, merged.discount_type, nextDiscountAmount);
-    const nextRemaining = Math.max(0, Math.round((nextFee - alreadyPaid) * 100) / 100);
+    const nextRemaining = Math.max(0, Math.round((nextFee - alreadyPaid - irrecoverable) * 100) / 100);
     onFormChange({
       ...merged,
       payment_amount: nextRemaining > 0 ? String(nextRemaining) : "",
@@ -902,6 +1054,48 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
             </div>
           ) : null}
 
+          <div className="space-y-1.5">
+            <Label>{t("course.classStudents.receivable")}</Label>
+            <Select
+              value={form.receivable_status}
+              onValueChange={(v) => onFormChange({ ...form, receivable_status: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RECEIVABLE_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {t(`course.paymentStatus.${status}` as "course.paymentStatus.pending")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t("course.classStudents.receivableHint")}</p>
+          </div>
+
+          {form.receivable_status === "other_party" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="other-party-name">{t("course.classStudents.otherPartyName")}</Label>
+              <Input
+                id="other-party-name"
+                value={form.other_party_name}
+                onChange={(e) => onFormChange({ ...form, other_party_name: e.target.value })}
+              />
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="irrecoverable-debt">{t("course.classStudents.irrecoverableDebt")}</Label>
+            <Input
+              id="irrecoverable-debt"
+              type="number"
+              min={0}
+              value={form.irrecoverable_debt}
+              onChange={(e) => onFormChange({ ...form, irrecoverable_debt: e.target.value })}
+            />
+          </div>
+
           <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">{t("course.classStudents.afterDiscount")}</span>
@@ -919,7 +1113,7 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
               <span className="text-muted-foreground">{t("course.columns.payment_status")}</span>
               <PaymentStatusBadge value={previewStatus} />
             </div>
-            {previewStatus === "partial" || previewStatus === "pending" ? (
+            {previewStatus === "partial" || previewStatus === "pending" || previewStatus === "mof_pending" || previewStatus === "other_party" ? (
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">{t("course.columns.due_amount")}</span>
                 <span className="font-medium tabular-nums text-warning">
@@ -950,6 +1144,9 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
                   exchange_rate: needsExchangeRate ? Number(form.exchange_rate || 1) : 1,
                   transaction_date: form.transaction_date || undefined,
                   next_due_date: needsNextDue ? form.next_due_date || null : null,
+                  receivable_status: form.receivable_status,
+                  other_party_name: form.receivable_status === "other_party" ? form.other_party_name.trim() : undefined,
+                  irrecoverable_debt: irrecoverable,
                 });
                 onClose();
               } catch (e) {
@@ -957,7 +1154,7 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
               }
             }}
           >
-            {t("course.classStudents.savePayment")}
+            {paymentAmount > 0 ? t("course.classStudents.savePayment") : t("course.classStudents.classifyOnly")}
           </Button>
         </DrawerFooter>
       </DrawerContent>

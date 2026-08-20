@@ -18,6 +18,11 @@ export interface ClassStudentRow {
   user_name?: string;
   grade?: string;
   marks?: number | string | null;
+  mock_results?: number[];
+  final_score?: number | null;
+  final_passed?: boolean | null;
+  final_proof_path?: string | null;
+  final_proof_url?: string | null;
   enrollment_date?: string;
   status?: string;
   disable_reason?: string | null;
@@ -29,6 +34,10 @@ export interface ClassStudentRow {
   paid_amount?: number | string;
   due_amount?: number | string;
   payment_status?: string;
+  mof_receivable_amount?: number | string;
+  other_receivable_amount?: number | string;
+  other_party_name?: string | null;
+  irrecoverable_debt?: number | string;
   currency?: string;
   next_due_date?: string | null;
   notes?: string | null;
@@ -69,10 +78,29 @@ export function useAttachClassStudent(classId: number) {
 }
 
 export function useUpdateClassStudent(classId: number, enrollmentId: number) {
-  return useMutationApi<ClassStudentRow, Record<string, unknown>>({
-    url: `/lms-classes/${classId}/students/${enrollmentId}`,
-    method: RequestMethod.PUT,
-    invalidateKeys: [classStudentsListPrefix(classId)],
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) => {
+      const hasFiles = Object.values(body).some((v) => v instanceof File);
+      const response = await callApi<ClassStudentRow>({
+        url: `/lms-classes/${classId}/students/${enrollmentId}`,
+        method: RequestMethod.PUT,
+        data: body,
+        hasFiles,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Update failed");
+      }
+      const payload = response.data as { data?: ClassStudentRow } | ClassStudentRow | undefined;
+      if (payload && typeof payload === "object" && "data" in payload && payload.data) {
+        return payload.data;
+      }
+      return payload as ClassStudentRow;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
+    },
   });
 }
 
@@ -115,6 +143,9 @@ export function useRecordClassStudentPayment(classId: number, enrollmentId: numb
       transaction_date?: string;
       next_due_date?: string | null;
       notes?: string;
+      receivable_status?: string;
+      other_party_name?: string;
+      irrecoverable_debt?: number;
     }
   >({
     url: `/lms-classes/${classId}/students/${enrollmentId}/payments`,

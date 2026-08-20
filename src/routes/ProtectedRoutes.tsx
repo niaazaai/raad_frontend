@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { ProtectedRouteType } from "@/types/routes";
 import { UserManagementRoutes } from "@/modules/UserManagement";
 import { CourseModuleRoutes } from "@/modules/Course/routes";
+import { FinanceRoutes } from "@/modules/Finance/routes";
 
 import { ActivityLogRoutes } from "@/modules/ActivityLog";
 import { BlogRoutes } from "@/modules/Blog/routes";
@@ -36,6 +37,7 @@ const ProtectedRoutes: ProtectedRouteType[] = [
   ...UserManagementRoutes,
   ...ActivityLogRoutes,
   ...BlogRoutes,
+  ...FinanceRoutes,
   ...CourseModuleRoutes,
 ];
 
