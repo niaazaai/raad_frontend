@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, EditPencil, Plus, Prohibition, Trash, Wallet } from "iconoir-react";
+import { ArrowLeft, EditPencil, Page, Plus, Prohibition, Trash, Undo, Wallet } from "iconoir-react";
+import { toast } from "sonner";
 import {
   Button,
   DataTable,
@@ -38,6 +39,9 @@ import {
   useAttachClassStudent,
   useClassStudents,
   useDisableClassStudent,
+  useGenerateClassStudentInvoice,
+  useRecordClassStudentPayment,
+  useRefundClassStudentPayment,
   useRemoveClassStudent,
   useUpdateClassStudent,
   extractClassStudentsFromResponse,
@@ -98,11 +102,47 @@ function formatMoney(value: unknown): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+function computeFeeAfterDiscount(classFee: number, discountType: string, discountAmount: number): number {
+  if (discountType === "percentage") {
+    return Math.max(0, Math.round(classFee * (1 - Math.min(100, Math.max(0, discountAmount)) / 100) * 100) / 100);
+  }
+  if (discountType === "fixed") {
+    return Math.max(0, Math.round((classFee - Math.max(0, discountAmount)) * 100) / 100);
+  }
+  return Math.max(0, classFee);
+}
+
+function resolveStatus(fee: number, paid: number): "pending" | "paid" | "partial" {
+  if (fee <= 0 || paid >= fee) return "paid";
+  if (paid <= 0) return "pending";
+  return "partial";
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+type PaymentFormState = {
+  discount_type: string;
+  discount_amount: string;
+  payment_amount: string;
+  currency: string;
+  exchange_rate: string;
+  next_due_date: string;
+  transaction_date: string;
+};
+
+type RefundFormState = {
+  amount: string;
+  reason: string;
+  transaction_date: string;
+};
+
 const ClassStudentsPage = () => {
   const { classId: classIdParam } = useParams<{ classId: string }>();
   const classId = Number(classIdParam);
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasAnyPermission } = useAuth();
   const { confirm } = useConfirmDialog();
   const confirmPresets = useConfirmPresets();
   const { t } = useTranslation();
@@ -148,15 +188,29 @@ const ClassStudentsPage = () => {
   const [gradeModal, setGradeModal] = useState<ClassStudentRow | null>(null);
   const [disableModal, setDisableModal] = useState<ClassStudentRow | null>(null);
   const [paymentModal, setPaymentModal] = useState<ClassStudentRow | null>(null);
-
+  const [refundModal, setRefundModal] = useState<ClassStudentRow | null>(null);
   const [gradeForm, setGradeForm] = useState({ grade: "PENDING", marks: "" });
   const [disableReason, setDisableReason] = useState("");
-  const [paymentForm, setPaymentForm] = useState({
+  const [paymentForm, setPaymentForm] = useState<PaymentFormState>({
     discount_type: "none",
     discount_amount: "",
-    paid_amount: "",
+    payment_amount: "",
     currency: "AFN",
+    exchange_rate: "1",
+    next_due_date: "",
+    transaction_date: todayIsoDate(),
   });
+  const [refundForm, setRefundForm] = useState<RefundFormState>({
+    amount: "",
+    reason: "",
+    transaction_date: todayIsoDate(),
+  });
+
+  const generateInvoice = useGenerateClassStudentInvoice(classId);
+
+  const canPay = hasAnyPermission(["course.class_students.payment", "course.class_students.update"]);
+  const canRefund = hasAnyPermission(["course.class_students.refund", "course.class_students.update"]);
+  const canInvoice = hasAnyPermission(["course.class_students.invoice", "course.class_students.update"]);
 
   const studentsListQuery = useCourseEntityList(
     addOpen ? "lms-class-students" : null,
@@ -189,13 +243,51 @@ const ClassStudentsPage = () => {
   };
 
   const openPaymentModal = (row: ClassStudentRow) => {
+    const feeSource = row.class_fee != null ? Number(row.class_fee) : classFee;
+    const discountType = String(row.discount_type ?? "none");
+    const discountAmount = row.discount_amount != null ? Number(row.discount_amount) : 0;
+    const alreadyPaid = Number(row.paid_amount ?? 0);
+    const feeAfter = computeFeeAfterDiscount(feeSource, discountType, discountAmount);
+    const remaining = Math.max(0, Math.round((feeAfter - alreadyPaid) * 100) / 100);
+
     setPaymentForm({
-      discount_type: String(row.discount_type ?? "none"),
-      discount_amount: row.discount_amount != null ? String(row.discount_amount) : "0",
-      paid_amount: row.paid_amount != null ? String(row.paid_amount) : "0",
+      discount_type: discountType,
+      discount_amount: String(discountAmount),
+      payment_amount: remaining > 0 ? String(remaining) : "",
       currency: String(row.currency ?? "AFN"),
+      exchange_rate: "1",
+      next_due_date: row.next_due_date ? String(row.next_due_date).slice(0, 10) : "",
+      transaction_date: todayIsoDate(),
     });
     setPaymentModal(row);
+  };
+
+  const openRefundModal = (row: ClassStudentRow) => {
+    setRefundForm({
+      amount: row.paid_amount != null ? String(row.paid_amount) : "",
+      reason: "",
+      transaction_date: todayIsoDate(),
+    });
+    setRefundModal(row);
+  };
+
+  const handleGenerateInvoice = async (row: ClassStudentRow) => {
+    if (Number(row.paid_amount ?? 0) <= 0) {
+      toast.error(t("course.classStudents.invoiceNeedsPayment"));
+      return;
+    }
+    try {
+      const invoice = await generateInvoice.mutateAsync({ enrollmentId: row.id });
+      if (invoice?.pdf_url) {
+        window.open(invoice.pdf_url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error(t("course.classStudents.invoiceFailed"));
+        return;
+      }
+      toast.success(t("course.classStudents.invoiceGenerated"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("course.classStudents.invoiceFailed"));
+    }
   };
 
   const handleAddStudents = async () => {
@@ -303,15 +395,40 @@ const ClassStudentsPage = () => {
           permission: "course.class_students.update",
           onClick: openGradeModal,
         },
-        {
-          key: "payment",
-          label: t("course.classStudents.payment"),
-          icon: <Wallet className="h-4 w-4" />,
-          permission: "course.class_students.update",
-          onClick: openPaymentModal,
-          hidden: (row) =>
-            String(row.payment_status) === "paid" && Number(row.due_amount ?? 0) <= 0,
-        },
+        ...(canPay
+          ? [
+              {
+                key: "payment",
+                label: t("course.classStudents.payment"),
+                icon: <Wallet className="h-4 w-4" />,
+                onClick: openPaymentModal,
+              },
+            ]
+          : []),
+        ...(canRefund
+          ? [
+              {
+                key: "refund",
+                label: t("course.classStudents.refund"),
+                icon: <Undo className="h-4 w-4" />,
+                onClick: openRefundModal,
+                hidden: (row: ClassStudentRow) => Number(row.paid_amount ?? 0) <= 0,
+              },
+            ]
+          : []),
+        ...(canInvoice
+          ? [
+              {
+                key: "invoice",
+                label: t("course.classStudents.invoice"),
+                icon: <Page className="h-4 w-4" />,
+                onClick: (row: ClassStudentRow) => {
+                  void handleGenerateInvoice(row);
+                },
+                hidden: (row: ClassStudentRow) => Number(row.paid_amount ?? 0) <= 0,
+              },
+            ]
+          : []),
         {
           key: "disable",
           label: t("common.disable"),
@@ -340,7 +457,7 @@ const ClassStudentsPage = () => {
         },
       ],
     }),
-    [classFee, confirm, confirmPresets, removeStudent, t],
+    [canInvoice, canPay, canRefund, classFee, confirm, confirmPresets, removeStudent, t],
   );
 
   if (!hasPermission("course.class_students.read")) {
@@ -466,6 +583,15 @@ const ClassStudentsPage = () => {
         form={paymentForm}
         onFormChange={setPaymentForm}
         onClose={() => setPaymentModal(null)}
+      />
+
+      <RefundModal
+        open={!!refundModal}
+        row={refundModal}
+        classId={classId}
+        form={refundForm}
+        onFormChange={setRefundForm}
+        onClose={() => setRefundModal(null)}
       />
     </div>
   );
@@ -607,34 +733,13 @@ interface PaymentModalProps {
   row: ClassStudentRow | null;
   classId: number;
   classFee: number;
-  form: {
-    discount_type: string;
-    discount_amount: string;
-    paid_amount: string;
-    currency: string;
-  };
-  onFormChange: (v: PaymentModalProps["form"]) => void;
+  form: PaymentFormState;
+  onFormChange: (v: PaymentFormState) => void;
   onClose: () => void;
 }
 
-function computeFeeAfterDiscount(classFee: number, discountType: string, discountAmount: number): number {
-  if (discountType === "percentage") {
-    return Math.max(0, Math.round(classFee * (1 - Math.min(100, Math.max(0, discountAmount)) / 100) * 100) / 100);
-  }
-  if (discountType === "fixed") {
-    return Math.max(0, Math.round((classFee - Math.max(0, discountAmount)) * 100) / 100);
-  }
-  return Math.max(0, classFee);
-}
-
-function resolveStatus(fee: number, paid: number): "pending" | "paid" | "partial" {
-  if (fee <= 0 || paid >= fee) return "paid";
-  if (paid <= 0) return "pending";
-  return "partial";
-}
-
 function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClose }: PaymentModalProps) {
-  const updateEnrollment = useUpdateClassStudent(classId, row?.id ?? 0);
+  const recordPayment = useRecordClassStudentPayment(classId, row?.id ?? 0);
   const { t } = useTranslation();
   const fmt = useFormatMessage();
 
@@ -643,11 +748,28 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
   const studentName = String(row.full_name ?? row.student_code ?? "");
   const feeSource = row.class_fee != null ? Number(row.class_fee) : classFee;
   const discountAmount = form.discount_amount ? Number(form.discount_amount) : 0;
-  const paidAmount = form.paid_amount ? Number(form.paid_amount) : 0;
+  const paymentAmount = form.payment_amount ? Number(form.payment_amount) : 0;
+  const alreadyPaid = Number(row.paid_amount ?? 0);
   const feeAfterDiscount = computeFeeAfterDiscount(feeSource, form.discount_type, discountAmount);
-  const previewStatus = resolveStatus(feeAfterDiscount, paidAmount);
-  const dueAmount = Math.max(0, Math.round((feeAfterDiscount - paidAmount) * 100) / 100);
-  const isFullyPaid = previewStatus === "paid";
+  const remainingBefore = Math.max(0, Math.round((feeAfterDiscount - alreadyPaid) * 100) / 100);
+  const projectedPaid = alreadyPaid + paymentAmount;
+  const previewStatus = resolveStatus(feeAfterDiscount, projectedPaid);
+  const dueAfter = Math.max(0, Math.round((feeAfterDiscount - projectedPaid) * 100) / 100);
+  const needsExchangeRate = form.currency === "USD" || form.currency === "GBP";
+  const needsNextDue = dueAfter > 0.009;
+  const canSubmit = paymentAmount > 0 && paymentAmount <= remainingBefore + 0.01 && remainingBefore > 0;
+
+  const applyDiscountChange = (next: Partial<PaymentFormState>) => {
+    const merged = { ...form, ...next };
+    const nextDiscountAmount = merged.discount_amount ? Number(merged.discount_amount) : 0;
+    const nextFee = computeFeeAfterDiscount(feeSource, merged.discount_type, nextDiscountAmount);
+    const nextRemaining = Math.max(0, Math.round((nextFee - alreadyPaid) * 100) / 100);
+    onFormChange({
+      ...merged,
+      payment_amount: nextRemaining > 0 ? String(nextRemaining) : "",
+      next_due_date: nextRemaining > 0 ? merged.next_due_date : "",
+    });
+  };
 
   return (
     <Drawer open={open} onClose={onClose}>
@@ -672,8 +794,7 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
               <Select
                 value={form.discount_type}
                 onValueChange={(v) =>
-                  onFormChange({
-                    ...form,
+                  applyDiscountChange({
                     discount_type: v,
                     discount_amount: v === "none" ? "0" : form.discount_amount,
                   })
@@ -700,29 +821,35 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
                 max={form.discount_type === "percentage" ? 100 : undefined}
                 disabled={form.discount_type === "none"}
                 value={form.discount_type === "none" ? "0" : form.discount_amount}
-                onChange={(e) => onFormChange({ ...form, discount_amount: e.target.value })}
+                onChange={(e) => applyDiscountChange({ discount_amount: e.target.value })}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="paid-amount">{t("course.columns.paid_amount")}</Label>
+              <Label htmlFor="payment-amount">{t("course.classStudents.paymentAmount")}</Label>
               <Input
-                id="paid-amount"
+                id="payment-amount"
                 type="number"
                 min={0}
-                max={isFullyPaid && paidAmount >= feeAfterDiscount ? feeAfterDiscount : undefined}
-                value={form.paid_amount}
-                onChange={(e) => onFormChange({ ...form, paid_amount: e.target.value })}
-                disabled={String(row.payment_status) === "paid" && Number(row.due_amount ?? 0) <= 0}
+                max={remainingBefore || undefined}
+                value={form.payment_amount}
+                onChange={(e) => onFormChange({ ...form, payment_amount: e.target.value })}
+                disabled={remainingBefore <= 0}
               />
             </div>
             <div className="space-y-1.5">
               <Label>{t("course.classStudents.currency")}</Label>
               <Select
                 value={form.currency}
-                onValueChange={(v) => onFormChange({ ...form, currency: v })}
+                onValueChange={(v) =>
+                  onFormChange({
+                    ...form,
+                    currency: v,
+                    exchange_rate: v === "AFN" ? "1" : form.exchange_rate || "1",
+                  })
+                }
               >
                 <SelectTrigger className="w-[6.5rem]">
                   <SelectValue />
@@ -738,11 +865,54 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
             </div>
           </div>
 
+          {needsExchangeRate ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="exchange-rate">{t("course.classStudents.exchangeRate")}</Label>
+              <Input
+                id="exchange-rate"
+                type="number"
+                min={0.0001}
+                step="0.0001"
+                value={form.exchange_rate}
+                onChange={(e) => onFormChange({ ...form, exchange_rate: e.target.value })}
+              />
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="transaction-date">{t("course.classStudents.transactionDate")}</Label>
+            <Input
+              id="transaction-date"
+              type="date"
+              value={form.transaction_date}
+              onChange={(e) => onFormChange({ ...form, transaction_date: e.target.value })}
+            />
+          </div>
+
+          {needsNextDue ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="next-due-date">{t("course.classStudents.nextDueDate")}</Label>
+              <Input
+                id="next-due-date"
+                type="date"
+                min={todayIsoDate()}
+                value={form.next_due_date}
+                onChange={(e) => onFormChange({ ...form, next_due_date: e.target.value })}
+              />
+            </div>
+          ) : null}
+
           <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">{t("course.classStudents.afterDiscount")}</span>
               <span className="font-medium tabular-nums">
                 {formatMoney(feeAfterDiscount)} {form.currency}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{t("course.classStudents.alreadyPaid")}</span>
+              <span className="font-medium tabular-nums">
+                {formatMoney(alreadyPaid)} {form.currency}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -753,9 +923,12 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">{t("course.columns.due_amount")}</span>
                 <span className="font-medium tabular-nums text-warning">
-                  {formatMoney(dueAmount)} {form.currency}
+                  {formatMoney(dueAfter)} {form.currency}
                 </span>
               </div>
+            ) : null}
+            {remainingBefore <= 0 ? (
+              <p className="mt-3 text-xs text-muted-foreground">{t("course.classStudents.fullyPaidHint")}</p>
             ) : null}
           </div>
         </DrawerBody>
@@ -765,19 +938,130 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
           </Button>
           <Button
             type="button"
-            loading={updateEnrollment.isPending}
-            disabled={String(row.payment_status) === "paid" && Number(row.due_amount ?? 0) <= 0}
+            loading={recordPayment.isPending}
+            disabled={!canSubmit || (needsNextDue && !form.next_due_date)}
             onClick={async () => {
-              await updateEnrollment.mutateAsync({
-                discount_type: form.discount_type,
-                discount_amount: form.discount_type === "none" ? 0 : discountAmount,
-                paid_amount: paidAmount,
-                currency: form.currency,
-              });
-              onClose();
+              try {
+                await recordPayment.mutateAsync({
+                  discount_type: form.discount_type,
+                  discount_amount: form.discount_type === "none" ? 0 : discountAmount,
+                  payment_amount: paymentAmount,
+                  currency: form.currency,
+                  exchange_rate: needsExchangeRate ? Number(form.exchange_rate || 1) : 1,
+                  transaction_date: form.transaction_date || undefined,
+                  next_due_date: needsNextDue ? form.next_due_date || null : null,
+                });
+                onClose();
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : t("course.classStudents.savePayment"));
+              }
             }}
           >
             {t("course.classStudents.savePayment")}
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+interface RefundModalProps {
+  open: boolean;
+  row: ClassStudentRow | null;
+  classId: number;
+  form: RefundFormState;
+  onFormChange: (v: RefundFormState) => void;
+  onClose: () => void;
+}
+
+function RefundModal({ open, row, classId, form, onFormChange, onClose }: RefundModalProps) {
+  const refundPayment = useRefundClassStudentPayment(classId, row?.id ?? 0);
+  const { t } = useTranslation();
+  const fmt = useFormatMessage();
+
+  if (!open || !row) return null;
+
+  const studentName = String(row.full_name ?? row.student_code ?? "");
+  const maxRefund = Number(row.paid_amount ?? 0);
+  const amount = form.amount ? Number(form.amount) : 0;
+  const canSubmit = amount > 0 && amount <= maxRefund + 0.01 && maxRefund > 0;
+
+  return (
+    <Drawer open={open} onClose={onClose}>
+      <DrawerContent className="max-w-md">
+        <DrawerHeader>
+          <DrawerTitle>{fmt("course.classStudents.refundTitle", { name: studentName })}</DrawerTitle>
+        </DrawerHeader>
+        <DrawerBody className="space-y-4">
+          <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{t("course.classStudents.alreadyPaid")}</span>
+              <span className="font-medium tabular-nums">
+                {formatMoney(maxRefund)} {String(row.currency ?? "AFN")}
+              </span>
+            </div>
+          </div>
+
+          {maxRefund <= 0 ? (
+            <p className="text-sm text-muted-foreground">{t("course.classStudents.noPaidBalance")}</p>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-amount">{t("course.classStudents.refundAmount")}</Label>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  min={0.01}
+                  max={maxRefund}
+                  value={form.amount}
+                  onChange={(e) => onFormChange({ ...form, amount: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-date">{t("course.classStudents.transactionDate")}</Label>
+                <Input
+                  id="refund-date"
+                  type="date"
+                  value={form.transaction_date}
+                  onChange={(e) => onFormChange({ ...form, transaction_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-reason">{t("course.classStudents.refundReason")}</Label>
+                <textarea
+                  id="refund-reason"
+                  className="border-input bg-background min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
+                  value={form.reason}
+                  onChange={(e) => onFormChange({ ...form, reason: e.target.value })}
+                  placeholder={t("course.classStudents.refundReasonPlaceholder")}
+                />
+              </div>
+            </>
+          )}
+        </DrawerBody>
+        <DrawerFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            loading={refundPayment.isPending}
+            disabled={!canSubmit}
+            onClick={async () => {
+              try {
+                await refundPayment.mutateAsync({
+                  amount,
+                  transaction_date: form.transaction_date || undefined,
+                  reason: form.reason || undefined,
+                });
+                onClose();
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : t("course.classStudents.saveRefund"));
+              }
+            }}
+          >
+            {t("course.classStudents.saveRefund")}
           </Button>
         </DrawerFooter>
       </DrawerContent>

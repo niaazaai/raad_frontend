@@ -30,7 +30,17 @@ export interface ClassStudentRow {
   due_amount?: number | string;
   payment_status?: string;
   currency?: string;
+  next_due_date?: string | null;
   notes?: string | null;
+}
+
+export interface ClassStudentInvoice {
+  id: number;
+  invoice_number: string;
+  class_student_id: number;
+  amount?: number | string;
+  currency?: string;
+  pdf_url?: string | null;
 }
 
 /** Prefix for all class-student list queries (matches any pagination/filter params). */
@@ -90,6 +100,72 @@ export function useDisableClassStudent(classId: number, enrollmentId: number) {
     url: `/lms-classes/${classId}/students/${enrollmentId}/disable`,
     method: RequestMethod.POST,
     invalidateKeys: [classStudentsListPrefix(classId)],
+  });
+}
+
+export function useRecordClassStudentPayment(classId: number, enrollmentId: number) {
+  return useMutationApi<
+    ClassStudentRow,
+    {
+      discount_type: string;
+      discount_amount?: number;
+      payment_amount: number;
+      currency: string;
+      exchange_rate?: number;
+      transaction_date?: string;
+      next_due_date?: string | null;
+      notes?: string;
+    }
+  >({
+    url: `/lms-classes/${classId}/students/${enrollmentId}/payments`,
+    method: RequestMethod.POST,
+    invalidateKeys: [classStudentsListPrefix(classId)],
+  });
+}
+
+export function useRefundClassStudentPayment(classId: number, enrollmentId: number) {
+  return useMutationApi<
+    ClassStudentRow,
+    {
+      amount: number;
+      transaction_date?: string;
+      reason?: string;
+    }
+  >({
+    url: `/lms-classes/${classId}/students/${enrollmentId}/refunds`,
+    method: RequestMethod.POST,
+    invalidateKeys: [classStudentsListPrefix(classId)],
+  });
+}
+
+export function useGenerateClassStudentInvoice(classId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      enrollmentId,
+      transaction_id,
+    }: {
+      enrollmentId: number;
+      transaction_id?: number;
+    }) => {
+      const response = await callApi<ClassStudentInvoice>({
+        url: `/lms-classes/${classId}/students/${enrollmentId}/invoices`,
+        method: RequestMethod.POST,
+        data: transaction_id ? { transaction_id } : {},
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Invoice generation failed");
+      }
+      const payload = response.data as { data?: ClassStudentInvoice } | ClassStudentInvoice | undefined;
+      if (payload && typeof payload === "object" && "data" in payload && payload.data) {
+        return payload.data;
+      }
+      return payload as ClassStudentInvoice;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
+    },
   });
 }
 
