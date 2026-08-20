@@ -17,18 +17,18 @@ const MainLayout = () => {
   }, [locale]);
 
   return (
-    <div className="flex min-h-screen bg-layout-body">
+    <div className="flex h-svh max-h-svh overflow-hidden bg-layout-body">
       <Sidebar />
 
       <div
         className={cn(
-          "flex flex-1 flex-col transition-all duration-300",
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300",
           sidebarCollapsed ? "lg:ms-[4.25rem]" : "lg:ms-52"
         )}
       >
         <Header />
 
-        <main className="mt-16 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden p-4">
+        <main className="mt-16 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
           <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col">
             <Outlet />
           </div>
