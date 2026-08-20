@@ -9,6 +9,7 @@ import {
   BookStack,
   NavArrowDown,
   Xmark,
+  CheckCircle,
   Community,
   PageSearch,
   Hat,
@@ -62,6 +63,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Instructors: "sidebar.instructors",
   Students: "sidebar.students",
   Classes: "sidebar.classes",
+  Attendance: "sidebar.attendance",
   Blogs: "sidebar.blogs",
   "My learning": "sidebar.myLearning",
   "Main categories": "sidebar.mainCategories",
@@ -91,7 +93,13 @@ function linkIsActive(pathname: string, itemPath: string): boolean {
     return pathname === "/instructors";
   }
   if (itemPath === "/classes") {
-    return pathname === "/classes" || pathname.startsWith("/classes/");
+    return (
+      (pathname === "/classes" || pathname.startsWith("/classes/")) &&
+      !pathname.includes("/attendance")
+    );
+  }
+  if (itemPath === "/attendance") {
+    return pathname === "/attendance" || pathname.includes("/attendance");
   }
   if (itemPath === "/students") {
     return pathname === "/students";
@@ -203,6 +211,12 @@ const Sidebar = () => {
         title: "Classes",
         path: "/classes",
         icon: <Calendar className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
+      },
+      {
+        title: "Attendance",
+        path: "/attendance",
+        icon: <CheckCircle className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
         permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
       },
       {
