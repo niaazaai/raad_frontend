@@ -117,7 +117,7 @@ const Header = () => {
   return (
     <header
       className={cn(
-        "fixed end-0 top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4 transition-all duration-300",
+        "fixed end-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-card px-4 transition-all duration-300",
         sidebarCollapsed ? "lg:start-[4.25rem]" : "lg:start-52"
       )}
     >
