@@ -19,6 +19,12 @@ export interface SearchableMultiSelectProps {
   emptyMessage?: string;
   id?: string;
   max?: number;
+  /** When false, options are already filtered server-side; query triggers onSearchChange only. */
+  filterLocally?: boolean;
+  onSearchChange?: (query: string) => void;
+  isSearching?: boolean;
+  minSearchLength?: number;
+  typeToSearchMessage?: string;
 }
 
 interface DropdownCoords {
@@ -43,6 +49,11 @@ const SearchableMultiSelect = ({
   emptyMessage = "No matches.",
   id,
   max,
+  filterLocally = true,
+  onSearchChange,
+  isSearching = false,
+  minSearchLength = 0,
+  typeToSearchMessage,
 }: SearchableMultiSelectProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -59,10 +70,16 @@ const SearchableMultiSelect = ({
   );
 
   const filtered = useMemo(() => {
+    if (!filterLocally) return options;
     const q = query.trim().toLowerCase();
     if (!q) return options;
     return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, query]);
+  }, [filterLocally, options, query]);
+
+  const trimmedQuery = query.trim();
+  const belowMinLength = minSearchLength > 0 && trimmedQuery.length < minSearchLength;
+  const showTypeToSearch = !filterLocally && belowMinLength && typeToSearchMessage;
+  const showEmpty = !isSearching && !showTypeToSearch && filtered.length === 0;
 
   const updateCoords = useCallback(() => {
     const el = triggerRef.current;
@@ -88,6 +105,10 @@ const SearchableMultiSelect = ({
       window.removeEventListener("scroll", updateCoords, true);
     };
   }, [open, updateCoords]);
+
+  useEffect(() => {
+    onSearchChange?.(trimmedQuery);
+  }, [trimmedQuery, onSearchChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -143,7 +164,11 @@ const SearchableMultiSelect = ({
               />
             </div>
             <ul className="max-h-52 overflow-y-auto py-1">
-              {filtered.length === 0 ? (
+              {isSearching ? (
+                <li className="text-muted-foreground px-3 py-2 text-sm">{searchPlaceholder}…</li>
+              ) : showTypeToSearch ? (
+                <li className="text-muted-foreground px-3 py-2 text-sm">{typeToSearchMessage}</li>
+              ) : showEmpty ? (
                 <li className="text-muted-foreground px-3 py-2 text-sm">{emptyMessage}</li>
               ) : (
                 filtered.map((o) => {

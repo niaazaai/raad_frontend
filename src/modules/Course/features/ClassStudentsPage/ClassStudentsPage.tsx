@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, EditPencil, Minus, Page, Plus, Prohibition, Trash, Undo, Wallet } from "iconoir-react";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useConfirmPresets, useFormatMessage } from "@/i18n/useConfirmPresets";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useDataTableParams } from "@/hooks";
+import { useDebounce } from "@/hooks/common/useDebounce";
 import { cn } from "@/lib/utils";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
 import {
@@ -105,6 +106,18 @@ function formatMoney(value: unknown): string {
   const n = Number(value);
   if (Number.isNaN(n)) return "—";
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatStudentPickerLabel(student: Record<string, unknown>): { value: string; label: string } {
+  const name = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "—";
+  const code = String(student.student_code ?? student.id);
+  const nationalId = String(student.national_id ?? "—");
+  const phone = String(student.phone_number ?? "").trim();
+  const phoneSuffix = phone ? ` · ${phone}` : "";
+  return {
+    value: String(student.id),
+    label: `${code} - ${name} : ${nationalId}${phoneSuffix}`,
+  };
 }
 
 function computeFeeAfterDiscount(classFee: number, discountType: string, discountAmount: number): number {
@@ -190,6 +203,10 @@ const ClassStudentsPage = () => {
 
   const [addOpen, setAddOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedStudentLabels, setSelectedStudentLabels] = useState<Record<string, string>>({});
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const debouncedStudentSearch = useDebounce(studentSearchQuery, 300);
+  const studentSearchTerm = debouncedStudentSearch.trim();
   const [gradeModal, setGradeModal] = useState<ClassStudentRow | null>(null);
   const [disableModal, setDisableModal] = useState<ClassStudentRow | null>(null);
   const [paymentModal, setPaymentModal] = useState<ClassStudentRow | null>(null);
@@ -221,25 +238,55 @@ const ClassStudentsPage = () => {
 
   const studentsListQuery = useCourseEntityList(
     addOpen ? "lms-class-students" : null,
-    { per_page: 100, page: 1, status: "active" },
-    { enabled: addOpen }
+    {
+      per_page: 50,
+      page: 1,
+      status: "active",
+      search: studentSearchTerm || undefined,
+    },
+    { enabled: addOpen && studentSearchTerm.length >= 1 }
   );
   const availableStudents = getCourseListFromResponse(studentsListQuery.data);
   const enrolledStudentIds = useMemo(
     () => new Set(rows.map((r) => Number(r.student_id)).filter((id) => !Number.isNaN(id))),
     [rows]
   );
-  const studentOptions = availableStudents
-    .filter((s) => !enrolledStudentIds.has(Number(s.id)))
-    .map((s) => {
-      const name = `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() || "—";
-      const code = String(s.student_code ?? s.id);
-      const nationalId = String(s.national_id ?? "—");
-      return {
-        value: String(s.id),
-        label: `${code} - ${name} : ${nationalId}`,
-      };
-    });
+  const studentOptions = useMemo(() => {
+    const fromSearch = availableStudents
+      .filter((s) => !enrolledStudentIds.has(Number(s.id)))
+      .map((s) => formatStudentPickerLabel(s));
+
+    const pinned = selectedStudentIds
+      .filter((id) => !fromSearch.some((o) => o.value === id) && selectedStudentLabels[id])
+      .map((id) => ({ value: id, label: selectedStudentLabels[id] }));
+
+    return [...pinned, ...fromSearch];
+  }, [availableStudents, enrolledStudentIds, selectedStudentIds, selectedStudentLabels]);
+
+  const handleStudentSelectionChange = useCallback(
+    (ids: string[]) => {
+      setSelectedStudentIds(ids);
+      setSelectedStudentLabels((prev) => {
+        const next = { ...prev };
+        for (const id of ids) {
+          const match = studentOptions.find((o) => o.value === id);
+          if (match) next[id] = match.label;
+        }
+        for (const key of Object.keys(next)) {
+          if (!ids.includes(key)) delete next[key];
+        }
+        return next;
+      });
+    },
+    [studentOptions]
+  );
+
+  useEffect(() => {
+    if (addOpen) return;
+    setStudentSearchQuery("");
+    setSelectedStudentIds([]);
+    setSelectedStudentLabels({});
+  }, [addOpen]);
 
   const openGradeModal = (row: ClassStudentRow) => {
     setGradeModal(row);
@@ -569,9 +616,16 @@ const ClassStudentsPage = () => {
               required
               options={studentOptions}
               value={selectedStudentIds}
-              onChange={setSelectedStudentIds}
+              onChange={handleStudentSelectionChange}
               placeholder={t("course.classStudents.selectStudents")}
-              disabled={studentsListQuery.isLoading && !studentsListQuery.data}
+              searchPlaceholder={t("course.classStudents.searchStudents")}
+              emptyMessage={t("course.classStudents.noStudentMatches")}
+              typeToSearchMessage={t("course.classStudents.typeToSearchStudents")}
+              filterLocally={false}
+              onSearchChange={setStudentSearchQuery}
+              isSearching={studentsListQuery.isFetching}
+              minSearchLength={1}
+              disabled={false}
               max={10}
             />
           </ModalBody>
