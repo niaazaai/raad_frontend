@@ -205,7 +205,7 @@ const ClassStudentsPage = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedStudentLabels, setSelectedStudentLabels] = useState<Record<string, string>>({});
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
-  const debouncedStudentSearch = useDebounce(studentSearchQuery, 300);
+  const debouncedStudentSearch = useDebounce(studentSearchQuery, 150);
   const studentSearchTerm = debouncedStudentSearch.trim();
   const [gradeModal, setGradeModal] = useState<ClassStudentRow | null>(null);
   const [disableModal, setDisableModal] = useState<ClassStudentRow | null>(null);
@@ -239,12 +239,13 @@ const ClassStudentsPage = () => {
   const studentsListQuery = useCourseEntityList(
     addOpen ? "lms-class-students" : null,
     {
-      per_page: 50,
+      per_page: 25,
       page: 1,
       status: "active",
+      picker: 1,
       search: studentSearchTerm || undefined,
     },
-    { enabled: addOpen && studentSearchTerm.length >= 1 }
+    { enabled: addOpen && studentSearchTerm.length >= 1, keepPreviousData: true }
   );
   const availableStudents = getCourseListFromResponse(studentsListQuery.data);
   const enrolledStudentIds = useMemo(
@@ -623,7 +624,7 @@ const ClassStudentsPage = () => {
               typeToSearchMessage={t("course.classStudents.typeToSearchStudents")}
               filterLocally={false}
               onSearchChange={setStudentSearchQuery}
-              isSearching={studentsListQuery.isFetching}
+              isSearching={studentsListQuery.isLoading}
               minSearchLength={1}
               disabled={false}
               max={10}

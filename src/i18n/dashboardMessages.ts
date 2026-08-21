@@ -331,7 +331,7 @@ export const dashboardEn = {
       selectStudents: "Select up to 10 students…",
       addToClass: "Add to class",
       searchStudents: "Search students…",
-      typeToSearchStudents: "Type a name, student ID, national ID, or phone number to search all active students.",
+      typeToSearchStudents: "Type student code, name, national ID, or phone number.",
       noStudentMatches: "No matching students found.",
       empty: "No students enrolled in this class yet.",
       invalidClass: "Invalid class.",

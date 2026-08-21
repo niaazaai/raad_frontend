@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import { callApi } from "@/services";
@@ -34,7 +34,7 @@ export function getCourseEntityDetailFromResponse(response: unknown): CourseRow 
 export function useCourseEntityList(
   slug: CourseEntitySlug | null,
   params?: Record<string, unknown>,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; keepPreviousData?: boolean }
 ) {
   const effectiveSlug = slug ?? "main-categories";
   const cfg = COURSE_ENTITY_REGISTRY[effectiveSlug];
@@ -45,6 +45,7 @@ export function useCourseEntityList(
     params,
     options: {
       enabled: options?.enabled !== false && slug !== null,
+      placeholderData: options?.keepPreviousData ? keepPreviousData : undefined,
     },
   });
 }
