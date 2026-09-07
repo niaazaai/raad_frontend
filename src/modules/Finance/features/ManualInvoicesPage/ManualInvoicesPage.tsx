@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Coins, Page, Plus, Wallet } from "iconoir-react";
 import { Link } from "react-router-dom";
-import { Button, DataTable, Input, Label, PageBreadcrumb } from "@/components/ui";
+import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
+import { fetchAllListPages } from "@/lib/fetchAllListPages";
 import type { DataTableConfig } from "@/types/datatable";
+import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
 import {
   extractManualInvoicePagination,
   extractManualInvoiceRows,
@@ -14,14 +16,6 @@ import {
   useManualInvoiceTransactions,
 } from "../../hooks/useManualInvoiceTransactions";
 import type { ManualInvoiceTransactionRow } from "../../data/models/FinanceReport";
-
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function currentYearStart(): string {
-  return `${todayIsoDate().slice(0, 4)}-01-01`;
-}
 
 function formatMoney(value: unknown, currency?: string | null): string {
   const n = Number(value);
@@ -33,8 +27,6 @@ function formatMoney(value: unknown, currency?: string | null): string {
 const ManualInvoicesPage = () => {
   const { t } = useTranslation();
   const { hasPermission, hasAnyPermission } = useAuth();
-  const [from, setFrom] = useState(currentYearStart());
-  const [to, setTo] = useState(todayIsoDate());
 
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
@@ -44,8 +36,6 @@ const ManualInvoicesPage = () => {
   });
 
   const { data, isLoading } = useManualInvoiceTransactions({
-    from,
-    to,
     search: debouncedSearch || undefined,
     page: params.page,
     per_page: params.per_page,
@@ -63,10 +53,10 @@ const ManualInvoicesPage = () => {
     "course.class_students.update",
   ]);
 
-  const openPdf = (url?: string | null) => {
+  const openPdf = useCallback((url?: string | null) => {
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
-  };
+  }, []);
 
   const config: DataTableConfig<ManualInvoiceTransactionRow> = useMemo(
     () => ({
@@ -136,6 +126,21 @@ const ManualInvoicesPage = () => {
       filtersEnabled: false,
       paginationEnabled: true,
       emptyMessage: t("finance.serviceIncome.empty"),
+      onRowDoubleClick: (row) => openPdf(row.pdf_url),
+      exportFilename: "service-income",
+      exportDateKey: "transaction_date",
+      fetchExportRows: (query) =>
+        fetchAllListPages({
+          url: FINANCE_ENDPOINTS.MANUAL_INVOICES,
+          params: {
+            search: debouncedSearch || undefined,
+            sort_by: params.sort_by,
+            sort_dir: params.sort_dir,
+          },
+          query,
+          extractRows: extractManualInvoiceRows,
+          extractPagination: extractManualInvoicePagination,
+        }),
       actions: [
         {
           key: "print",
@@ -146,7 +151,7 @@ const ManualInvoicesPage = () => {
         },
       ],
     }),
-    [t],
+    [t, debouncedSearch, params.sort_by, params.sort_dir, openPdf]
   );
 
   if (!hasPermission("finance.read")) {
@@ -157,7 +162,9 @@ const ManualInvoicesPage = () => {
     <div className="w-full min-w-0 max-w-full space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("finance.serviceIncome.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {t("finance.serviceIncome.title")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("finance.serviceIncome.subtitle")}</p>
           <div className="mt-2">
             <PageBreadcrumb
@@ -181,33 +188,6 @@ const ManualInvoicesPage = () => {
               </Link>
             </Button>
           ) : null}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="manual-invoices-from">{t("finance.from")}</Label>
-          <Input
-            id="manual-invoices-from"
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              updateParams({ page: 1 });
-            }}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="manual-invoices-to">{t("finance.to")}</Label>
-          <Input
-            id="manual-invoices-to"
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              updateParams({ page: 1 });
-            }}
-          />
         </div>
       </div>
 
