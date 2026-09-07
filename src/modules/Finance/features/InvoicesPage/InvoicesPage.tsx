@@ -4,7 +4,9 @@ import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
+import { fetchAllListPages } from "@/lib/fetchAllListPages";
 import type { DataTableConfig } from "@/types/datatable";
+import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
 import {
   extractFinanceInvoices,
   extractFinanceInvoicesPagination,
@@ -99,6 +101,19 @@ const InvoicesPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("finance.invoices.empty"),
+    onRowDoubleClick: (row) => openPdf(row.pdf_url),
+    exportFilename: "invoices",
+    exportDateKey: "issued_at",
+    fetchExportRows: (query) =>
+      fetchAllListPages({
+        url: FINANCE_ENDPOINTS.INVOICES,
+        params: {
+          search: debouncedSearch || undefined,
+        },
+        query,
+        extractRows: extractFinanceInvoices,
+        extractPagination: extractFinanceInvoicesPagination,
+      }),
     actions: [
       {
         key: "print",
