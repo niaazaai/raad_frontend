@@ -1,5 +1,5 @@
 export type FinanceModule = "class" | "course";
-export type FinancePeriod = "daily" | "monthly" | "yearly" | "range";
+export type FinancePeriod = "daily" | "monthly" | "yearly" | "range" | "all";
 
 export interface FinanceSummary {
   class_income: number;
@@ -192,4 +192,41 @@ export interface UpcomingInstallmentRow {
   payment_status?: string | null;
   payment_status_label?: string | null;
   currency?: string | null;
+  invoice_id?: number | null;
+  invoice_number?: string | null;
+  pdf_url?: string | null;
+}
+
+export type FinancialTransactionFilter = "irrecoverable" | "mof" | "pending" | "refund";
+
+export interface FinancialTransactionRow {
+  id: number;
+  class_student_id?: number | null;
+  type?: string | null;
+  type_label?: string | null;
+  transaction_type?: string | null;
+  transaction_type_label?: string | null;
+  amount?: number | string | null;
+  currency?: string | null;
+  exchange_rate?: number | string | null;
+  transaction_date?: string | null;
+  next_installment_date?: string | null;
+  invoice_id?: number | null;
+  invoice_number?: string | null;
+  pdf_url?: string | null;
+  notes?: string | null;
+  service_name?: string | null;
+  service_cost?: number | string | null;
+  internal_notes?: string | null;
+  student_name?: string | null;
+  student_code?: string | null;
+  father_name?: string | null;
+  class_name?: string | null;
+  class_code?: string | null;
+  payment_status?: string | null;
+  payment_status_label?: string | null;
+  mof_receivable_amount?: number | string | null;
+  irrecoverable_debt?: number | string | null;
+  created_by?: number | null;
+  created_at?: string | null;
 }
