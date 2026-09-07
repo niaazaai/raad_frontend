@@ -11,7 +11,7 @@ import {
   DrawerHeader,
   DrawerOverlay,
   DrawerTitle,
-  Spinner,
+  Skeleton,
 } from "@/components/ui";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
@@ -269,9 +269,16 @@ const FinanceDetailsDrawer = ({ open, onClose, module, classRow, courseRow }: Fi
               <Card className="shadow-none">
                 <CardContent className="p-0">
                   {transactionsQuery.isLoading ? (
-                    <div className="flex items-center justify-center gap-2 px-5 py-12 text-sm text-muted-foreground">
-                      <Spinner className="h-4 w-4" />
-                      {t("finance.details.loading")}
+                    <div className="space-y-3 px-5 py-6">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3">
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-36" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                          <Skeleton className="h-4 w-16" />
+                        </div>
+                      ))}
                     </div>
                   ) : transactions.length === 0 ? (
                     <p className="px-5 py-12 text-center text-sm text-muted-foreground">

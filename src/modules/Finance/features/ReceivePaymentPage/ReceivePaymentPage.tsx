@@ -9,6 +9,7 @@ import {
   PageBreadcrumb,
   SearchableMultiSelect,
   SearchableSelect,
+  Skeleton,
 } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDebounce } from "@/hooks/common/useDebounce";
@@ -213,7 +214,10 @@ const ReceivePaymentPage = () => {
               <div className="space-y-1.5">
                 <Label>{t("finance.receivePayment.selectClass")}</Label>
                 {enrollmentsQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
                 ) : enrollmentOptions.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t("finance.receivePayment.noEnrollments")}</p>
                 ) : (

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "iconoir-react";
-import { Button, PageBreadcrumb, Spinner } from "@/components/ui";
+import { Button, PageBreadcrumb, Skeleton } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
@@ -133,8 +133,15 @@ const ClassAttendancePage = () => {
       </div>
 
       {isLoading || !grid ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center">
-          <Spinner className="h-8 w-8 text-primary" />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 rounded-[0.6rem] border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-8 w-28" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
         </div>
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[0.6rem] border border-border bg-card">

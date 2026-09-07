@@ -10,7 +10,7 @@ import {
   Calendar,
   User,
 } from "iconoir-react";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth";
 import { useDashboardStats, useDashboardAnalytics } from "@/hooks";
 import { AnalyticsLineChart, Sparkline } from "@/components/dashboard/DashboardCharts";
@@ -70,12 +70,16 @@ const DashboardPage = () => {
         <>
           {loadingStats ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="flex h-36 items-center justify-center rounded-xl border border-border bg-card"
-                >
-                  <Spinner className="h-8 w-8 text-muted-foreground" />
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-7 w-16" />
+                    </div>
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                  </div>
+                  <Skeleton className="mt-4 h-8 w-full" />
                 </div>
               ))}
             </div>
@@ -136,12 +140,11 @@ const DashboardPage = () => {
             <>
               {loadingAnalytics ? (
                 <div className="grid gap-4 xl:grid-cols-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="flex h-64 items-center justify-center rounded-xl border border-border bg-card"
-                    >
-                      <Spinner className="h-8 w-8 text-muted-foreground" />
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-4">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="mt-2 h-3 w-48" />
+                      <Skeleton className="mt-6 h-40 w-full rounded-lg" />
                     </div>
                   ))}
                 </div>
@@ -203,9 +206,7 @@ const DashboardPage = () => {
 
       {!hasAdminDashboard && (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <p className="text-muted-foreground">
-            {t("dashboard.noAdminAccess")}
-          </p>
+          <p className="text-muted-foreground">{t("dashboard.noAdminAccess")}</p>
         </div>
       )}
     </div>

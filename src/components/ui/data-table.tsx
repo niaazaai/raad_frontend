@@ -11,7 +11,7 @@ import {
   ArrowSeparateVertical,
   NavArrowUp,
 } from "iconoir-react";
-import { Spinner } from "./spinner";
+import { Skeleton } from "./skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -285,14 +285,20 @@ export function DataTable<T>({
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
-              <tr>
-                <td
-                  colSpan={columns.length + (hasActions ? 1 : 0)}
-                  className="px-4 py-16 text-center"
-                >
-                  <Spinner className="mx-auto h-8 w-8 text-primary" />
-                </td>
-              </tr>
+              Array.from({ length: 6 }).map((_, rowIdx) => (
+                <tr key={`skeleton-${rowIdx}`} className="border-b border-border/60">
+                  {columns.map((column) => (
+                    <td key={column.key} className="px-4 py-3">
+                      <Skeleton className="h-4 w-full max-w-[12rem]" />
+                    </td>
+                  ))}
+                  {hasActions ? (
+                    <td className="px-4 py-3">
+                      <Skeleton className="ms-auto h-8 w-8 rounded-md" />
+                    </td>
+                  ) : null}
+                </tr>
+              ))
             ) : data.length === 0 ? (
               <tr>
                 <td

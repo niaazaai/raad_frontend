@@ -1,5 +1,4 @@
 import {
-  Menu,
   Bell,
   User,
   LogOut,
@@ -23,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import NotificationDropdown from "@/modules/Notifications/components/NotificationDropdown";
@@ -76,7 +76,7 @@ const LanguageSwitcher = () => {
 };
 
 const Header = () => {
-  const { sidebarCollapsed, toggleSidebar, theme, setTheme, setMobileMenuOpen } = useLayoutStore();
+  const { theme, setTheme } = useLayoutStore();
   const { user, logout, fetchUser } = useAuth();
   const { t } = useTranslation();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,7 +85,6 @@ const Header = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Close user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -115,39 +114,14 @@ const Header = () => {
   };
 
   return (
-    <header
-      className={cn(
-        "fixed end-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-card px-4 transition-all duration-300",
-        sidebarCollapsed ? "lg:start-[4.25rem]" : "lg:start-52"
-      )}
-    >
-      {/* Left Section */}
-      <div className="flex items-center gap-4">
-        {/* Mobile Menu Toggle */}
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          className="rounded-lg p-2 hover:bg-muted lg:hidden"
-          aria-label={t("header.openMenu")}
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-
-        {/* Desktop Sidebar Toggle */}
-        <button
-          onClick={toggleSidebar}
-          className="hidden rounded-lg p-2 hover:bg-muted lg:block"
-          aria-label={t("header.toggleSidebar")}
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="size-9" aria-label={t("header.toggleSidebar")} />
       </div>
 
-      {/* Right Section */}
       <div className="flex items-center gap-2">
-        {/* Language Switcher */}
         <LanguageSwitcher />
 
-        {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
           className="rounded-lg p-2 hover:bg-muted"
@@ -160,7 +134,6 @@ const Header = () => {
           )}
         </button>
 
-        {/* Notifications */}
         <div className="relative">
           <button
             ref={notificationBtnRef}
@@ -178,7 +151,6 @@ const Header = () => {
           />
         </div>
 
-        {/* User Menu */}
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -192,16 +164,13 @@ const Header = () => {
             </span>
           </button>
 
-          {/* Dropdown Menu */}
           {userMenuOpen && (
             <div className="absolute end-0 top-full mt-2 w-56 rounded-lg border border-border bg-card py-2 shadow-lg">
-              {/* User Info */}
               <div className="border-b border-border px-4 py-3">
                 <p className="text-sm font-medium">{user?.name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
 
-              {/* Menu Items */}
               <div className="py-1">
                 <a
                   href="/profile"
@@ -228,7 +197,6 @@ const Header = () => {
                 </a>
               </div>
 
-              {/* Logout */}
               <div className="border-t border-border pt-1">
                 <button
                   onClick={handleLogout}

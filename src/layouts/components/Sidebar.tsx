@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   HomeSimple,
@@ -8,7 +8,6 @@ import {
   Key,
   BookStack,
   NavArrowDown,
-  Xmark,
   CheckCircle,
   Community,
   PageSearch,
@@ -19,10 +18,10 @@ import {
   JournalPage,
   Wallet,
 } from "iconoir-react";
-import { useLayoutStore } from "@/store";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
+import { useLocaleStore } from "@/store/locale/localeStore";
+import { isRtlLocale } from "@/data/enums/locale";
 import {
   buildCourseSidebarRows,
   COURSE_MODULE_ANY_PERMISSIONS,
@@ -33,6 +32,22 @@ import {
   CourseEntitySidebarIcon,
   CourseOverviewIcon,
 } from "@/modules/Course/data/courseEntitySidebarIcons";
+import {
+  Sidebar as SidebarRoot,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 interface NavItem {
   title: string;
@@ -186,11 +201,13 @@ const baseNavItems: NavItem[] = [
 ];
 
 const Sidebar = () => {
-  const { sidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useLayoutStore();
   const { hasPermission, hasAnyPermission, hasAnyRole, user } = useAuth();
   const { t } = useTranslation();
+  const locale = useLocaleStore((s) => s.locale);
   const location = useLocation();
+  const { setOpenMobile, state } = useSidebar();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const side = isRtlLocale(locale) ? "right" : "left";
 
   const displayTitle = (title: string): string =>
     NAV_TITLE_KEYS[title] ? t(NAV_TITLE_KEYS[title]) : title;
@@ -246,7 +263,11 @@ const Sidebar = () => {
       {
         title: "Finance",
         icon: <Wallet className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
-        anyPermission: ["finance.read", "course.class_students.payment", "course.class_students.update"],
+        anyPermission: [
+          "finance.read",
+          "course.class_students.payment",
+          "course.class_students.update",
+        ],
         children: [
           {
             title: "Finance report",
@@ -347,124 +368,129 @@ const Sidebar = () => {
 
   const visibleNavItems = filterByPermission(navItems);
 
-  const renderNavItem = (item: NavItem, isChild = false) => {
-    if (item.children) {
-      const isExpanded = expandedGroups.includes(item.title);
-      const hasActiveChild = isChildActive(item.children);
+  // Keep groups with an active child expanded when the route changes.
+  useEffect(() => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      for (const item of visibleNavItems) {
+        if (item.children && isChildActive(item.children)) {
+          next.add(item.title);
+        }
+      }
+      return Array.from(next);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to path / permission set changes
+  }, [location.pathname, visibleNavItems.length]);
 
+  const closeMobile = () => setOpenMobile(false);
+
+  const renderLeaf = (item: NavItem, asSub = false) => {
+    const label = displayTitle(item.title);
+    const isActive = item.path ? linkIsActive(location.pathname, item.path) : false;
+
+    if (asSub) {
       return (
-        <li key={item.title}>
-          <button
-            type="button"
-            onClick={() => toggleGroup(item.title)}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-2 text-xs font-medium transition-colors",
-              hasActiveChild
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              sidebarCollapsed && "lg:justify-center lg:px-1.5"
-            )}
-          >
-            {item.icon}
-            {!sidebarCollapsed && (
-              <>
-                <span className="min-w-0 flex-1 truncate text-start">{displayTitle(item.title)}</span>
-                <NavArrowDown
-                  className={cn(
-                    "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
-                    isExpanded && "rotate-180"
-                  )}
-                />
-              </>
-            )}
-          </button>
-
-          {!sidebarCollapsed && isExpanded && (
-            <ul className="mt-0.5 space-y-0.5 border-s border-border/80 ps-2.5 ms-1.5">
-              {item.children.map((child) => renderNavItem(child, true))}
-            </ul>
-          )}
-        </li>
+        <SidebarMenuSubItem key={item.navKey ?? item.path}>
+          <SidebarMenuSubButton asChild isActive={isActive} size="sm">
+            <NavLink to={item.path!} onClick={closeMobile}>
+              {item.icon}
+              <span>{label}</span>
+            </NavLink>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
       );
     }
 
-    const isActive = item.path ? linkIsActive(location.pathname, item.path) : false;
     return (
-      <li key={item.navKey ?? item.path}>
-        <NavLink
-          to={item.path!}
-          onClick={() => setMobileMenuOpen(false)}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-2 text-xs font-medium transition-colors",
-            isChild ? "py-1.5" : "py-2",
-            isActive
-              ? "bg-primary text-white"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            sidebarCollapsed && "lg:justify-center lg:px-1.5"
-          )}
-        >
-          {item.icon}
-          {!sidebarCollapsed && (
-            <span className="min-w-0 flex-1 truncate leading-snug">{displayTitle(item.title)}</span>
-          )}
-        </NavLink>
-      </li>
+      <SidebarMenuItem key={item.navKey ?? item.path}>
+        <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+          <NavLink to={item.path!} onClick={closeMobile}>
+            {item.icon}
+            <span>{label}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
     );
   };
 
+  const renderNavItem = (item: NavItem) => {
+    if (item.children) {
+      const isExpanded = expandedGroups.includes(item.title);
+      const hasActiveChild = isChildActive(item.children);
+      const label = displayTitle(item.title);
+
+      return (
+        <SidebarMenuItem key={item.title}>
+          <SidebarMenuButton
+            type="button"
+            tooltip={label}
+            onClick={() => toggleGroup(item.title)}
+            className={
+              hasActiveChild
+                ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                : undefined
+            }
+          >
+            {item.icon}
+            <span>{label}</span>
+            <NavArrowDown
+              className={`ms-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </SidebarMenuButton>
+          {isExpanded ? (
+            <SidebarMenuSub>{item.children.map((child) => renderLeaf(child, true))}</SidebarMenuSub>
+          ) : null}
+        </SidebarMenuItem>
+      );
+    }
+
+    return renderLeaf(item);
+  };
+
   return (
-    <>
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
+    <SidebarRoot side={side} collapsible="icon" variant="sidebar">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent"
+              tooltip="RAAD LMS"
+            >
+              <NavLink to="/dashboard" onClick={closeMobile} className="gap-2">
+                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
+                  <img src="/logo.png" alt="RAAD LMS" className="h-8 w-auto object-contain" />
+                </div>
+                <div className="grid min-w-0 flex-1 text-start text-sm leading-tight">
+                  <span className="truncate font-semibold">RAAD LMS</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">
+                    {state === "collapsed" ? "" : "v1.0.0"}
+                  </span>
+                </div>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      <aside
-        className={cn(
-          "fixed start-0 top-0 z-50 flex h-full flex-col border-e border-border bg-card transition-all duration-300",
-          "lg:z-20",
-          sidebarCollapsed ? "lg:w-[4.25rem]" : "lg:w-52",
-          "w-52 -translate-x-full rtl:translate-x-full lg:translate-x-0 rtl:lg:translate-x-0",
-          mobileMenuOpen && "translate-x-0 rtl:translate-x-0"
-        )}
-      >
-        <div className="flex h-16 items-center justify-between border-b border-border px-2.5">
-          <NavLink
-            to="/dashboard"
-            className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60"
-          >
-            <div className="flex w-30 shrink-0 items-center justify-center">
-              <img src="/logo.png" alt="RAAD LMS" className="h-10 object-contain" />
-            </div>
-          </NavLink>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>{visibleNavItems.map((item) => renderNavItem(item))}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="rounded-md p-1.5 hover:bg-muted lg:hidden"
-            aria-label={t("nav.closeMenu")}
-          >
-            <Xmark className="h-5 w-5" />
-          </button>
+      <SidebarFooter className="border-t border-sidebar-border">
+        <div className="px-2 py-1 text-[10px] text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+          v1.0.0
         </div>
-
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2.5">
-          <ul className="space-y-0.5">{visibleNavItems.map((item) => renderNavItem(item))}</ul>
-        </nav>
-
-        <div className="border-t border-border p-2.5">
-          <div
-            className={cn(
-              "text-[10px] text-muted-foreground",
-              sidebarCollapsed && "lg:text-center"
-            )}
-          >
-            {sidebarCollapsed ? "v1" : "v1.0.0"}
-          </div>
-        </div>
-      </aside>
-    </>
+      </SidebarFooter>
+      <SidebarRail />
+    </SidebarRoot>
   );
 };
 
