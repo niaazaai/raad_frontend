@@ -1,5 +1,4 @@
 import {
-  Bell,
   User,
   LogOut,
   Settings,
@@ -25,20 +24,6 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
-import NotificationDropdown from "@/modules/Notifications/components/NotificationDropdown";
-import { useUnreadNotificationCount } from "@/modules/Notifications/hooks/useNotifications";
-
-const NotificationBadgeCount = () => {
-  const { user } = useAuth();
-  const { data } = useUnreadNotificationCount(!!user);
-  const count = (data as { data?: { count?: number } })?.data?.count ?? 0;
-  if (count === 0) return null;
-  return (
-    <span className="absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium text-white">
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-};
 
 const LanguageSwitcher = () => {
   const locale = useLocaleStore((s) => s.locale);
@@ -81,9 +66,7 @@ const Header = () => {
   const { t } = useTranslation();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notificationOpen, setNotificationOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const notificationBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -133,23 +116,6 @@ const Header = () => {
             <MoonSat className="h-5 w-5" />
           )}
         </button>
-
-        <div className="relative">
-          <button
-            ref={notificationBtnRef}
-            onClick={() => setNotificationOpen(!notificationOpen)}
-            className="relative rounded-lg p-2 hover:bg-muted"
-            aria-label={t("header.notifications")}
-          >
-            <Bell className="h-5 w-5" />
-            <NotificationBadgeCount />
-          </button>
-          <NotificationDropdown
-            isOpen={notificationOpen}
-            onClose={() => setNotificationOpen(false)}
-            anchorRef={notificationBtnRef}
-          />
-        </div>
 
         <div className="relative" ref={userMenuRef}>
           <button
