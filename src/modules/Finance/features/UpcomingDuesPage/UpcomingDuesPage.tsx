@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
@@ -35,6 +36,14 @@ const UpcomingDuesPage = () => {
   const { data, isLoading } = useUpcomingInstallments(2);
   const rows = extractUpcomingInstallments(data);
 
+  const openInvoice = (row: UpcomingInstallmentRow) => {
+    if (row.pdf_url) {
+      window.open(row.pdf_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    toast.error(t("finance.upcomingDues.noInvoice"));
+  };
+
   const config: DataTableConfig<UpcomingInstallmentRow> = {
     columns: [
       {
@@ -48,12 +57,16 @@ const UpcomingDuesPage = () => {
         header: t("finance.columns.name"),
         sortable: false,
         render: (row) => (
-          <div>
-            <div className="font-medium">{row.student_name || "—"}</div>
+          <button
+            type="button"
+            className="text-start"
+            onClick={() => openInvoice(row)}
+          >
+            <div className="font-medium text-primary underline-offset-2 hover:underline">{row.student_name || "—"}</div>
             {row.student_code ? (
               <div className="font-mono text-xs text-muted-foreground">{row.student_code}</div>
             ) : null}
-          </div>
+          </button>
         ),
       },
       {
