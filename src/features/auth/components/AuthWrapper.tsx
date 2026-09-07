@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store";
 import { AuthStatus } from "@/data/enums";
 import { useAuth } from "../hooks/useAuth";
-import { isAuthDisabled } from "../isAuthDisabled";
 
 interface AuthWrapperProps {
   children: ReactNode;
@@ -18,10 +17,6 @@ const AuthWrapper = ({ children, loginPath = "/login" }: AuthWrapperProps) => {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
-
-  if (isAuthDisabled()) {
-    return <>{children}</>;
-  }
 
   if (status === AuthStatus.LOADING || status === AuthStatus.IDLE) {
     return <AppLoader />;

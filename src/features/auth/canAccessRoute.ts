@@ -1,5 +1,4 @@
 import type { ProtectedRouteType } from "@/types/routes";
-import { isAuthDisabled } from "./isAuthDisabled";
 
 type RouteGate = Pick<ProtectedRouteType, "permission" | "anyPermission" | "anyRole">;
 
@@ -13,10 +12,6 @@ type AuthChecks = {
  * All listed constraints must pass. Empty `permission` means no permission gate.
  */
 export function canAccessRoute(route: RouteGate, auth: AuthChecks): boolean {
-  if (isAuthDisabled()) {
-    return true;
-  }
-
   if (route.anyRole && route.anyRole.length > 0 && !auth.hasAnyRole(route.anyRole)) {
     return false;
   }

@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useAuthStore } from "@/store";
 import { AuthStatus } from "@/data/enums";
-import { isAuthDisabled } from "../isAuthDisabled";
 
 /**
  * Custom hook for auth-related operations
@@ -30,10 +29,6 @@ export const useAuth = () => {
    */
   const hasPermission = useCallback(
     (permission: string): boolean => {
-      if (isAuthDisabled()) {
-        return true;
-      }
-
       if (!permission) {
         return true;
       }
@@ -48,10 +43,6 @@ export const useAuth = () => {
    */
   const hasAnyPermission = useCallback(
     (permissionList: string[]): boolean => {
-      if (isAuthDisabled()) {
-        return true;
-      }
-
       if (!permissionList || permissionList.length === 0) {
         return true;
       }
@@ -66,10 +57,6 @@ export const useAuth = () => {
    */
   const hasAllPermissions = useCallback(
     (permissionList: string[]): boolean => {
-      if (isAuthDisabled()) {
-        return true;
-      }
-
       if (!permissionList || permissionList.length === 0) {
         return true;
       }
@@ -84,9 +71,6 @@ export const useAuth = () => {
    */
   const hasAnyRole = useCallback(
     (roleNames: string[]): boolean => {
-      if (isAuthDisabled()) {
-        return true;
-      }
       if (!roleNames || roleNames.length === 0) {
         return true;
       }
