@@ -31,7 +31,9 @@ import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
+import { fetchAllListPages } from "@/lib/fetchAllListPages";
 import type { DataTableConfig } from "@/types/datatable";
+import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
 import {
   extractFinancePagination,
   extractFinanceRows,
@@ -179,6 +181,7 @@ const FinanceReportPage = () => {
     if (period === "daily") return { date };
     if (period === "yearly") return { year: Number(year) || currentYear() };
     if (period === "range") return { from, to };
+    if (period === "all") return {};
     return { month };
   }, [period, date, month, year, from, to]);
 
@@ -389,6 +392,24 @@ const FinanceReportPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("finance.empty"),
+    exportFilename: "finance-class-report",
+    exportDateKey: "payment_date",
+    fetchExportRows: (query) =>
+      fetchAllListPages({
+        url: FINANCE_ENDPOINTS.REPORT,
+        params: {
+          module: "class",
+          include_pending: includePending ? 1 : 0,
+          search: debouncedSearch || undefined,
+          sort_by: params.sort_by,
+          sort_dir: params.sort_dir,
+          ...(query.allTime
+            ? { period: "all" }
+            : { period: "range", from: query.from, to: query.to }),
+        },
+        extractRows: extractFinanceRows,
+        extractPagination: extractFinancePagination,
+      }),
   };
 
   const courseConfig: DataTableConfig<FinanceCourseRow> = {
@@ -454,6 +475,23 @@ const FinanceReportPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("finance.empty"),
+    exportFilename: "finance-course-report",
+    exportDateKey: "purchase_date",
+    fetchExportRows: (query) =>
+      fetchAllListPages({
+        url: FINANCE_ENDPOINTS.REPORT,
+        params: {
+          module: "course",
+          search: debouncedSearch || undefined,
+          sort_by: params.sort_by,
+          sort_dir: params.sort_dir,
+          ...(query.allTime
+            ? { period: "all" }
+            : { period: "range", from: query.from, to: query.to }),
+        },
+        extractRows: extractFinanceRows,
+        extractPagination: extractFinancePagination,
+      }),
   };
 
   if (!hasPermission("finance.read")) {
@@ -462,12 +500,13 @@ const FinanceReportPage = () => {
 
   const canReceivePayment = hasAnyPermission(["course.class_students.payment", "course.class_students.update"]);
 
-  const periodTabs: { value: FinancePeriod; label: string }[] = [
-    { value: "daily", label: t("finance.periodDaily") },
-    { value: "monthly", label: t("finance.periodMonthly") },
-    { value: "yearly", label: t("finance.periodYearly") },
-    { value: "range", label: t("finance.periodRange") },
-  ];
+      const periodTabs: { value: FinancePeriod; label: string }[] = [
+        { value: "daily", label: t("finance.periodDaily") },
+        { value: "monthly", label: t("finance.periodMonthly") },
+        { value: "yearly", label: t("finance.periodYearly") },
+        { value: "range", label: t("finance.periodRange") },
+        { value: "all", label: t("finance.periodAll") },
+      ];
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-6 p-6">
@@ -488,6 +527,9 @@ const FinanceReportPage = () => {
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" asChild>
               <Link to="/finance/invoices">{t("finance.invoices.title")}</Link>
+            </Button>
+            <Button type="button" variant="outline" asChild>
+              <Link to="/finance/transactions">{t("finance.transactions.title")}</Link>
             </Button>
             <Button type="button" variant="outline" asChild>
               <Link to="/finance/upcoming-dues">{t("finance.upcomingDues.title")}</Link>
@@ -590,18 +632,25 @@ const FinanceReportPage = () => {
               tone="info"
             />
             <SummaryCard
-              label={t("finance.mofReceivable")}
-              value={summary.mof_receivable}
-              hint={t("finance.hints.mof")}
-              icon={<Bank className="h-5 w-5" />}
-              tone="warning"
+              label={t("finance.columns.net")}
+              value={summary.net_amount}
+              hint={t("finance.hints.net")}
+              icon={<GraphUp className="h-5 w-5" />}
+              tone="auxiliary"
             />
             <SummaryCard
-              label={t("finance.otherReceivable")}
-              value={summary.other_receivable}
-              hint={t("finance.hints.other")}
-              icon={<Group className="h-5 w-5" />}
-              tone="info"
+              label={t("finance.paid")}
+              value={summary.paid_amount}
+              hint={t("finance.hints.paid")}
+              icon={<CheckCircle className="h-5 w-5" />}
+              tone="success"
+            />
+            <SummaryCard
+              label={t("finance.netReceivable")}
+              value={summary.net_receivable}
+              hint={t("finance.hints.netReceivable")}
+              icon={<Clock className="h-5 w-5" />}
+              tone="warning"
             />
             <SummaryCard
               label={t("finance.refunds")}
@@ -617,25 +666,18 @@ const FinanceReportPage = () => {
               tone="danger"
             />
             <SummaryCard
-              label={t("finance.paid")}
-              value={summary.paid_amount}
-              hint={t("finance.hints.paid")}
-              icon={<CheckCircle className="h-5 w-5" />}
-              tone="success"
-            />
-            <SummaryCard
-              label={t("finance.columns.net")}
-              value={summary.net_amount}
-              hint={t("finance.hints.net")}
-              icon={<GraphUp className="h-5 w-5" />}
-              tone="auxiliary"
-            />
-            <SummaryCard
-              label={t("finance.netReceivable")}
-              value={summary.net_receivable}
-              hint={t("finance.hints.netReceivable")}
-              icon={<Clock className="h-5 w-5" />}
+              label={t("finance.mofReceivable")}
+              value={summary.mof_receivable}
+              hint={t("finance.hints.mof")}
+              icon={<Bank className="h-5 w-5" />}
               tone="warning"
+            />
+            <SummaryCard
+              label={t("finance.otherReceivable")}
+              value={summary.other_receivable}
+              hint={t("finance.hints.other")}
+              icon={<Group className="h-5 w-5" />}
+              tone="info"
             />
             <SummaryCard
               label={t("finance.netServiceIncome")}
