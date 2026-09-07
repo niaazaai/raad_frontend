@@ -7,6 +7,7 @@ import type { ManualInvoiceSummary, ManualInvoiceTransactionRow } from "../data/
 export interface ManualInvoiceListParams {
   from?: string;
   to?: string;
+  all_time?: boolean;
   search?: string;
   page?: number;
   per_page?: number;
