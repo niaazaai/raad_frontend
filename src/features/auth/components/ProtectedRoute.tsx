@@ -1,5 +1,6 @@
 import { ReactNode, memo } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { canAccessRoute } from "../canAccessRoute";
 import PermissionDeniedCard from "./PermissionDeniedCard";
 
 interface ProtectedRouteProps {
@@ -11,30 +12,21 @@ interface ProtectedRouteProps {
 }
 
 /**
- * ProtectedRoute Component
- *
- * Wraps route content to check permissions:
- * - If permission is required, checks if user has it
- * - If anyPermission array is provided, checks if user has any of them
- * - Shows unauthorized fallback if permission check fails
+ * Renders children only when every listed gate passes.
+ * Denied routes never mount the feature tree (no lazy load / no queries).
  */
-const ProtectedRoute = ({ children, permission, anyPermission, anyRole, fallback }: ProtectedRouteProps) => {
-  const { hasPermission, hasAnyPermission, hasAnyRole } = useAuth();
+const ProtectedRoute = ({
+  children,
+  permission,
+  anyPermission,
+  anyRole,
+  fallback,
+}: ProtectedRouteProps) => {
+  const auth = useAuth();
+  const allowed = canAccessRoute({ permission, anyPermission, anyRole }, auth);
 
-  if (anyRole && anyRole.length > 0) {
-    if (!hasAnyRole(anyRole)) {
-      return fallback || <PermissionDeniedCard />;
-    }
-  }
-
-  if (anyPermission && anyPermission.length > 0) {
-    if (!hasAnyPermission(anyPermission)) {
-      return fallback || <PermissionDeniedCard />;
-    }
-  } else if (permission) {
-    if (!hasPermission(permission)) {
-      return fallback || <PermissionDeniedCard />;
-    }
+  if (!allowed) {
+    return fallback || <PermissionDeniedCard />;
   }
 
   return <>{children}</>;

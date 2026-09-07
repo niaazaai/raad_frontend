@@ -6,6 +6,7 @@ services:
       args:
         VITE_APP_NAME: ${VITE_APP_NAME:-Raad LMS}
         VITE_APP_URL: ${VITE_APP_URL:-http://127.0.0.1}
+        VITE_DISABLE_AUTH: ${VITE_DISABLE_AUTH:-false}
     image: raad-frontend:${APP_IMAGE_TAG:-local}
     container_name: raad-frontend
     ports:

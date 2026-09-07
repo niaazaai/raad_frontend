@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import ProtectedRoutes from "./ProtectedRoutes";
-import { AuthWrapper, ProtectedRoute } from "@/features/auth";
+import { AuthWrapper, ProtectedRoute, canAccessRoute, useAuth } from "@/features/auth";
 import Layout from "@/layouts/MainLayout";
 import PublicWebsiteLayout from "@/layouts/PublicWebsiteLayout";
 
@@ -36,6 +36,7 @@ const PageLoader = () => (
 
 const AppRoutes = () => {
   const location = useLocation();
+  const auth = useAuth();
   const fallback = <PageLoader />;
 
   return (
@@ -50,6 +51,7 @@ const AppRoutes = () => {
       >
         {ProtectedRoutes.map((route, routeIndex) => {
           const routeKey = `protected-${routeIndex}-${route.path}`;
+          const allowed = canAccessRoute(route, auth);
           const content = (
             <Suspense fallback={route.componentLoader || fallback}>
               <ProtectedRoute
@@ -57,7 +59,7 @@ const AppRoutes = () => {
                 anyPermission={route.anyPermission}
                 anyRole={route.anyRole}
               >
-                <div className="page-transition">{route.component}</div>
+                {allowed ? <div className="page-transition">{route.component}</div> : null}
               </ProtectedRoute>
             </Suspense>
           );

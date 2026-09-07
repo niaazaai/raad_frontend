@@ -32,23 +32,25 @@ export interface DashboardAnalytics {
   user_registrations_over_time?: DashboardChartPoint[];
 }
 
-export function useDashboardStats() {
+export function useDashboardStats(enabled = true) {
   return useQueryApi<DashboardStats>({
     queryKey: ["dashboard", "stats"],
     url: "/dashboard/stats",
     method: RequestMethod.GET,
     options: {
+      enabled,
       staleTime: 60 * 1000,
     },
   });
 }
 
-export function useDashboardAnalytics() {
+export function useDashboardAnalytics(enabled = true) {
   return useQueryApi<DashboardAnalytics>({
     queryKey: ["dashboard", "analytics"],
     url: "/dashboard/analytics",
     method: RequestMethod.GET,
     options: {
+      enabled,
       staleTime: 60 * 1000,
     },
   });

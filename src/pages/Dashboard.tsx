@@ -23,20 +23,6 @@ const DashboardPage = () => {
   const { user, hasPermission } = useAuth();
   const { t } = useTranslation();
 
-  useEffect(() => {
-    if (searchParams.get("from") === "google") {
-      const next = new URLSearchParams(searchParams);
-      next.delete("from");
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
-  const { data: statsRes, isLoading: loadingStats } = useDashboardStats();
-  const { data: analyticsRes, isLoading: loadingAnalytics } = useDashboardAnalytics();
-
-  const stats = statsRes?.data ?? {};
-  const analytics = analyticsRes?.data ?? {};
-
   const hasDashboardPermission = hasPermission("dashboard.read");
   const hasAnalyticsPermission =
     hasPermission("dashboard.analytics.read") || hasDashboardPermission;
@@ -45,6 +31,22 @@ const DashboardPage = () => {
 
   const hasAdminDashboard =
     hasDashboardPermission || hasUsersPermission || hasRolesPermission || hasAnalyticsPermission;
+
+  useEffect(() => {
+    if (searchParams.get("from") === "google") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("from");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const { data: statsRes, isLoading: loadingStats } = useDashboardStats(hasDashboardPermission);
+  const { data: analyticsRes, isLoading: loadingAnalytics } = useDashboardAnalytics(
+    hasAnalyticsPermission
+  );
+
+  const stats = statsRes?.data ?? {};
+  const analytics = analyticsRes?.data ?? {};
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {

@@ -289,6 +289,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const resolvedSlug = isSlug(slug) && !HIDDEN_INDEPENDENT_SLUGS.includes(slug) ? slug : null;
   const cfg = resolvedSlug ? COURSE_ENTITY_REGISTRY[resolvedSlug] : null;
   const formDef = resolvedSlug ? COURSE_ENTITY_FORM_REGISTRY[resolvedSlug] : null;
+  const canReadEntity = Boolean(cfg && hasPermission(cfg.permission));
 
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 10,
@@ -372,7 +373,9 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     ...extraParams,
   };
 
-  const { data, isFetching, error } = useCourseEntityList(resolvedSlug, apiParams);
+  const { data, isFetching, error } = useCourseEntityList(resolvedSlug, apiParams, {
+    enabled: canReadEntity,
+  });
   const rows = resolvedSlug ? getCourseListFromResponse(data) : [];
   const pagination = getPaginationFromResponse(data);
 

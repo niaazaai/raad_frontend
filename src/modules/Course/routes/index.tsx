@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy } from "react";
 import { ProtectedRouteType } from "@/types/routes";
+import { COURSE_MODULE_ANY_PERMISSIONS } from "../data/courseSidebarNav";
 
 const CourseHub = lazy(() => import("../features/CourseHub/CourseHub"));
 const CourseEntityList = lazy(() => import("../features/CourseEntityList/CourseEntityList"));
@@ -11,88 +12,60 @@ const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
-const courseAnyPermissions = [
-  "course.main_categories.read",
-  "course.sub_categories.read",
-  "course.faasl_modules.read",
-  "course.courses.read",
-  "course.lessons.read",
-  "course.assignments.read",
-  "course.resources.read",
-  "course.quiz_files.read",
-  "course.subscription_plans.read",
-  "course.student_subscriptions.read",
-  "course.instructors.read",
-  "course.lms_classes.read",
-  "course.class_students.read",
-];
-
 export const CourseModuleRoutes: ProtectedRouteType[] = [
   {
     path: "/classes/:classId/students",
     component: <ClassStudentsPage />,
     permission: "course.class_students.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/classes/:classId/attendance",
     component: <ClassAttendancePage />,
     permission: "course.lms_classes.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/attendance",
     component: <AttendanceHubPage />,
     permission: "course.lms_classes.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/classes",
     component: <CourseEntityList forcedSlug="lms-classes" />,
     permission: "course.lms_classes.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/students",
     component: <CourseEntityList forcedSlug="lms-class-students" />,
     permission: "course.class_students.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/instructors",
     component: <CourseEntityList forcedSlug="instructors" />,
     permission: "course.instructors.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/course/courses",
     component: <CoursesPage />,
     permission: "course.courses.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/course/courses/create",
     component: <CourseWizardPage />,
     permission: "course.courses.create",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/course/courses/:courseId/edit",
     component: <CourseWizardPage />,
     permission: "course.courses.update",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/course/:slug",
     component: <CourseEntityList />,
-    permission: "course.main_categories.read",
-    anyPermission: courseAnyPermissions,
   },
   {
     path: "/course",
     component: <CourseHub />,
-    permission: "course.main_categories.read",
-    anyPermission: courseAnyPermissions,
+    anyPermission: COURSE_MODULE_ANY_PERMISSIONS,
   },
 ];
 
