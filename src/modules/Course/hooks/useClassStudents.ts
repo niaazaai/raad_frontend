@@ -163,6 +163,10 @@ export function useRecordClassStudentPayment(classId: number, enrollmentId: numb
       classStudentsListPrefix(classId),
       FINANCE_QUERY_KEYS.report,
       FINANCE_QUERY_KEYS.studentEnrollments,
+      FINANCE_QUERY_KEYS.transactions,
+      FINANCE_QUERY_KEYS.invoices,
+      FINANCE_QUERY_KEYS.upcomingInstallments,
+      FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
     ],
   });
 }
@@ -178,7 +182,14 @@ export function useRefundClassStudentPayment(classId: number, enrollmentId: numb
   >({
     url: `/lms-classes/${classId}/students/${enrollmentId}/refunds`,
     method: RequestMethod.POST,
-    invalidateKeys: [classStudentsListPrefix(classId)],
+    invalidateKeys: [
+      classStudentsListPrefix(classId),
+      FINANCE_QUERY_KEYS.report,
+      FINANCE_QUERY_KEYS.studentEnrollments,
+      FINANCE_QUERY_KEYS.transactions,
+      FINANCE_QUERY_KEYS.upcomingInstallments,
+      FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
+    ],
   });
 }
 

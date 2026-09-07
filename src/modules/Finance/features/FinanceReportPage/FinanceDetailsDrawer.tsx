@@ -51,6 +51,9 @@ function StatusBadge({ value, label }: { value?: string | null; label?: string |
     payment: "bg-success/10 text-success",
     refund: "bg-danger/10 text-danger",
     receivable: "bg-warning/10 text-warning",
+    mof_receivable: "bg-auxiliary/10 text-auxiliary",
+    other_receivable: "bg-info/10 text-info",
+    irrecoverable: "bg-danger/10 text-danger",
     active: "bg-success/10 text-success",
   };
   return (

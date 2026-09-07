@@ -147,6 +147,7 @@ const AttendanceHubPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("course.attendance.empty"),
+    onRowDoubleClick: (row) => navigate(`/classes/${row.id}/attendance`),
   };
 
   return (

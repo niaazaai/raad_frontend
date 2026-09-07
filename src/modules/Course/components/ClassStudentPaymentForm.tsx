@@ -218,10 +218,26 @@ export function ClassStudentPaymentForm({
   const needsExchangeRate = form.currency === "USD" || form.currency === "GBP";
   const needsNextDue = dueAfter > 0.009 && form.receivable_status === "pending";
   const otherPartyOk = form.receivable_status !== "other_party" || form.other_party_name.trim() !== "";
+  const classifyRemaining = form.receivable_status === "mof_pending" || form.receivable_status === "other_party";
+  const existingIrrecoverable = Number(enrollment.irrecoverable_debt ?? 0);
+  const irrecoverableChanged = Math.abs(irrecoverable - existingIrrecoverable) > 0.009;
+  const mofAfter = form.receivable_status === "mof_pending" ? dueAfter : 0;
+  const otherAfter = form.receivable_status === "other_party" ? dueAfter : 0;
   const canSubmit =
     otherPartyOk &&
     paymentAmount <= remainingBefore + 0.01 &&
-    (paymentAmount > 0 || (dueAfter > 0.009 && (form.receivable_status === "mof_pending" || form.receivable_status === "other_party")));
+    (paymentAmount > 0 || irrecoverableChanged || (dueAfter > 0.009 && classifyRemaining));
+
+  const clampPaymentToRemaining = (nextIrrecoverableValue: string, next: PaymentFormState): PaymentFormState => {
+    const nextIrrecoverable = nextIrrecoverableValue ? Number(nextIrrecoverableValue) : 0;
+    const nextRemaining = Math.max(0, Math.round((feeAfterDiscount - alreadyPaid - nextIrrecoverable) * 100) / 100);
+    const currentPayment = next.payment_amount ? Number(next.payment_amount) : 0;
+    return {
+      ...next,
+      irrecoverable_debt: nextIrrecoverableValue,
+      payment_amount: currentPayment > nextRemaining ? (nextRemaining > 0 ? String(nextRemaining) : "") : next.payment_amount,
+    };
+  };
 
   const applyDiscountChange = (next: Partial<PaymentFormState>) => {
     const merged = { ...form, ...next };
@@ -364,11 +380,9 @@ export function ClassStudentPaymentForm({
         <Select
           value={form.receivable_status}
           onValueChange={(v) => {
-            const classifyRemaining = v === "mof_pending" || v === "other_party";
             onFormChange({
               ...form,
               receivable_status: v,
-              payment_amount: classifyRemaining ? "" : remainingBefore > 0 ? String(remainingBefore) : "",
             });
           }}
         >
@@ -404,7 +418,7 @@ export function ClassStudentPaymentForm({
           type="number"
           min={0}
           value={form.irrecoverable_debt}
-          onChange={(e) => onFormChange({ ...form, irrecoverable_debt: e.target.value })}
+          onChange={(e) => onFormChange(clampPaymentToRemaining(e.target.value, form))}
         />
       </div>
 
@@ -425,6 +439,38 @@ export function ClassStudentPaymentForm({
           <span className="text-muted-foreground">{t("course.columns.payment_status")}</span>
           <PaymentStatusBadge value={previewStatus} />
         </div>
+        {paymentAmount > 0.009 ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("course.classStudents.cashThisSave")}</span>
+            <span className="font-medium tabular-nums">
+              {formatMoney(paymentAmount)} {form.currency}
+            </span>
+          </div>
+        ) : null}
+        {mofAfter > 0.009 ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("finance.mofReceivable")}</span>
+            <span className="font-medium tabular-nums text-warning">
+              {formatMoney(mofAfter)} {form.currency}
+            </span>
+          </div>
+        ) : null}
+        {otherAfter > 0.009 ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("finance.otherReceivable")}</span>
+            <span className="font-medium tabular-nums text-warning">
+              {formatMoney(otherAfter)} {form.currency}
+            </span>
+          </div>
+        ) : null}
+        {irrecoverable > 0.009 ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("course.classStudents.irrecoverableDebt")}</span>
+            <span className="font-medium tabular-nums">
+              {formatMoney(irrecoverable)} {form.currency}
+            </span>
+          </div>
+        ) : null}
         {previewStatus === "partial" ||
         previewStatus === "pending" ||
         previewStatus === "mof_pending" ||
@@ -436,7 +482,7 @@ export function ClassStudentPaymentForm({
             </span>
           </div>
         ) : null}
-        {remainingBefore <= 0 ? (
+        {remainingBefore <= 0 && !irrecoverableChanged && paymentAmount <= 0 && !classifyRemaining ? (
           <p className="mt-3 text-xs text-muted-foreground">{t("course.classStudents.fullyPaidHint")}</p>
         ) : null}
       </div>

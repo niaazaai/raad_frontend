@@ -273,6 +273,8 @@ const en = {
     assignments: "Assignments",
     downloadableResources: "Downloadable resources",
     quizFiles: "Quiz files",
+    productName: "RAAD Institute Management System",
+    version: "v1.0.0",
   },
   header: {
     profile: "Profile",
@@ -574,6 +576,8 @@ const ps = {
     assignments: "دندې",
     downloadableResources: "د ښکته کولو وړ سرچینې",
     quizFiles: "د آزموینې فایلونه",
+    productName: "د RAAD د انستیتیوت مدیریت سیستم",
+    version: "v1.0.0",
   },
   header: {
     profile: "پروفایل",
@@ -875,6 +879,8 @@ const fa = {
     assignments: "تکالیف",
     downloadableResources: "منابع قابل دانلود",
     quizFiles: "فایل‌های آزمون",
+    productName: "سیستم مدیریت انستیتوت RAAD",
+    version: "v1.0.0",
   },
   header: {
     profile: "پروفایل",

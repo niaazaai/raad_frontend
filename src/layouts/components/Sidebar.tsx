@@ -216,7 +216,7 @@ const Sidebar = () => {
   const { t } = useTranslation();
   const locale = useLocaleStore((s) => s.locale);
   const location = useLocation();
-  const { setOpenMobile, state } = useSidebar();
+  const { setOpenMobile } = useSidebar();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const side = isRtlLocale(locale) ? "right" : "left";
 
@@ -468,29 +468,24 @@ const Sidebar = () => {
 
   return (
     <SidebarRoot side={side} collapsible="icon" variant="sidebar">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent"
-              tooltip="RAAD LMS"
-            >
-              <NavLink to="/dashboard" onClick={closeMobile} className="gap-2">
-                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
-                  <img src="/logo.png" alt="RAAD LMS" className="h-8 w-auto object-contain" />
-                </div>
-                <div className="grid min-w-0 flex-1 text-start text-sm leading-tight">
-                  <span className="truncate font-semibold">RAAD LMS</span>
-                  <span className="truncate text-xs text-sidebar-foreground/70">
-                    {state === "collapsed" ? "" : "v1.0.0"}
-                  </span>
-                </div>
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="">
+        <NavLink
+          to="/dashboard"
+          onClick={closeMobile}
+          title={t("sidebar.productName")}
+          className="flex items-center justify-center rounded-md px-1 py-1.5 outline-none ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 group-data-[collapsible=icon]:p-0"
+        >
+          <img
+            src="/logo.png"
+            alt={t("sidebar.productName")}
+            className="h-10 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:hidden"
+          />
+          <img
+            src="/favicon/R.png"
+            alt={t("sidebar.productName")}
+            className="hidden size-8 object-contain group-data-[collapsible=icon]:block"
+          />
+        </NavLink>
       </SidebarHeader>
 
       <SidebarContent>
@@ -502,8 +497,11 @@ const Sidebar = () => {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
-        <div className="px-2 py-1 text-[10px] text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-          v1.0.0
+        <div className="px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+          <p className="text-[11px] font-medium leading-snug tracking-tight text-sidebar-foreground">
+            {t("sidebar.productName")}
+          </p>
+          <p className="mt-0.5 text-[10px] text-sidebar-foreground/60">{t("sidebar.version")}</p>
         </div>
       </SidebarFooter>
       <SidebarRail />
