@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  HomeSimple,
+  DashboardDots,
   Settings,
-  User,
-  Shield,
-  Key,
-  BookStack,
+  UserCircle,
+  UserCrown,
+  Lock,
+  OpenBook,
   NavArrowDown,
-  CheckCircle,
-  Community,
-  PageSearch,
-  Hat,
+  ClipboardCheck,
+  PeopleTag,
+  Activity,
+  UserBadgeCheck,
+  Learning,
   GraduationCap,
-  Group,
-  Calendar,
-  JournalPage,
-  Wallet,
+  Presentation,
+  Post,
+  DollarCircle,
+  StatsReport,
+  PageFlip,
+  CalendarArrowDown,
+  Coins,
+  PageEdit,
+  HandCash,
 } from "iconoir-react";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
@@ -157,38 +163,41 @@ function courseRowsToNavItems(rows: CourseSidebarRow[]): NavItem[] {
   });
 }
 
+const iconLg = "h-[18px] w-[18px] shrink-0 stroke-[1.5]";
+const iconSm = "h-4 w-4 shrink-0 stroke-[1.5]";
+
 const baseNavItems: NavItem[] = [
   {
     title: "Dashboard",
     path: "/dashboard",
-    icon: <HomeSimple className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+    icon: <DashboardDots className={iconLg} />,
   },
   {
     title: "User Management",
-    icon: <Community className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+    icon: <PeopleTag className={iconLg} />,
     children: [
       {
         title: "Activity log",
         path: "/activity-log",
-        icon: <PageSearch className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+        icon: <Activity className={iconSm} />,
         anyRole: ["root"],
       },
       {
         title: "Users",
         path: "/users",
-        icon: <User className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+        icon: <UserCircle className={iconSm} />,
         permission: "users.read",
       },
       {
         title: "Roles",
         path: "/roles",
-        icon: <Shield className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+        icon: <UserCrown className={iconSm} />,
         permission: "roles.read",
       },
       {
         title: "Permissions",
         path: "/permissions",
-        icon: <Key className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+        icon: <Lock className={iconSm} />,
         permission: "permissions.read",
       },
     ],
@@ -196,7 +205,7 @@ const baseNavItems: NavItem[] = [
   {
     title: "Settings",
     path: "/settings",
-    icon: <Settings className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+    icon: <Settings className={iconLg} />,
   },
 ];
 
@@ -225,13 +234,13 @@ const Sidebar = () => {
             {
               title: "My learning",
               path: "/student",
-              icon: <GraduationCap className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+              icon: <Learning className={iconLg} />,
             },
           ]
         : []),
       {
         title: "Courses",
-        icon: <BookStack className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <OpenBook className={iconLg} />,
         anyPermission: COURSE_MODULE_ANY_PERMISSIONS,
         children: courseNavChildren,
         skipChildPermissionFilter: true,
@@ -239,30 +248,30 @@ const Sidebar = () => {
       {
         title: "Classes",
         path: "/classes",
-        icon: <Calendar className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <Presentation className={iconLg} />,
         permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
       },
       {
         title: "Attendance",
         path: "/attendance",
-        icon: <CheckCircle className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <ClipboardCheck className={iconLg} />,
         permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
       },
       {
         title: "Instructors",
         path: "/instructors",
-        icon: <Hat className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <UserBadgeCheck className={iconLg} />,
         permission: COURSE_ENTITY_REGISTRY.instructors.permission,
       },
       {
         title: "Students",
         path: "/students",
-        icon: <Group className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <GraduationCap className={iconLg} />,
         permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
       },
       {
         title: "Finance",
-        icon: <Wallet className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <DollarCircle className={iconLg} />,
         anyPermission: [
           "finance.read",
           "course.class_students.payment",
@@ -272,31 +281,31 @@ const Sidebar = () => {
           {
             title: "Finance report",
             path: "/finance",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <StatsReport className={iconSm} />,
             permission: "finance.read",
           },
           {
             title: "Invoices",
             path: "/finance/invoices",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <PageFlip className={iconSm} />,
             permission: "finance.read",
           },
           {
             title: "Upcoming dues",
             path: "/finance/upcoming-dues",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <CalendarArrowDown className={iconSm} />,
             permission: "finance.read",
           },
           {
             title: "Service income",
             path: "/finance/service-income",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <Coins className={iconSm} />,
             permission: "finance.read",
           },
           {
             title: "Manual invoice",
             path: "/finance/manual-invoice",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <PageEdit className={iconSm} />,
             anyPermission: [
               "course.class_students.invoice",
               "course.class_students.payment",
@@ -306,7 +315,7 @@ const Sidebar = () => {
           {
             title: "Receive payment",
             path: "/finance/receive-payment",
-            icon: <Wallet className="h-4 w-4 shrink-0 stroke-[1.5]" />,
+            icon: <HandCash className={iconSm} />,
             anyPermission: ["course.class_students.payment", "course.class_students.update"],
           },
         ],
@@ -314,7 +323,7 @@ const Sidebar = () => {
       {
         title: "Blogs",
         path: "/blogs",
-        icon: <JournalPage className="h-[18px] w-[18px] shrink-0 stroke-[1.5]" />,
+        icon: <Post className={iconLg} />,
         permission: "blogs.read",
       },
       ...baseNavItems.slice(1),

@@ -1,20 +1,20 @@
 import type { ComponentType, SVGProps } from "react";
 import {
-  BookStack,
-  Book,
-  Page,
-  GraduationCap,
-  Play,
-  EditPencil,
-  Download,
-  ClipboardCheck,
+  Label,
+  ListSelect,
+  NumberedListLeft,
+  OpenBook,
+  MediaVideo,
+  TaskList,
+  DownloadCircle,
+  ChatBubbleQuestion,
   Timer,
   CreditCard,
-  Cash,
-  Calendar,
-  Group,
-  GridPlus,
-  Hat,
+  UserCart,
+  UserBadgeCheck,
+  Presentation,
+  GraduationCap,
+  ViewGrid,
 } from "iconoir-react";
 import type { CourseEntitySlug } from "./courseRegistry";
 
@@ -23,24 +23,24 @@ type Ico = ComponentType<SVGProps<SVGSVGElement>>;
 const iconClass = "h-[18px] w-[18px] shrink-0 stroke-[1.5]";
 
 const ENTITY_ICON: Record<CourseEntitySlug, Ico> = {
-  "main-categories": BookStack,
-  "sub-categories": Book,
-  "course-faasls": Page,
-  courses: GraduationCap,
-  lessons: Play,
-  assignments: EditPencil,
-  "downloadable-resources": Download,
-  "quiz-files": ClipboardCheck,
+  "main-categories": Label,
+  "sub-categories": ListSelect,
+  "course-faasls": NumberedListLeft,
+  courses: OpenBook,
+  lessons: MediaVideo,
+  assignments: TaskList,
+  "downloadable-resources": DownloadCircle,
+  "quiz-files": ChatBubbleQuestion,
   "mock-tests": Timer,
   "subscription-plans": CreditCard,
-  "student-subscriptions": Cash,
-  instructors: Hat,
-  "lms-classes": Calendar,
-  "lms-class-students": Group,
+  "student-subscriptions": UserCart,
+  instructors: UserBadgeCheck,
+  "lms-classes": Presentation,
+  "lms-class-students": GraduationCap,
 };
 
 export function CourseOverviewIcon(props: SVGProps<SVGSVGElement>) {
-  return <GridPlus className={iconClass} {...props} />;
+  return <ViewGrid className={iconClass} {...props} />;
 }
 
 export function CourseEntitySidebarIcon({
