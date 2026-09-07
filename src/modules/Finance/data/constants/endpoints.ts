@@ -1,6 +1,7 @@
 export const FINANCE_ENDPOINTS = {
   REPORT: "/finance/report",
   INVOICES: "/finance/invoices",
+  TRANSACTIONS: "/finance/transactions",
   UPCOMING_INSTALLMENTS: "/finance/upcoming-installments",
   MANUAL_INVOICES: "/finance/manual-invoices",
   MANUAL_INVOICE_NEXT_NUMBER: "/finance/next-invoice-number",
@@ -12,6 +13,7 @@ export const FINANCE_ENDPOINTS = {
 export const FINANCE_QUERY_KEYS = {
   report: ["finance", "report"] as const,
   invoices: ["finance", "invoices"] as const,
+  transactions: ["finance", "transactions"] as const,
   manualInvoices: ["finance", "service-income"] as const,
   upcomingInstallments: ["finance", "upcoming-installments"] as const,
   studentEnrollments: ["finance", "student-enrollments"] as const,
