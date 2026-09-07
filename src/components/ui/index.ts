@@ -64,6 +64,10 @@ export {
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,
+  DrawerTrigger,
+  DrawerClose,
+  DrawerPortal,
+  DrawerSwipeHandle,
 } from "./drawer";
 export {
   Modal,

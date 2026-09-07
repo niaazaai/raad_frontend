@@ -12,6 +12,7 @@
     "preview": "bunx --bun vite preview --port 3000"
   },
   "dependencies": {
+    "@base-ui/react": "^1.8.0",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.3",

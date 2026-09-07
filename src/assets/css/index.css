@@ -287,6 +287,8 @@ html.lenis body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Base UI drawer overlay is absolutely positioned on iOS Safari. */
+    position: relative;
   }
 
   .btn {
