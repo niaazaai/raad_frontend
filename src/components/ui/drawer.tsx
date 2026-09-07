@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Xmark } from "iconoir-react";
 import { cn } from "@/lib/utils";
 
@@ -53,17 +54,17 @@ const DrawerOverlay = ({ className }: DrawerOverlayProps) => {
   if (!context) return null;
   const { open, onClose } = context;
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
         "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity",
-        open ? "opacity-100" : "opacity-0",
         className
       )}
       onClick={onClose}
-    />
+    />,
+    document.body
   );
 };
 
@@ -78,24 +79,20 @@ const DrawerContent = ({ children, className, side = "right" }: DrawerContentPro
   if (!context) return null;
   const { open } = context;
 
-  return (
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className={cn(
-        "fixed z-50 flex h-full min-h-0 flex-col overflow-hidden bg-card shadow-xl transition-transform duration-300 ease-in-out",
+        "fixed z-50 flex h-full min-h-0 flex-col overflow-hidden bg-card shadow-xl",
         side === "right" ? "right-0 top-0" : "left-0 top-0",
-        side === "right"
-          ? open
-            ? "translate-x-0"
-            : "translate-x-full"
-          : open
-            ? "translate-x-0"
-            : "-translate-x-full",
         "w-[35%] min-w-[400px]",
         className
       )}
     >
       {children}
-    </div>
+    </div>,
+    document.body
   );
 };
 
