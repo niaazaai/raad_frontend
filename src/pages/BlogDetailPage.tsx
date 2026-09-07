@@ -12,23 +12,16 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const BlogDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const blogId = Number(id);
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
   const { data, isLoading } = usePublicBlog(blogId);
   const blog = getPublicItemFromResponse<PublicBlog>(data);
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <article className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={`${sectionInnerClass} max-w-3xl`}>

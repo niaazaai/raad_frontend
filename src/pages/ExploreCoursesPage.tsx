@@ -13,18 +13,11 @@ import { NavArrowLeft, NavArrowRight } from "iconoir-react";
 import { useTranslation } from "@/i18n/useTranslation";
 import { sectionInnerClass, sectionShellClass, sectionSubtitleClass, sectionTitleClass } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 function coursePublicViewPath(courseId: number): string {
   return `/course/courses/${courseId}/view`;
 }
 
 const ExploreCoursesPage = () => {
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const perPage = 12;
@@ -35,7 +28,7 @@ const ExploreCoursesPage = () => {
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <main className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={sectionInnerClass}>

@@ -13,19 +13,12 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const valueStyles = {
   primary: { icon: "bg-primary/10 text-primary", border: "border-primary/20 hover:border-primary/35" },
   auxiliary: { icon: "bg-auxiliary/10 text-auxiliary", border: "border-auxiliary/20 hover:border-auxiliary/35" },
 };
 
 const AboutPage = () => {
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
 
   const timelineEvents = [
@@ -59,7 +52,7 @@ const AboutPage = () => {
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={`${sectionInnerClass} max-w-4xl text-center`}>

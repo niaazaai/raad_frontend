@@ -8,12 +8,6 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const h2Class = "text-xl font-semibold text-foreground mt-10 mb-4";
 const bodyClass = "text-sm leading-relaxed text-muted-foreground";
 const listClass = "mt-3 flex flex-col gap-2 ps-5";
@@ -61,11 +55,9 @@ const CookieTable = ({ rows }: { rows: CookieRow[] }) => (
 );
 
 const CookiePolicyPage = () => {
-  const loginHref = resolveLoginHref();
-
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <main className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={`${sectionInnerClass} max-w-3xl`}>

@@ -24,12 +24,6 @@ import {
   sectionSurface,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 function coursePublicViewPath(courseId: number): string {
   return `/course/courses/${courseId}/view`;
 }
@@ -77,11 +71,9 @@ const ProgramsSection = () => {
 };
 
 const LandingPage = () => {
-  const loginHref = resolveLoginHref();
-
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
       <HeroSection />
       <AboutSection />
       <MissionVisionSection />

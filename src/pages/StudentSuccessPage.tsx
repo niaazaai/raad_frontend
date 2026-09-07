@@ -13,14 +13,7 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const StudentSuccessPage = () => {
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
   const { data, isLoading } = usePublicStudentSuccessAll({ per_page: 100 });
   const students = useMemo(() => getPublicListFromResponse<{
@@ -34,7 +27,7 @@ const StudentSuccessPage = () => {
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={`${sectionInnerClass} text-center`}>

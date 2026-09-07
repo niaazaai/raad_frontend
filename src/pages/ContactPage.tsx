@@ -10,19 +10,12 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const ContactPage = () => {
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={`${sectionInnerClass} max-w-2xl text-center`}>

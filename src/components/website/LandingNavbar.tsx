@@ -8,11 +8,11 @@ import { useTranslation } from "@/i18n/useTranslation";
 import { useIsDarkMode } from "@/hooks";
 
 interface LandingNavbarProps {
-  loginHref: string;
+  loginHref?: string;
   className?: string;
 }
 
-const LandingNavbar = ({ loginHref, className }: LandingNavbarProps) => {
+const LandingNavbar = ({ loginHref = "/login", className }: LandingNavbarProps) => {
   const { t } = useTranslation();
   const isDark = useIsDarkMode();
   const [scrolled, setScrolled] = useState(false);

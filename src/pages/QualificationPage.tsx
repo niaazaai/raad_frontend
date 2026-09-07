@@ -13,15 +13,8 @@ import {
   sectionTitleClass,
 } from "@/components/website/websiteData";
 
-function resolveLoginHref(): string {
-  const base = import.meta.env.VITE_APP_URL?.replace(/\/$/, "") ?? "";
-  if (base) return `${base}/login`;
-  return "/login";
-}
-
 const QualificationPage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const loginHref = resolveLoginHref();
   const { t } = useTranslation();
   const qualification =
     slug && slug in QUALIFICATION_DETAILS ? QUALIFICATION_DETAILS[slug as QualificationSlug] : null;
@@ -29,7 +22,7 @@ const QualificationPage = () => {
   if (!qualification) {
     return (
       <>
-        <LandingNavbar loginHref={loginHref} />
+        <LandingNavbar />
         <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 pt-28">
           <p className="text-muted-foreground">{t("qualifications.notFound")}</p>
           <Link to="/" className="mt-4 text-primary hover:underline">
@@ -43,7 +36,7 @@ const QualificationPage = () => {
 
   return (
     <>
-      <LandingNavbar loginHref={loginHref} />
+      <LandingNavbar />
 
       <section className={`${sectionShellClass} pt-28 md:pt-32`}>
         <div className={sectionInnerClass}>
