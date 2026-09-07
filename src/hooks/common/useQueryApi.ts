@@ -7,11 +7,11 @@ import {
   useSuspenseQuery,
   QueryKey,
   useQueryClient,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { ApisauceConfig } from "apisauce";
 import { callApi } from "@/services";
 import { ObjectAny, ApiResponse } from "@/types";
-import { useRef } from "react";
 
 /**
  * Configuration for useQueryApi hook
@@ -52,23 +52,19 @@ export function useQueryApi<TData = ObjectAny>({
   hasFiles = false,
   ...apiConfig
 }: QueryApiConfig<TData>) {
-  const controllerRef = useRef<AbortController | null>(null);
-
   return useQuery({
-    // eslint-disable-next-line @tanstack/query/exhaustive-deps -- controllerRef.current must not be part of the cache key
-    queryKey: [...queryKey, hasFiles, apiConfig],
-    queryFn: async () => {
-      // Cancel previous request if still pending
-      controllerRef.current?.abort();
-      const controller = new AbortController();
-      controllerRef.current = controller;
-
+    queryKey: [...queryKey, hasFiles, apiConfig.url, apiConfig.method, apiConfig.params ?? null],
+    queryFn: async ({ signal }) => {
       const response = await callApi<TData>({
         ...apiConfig,
         hasFiles,
-        signal: controller.signal,
+        signal,
         shouldPopError: false,
       });
+
+      if (signal.aborted || response.originalError?.message === "canceled") {
+        throw new DOMException("Aborted", "AbortError");
+      }
 
       if (!response.ok) {
         throw new Error(response.data?.message || "Request failed");
@@ -77,6 +73,7 @@ export function useQueryApi<TData = ObjectAny>({
       return response.data as ApiResponse<TData>;
     },
     ...options,
+    placeholderData: options.placeholderData ?? keepPreviousData,
   });
 }
 
