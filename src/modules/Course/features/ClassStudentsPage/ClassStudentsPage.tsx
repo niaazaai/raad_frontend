@@ -197,6 +197,7 @@ const ClassStudentsPage = () => {
       status: "active",
       picker: 1,
       search: studentSearchTerm || undefined,
+      exclude_class_id: classId > 0 ? classId : undefined,
     },
     { enabled: addOpen && studentSearchTerm.length >= 1, keepPreviousData: true }
   );
@@ -281,11 +282,16 @@ const ClassStudentsPage = () => {
 
   const handleAddStudents = async () => {
     if (selectedStudentIds.length === 0) return;
-    await attachStudent.mutateAsync({
-      student_ids: selectedStudentIds.map((id) => Number(id)),
-    });
-    setAddOpen(false);
-    setSelectedStudentIds([]);
+    try {
+      await attachStudent.mutateAsync({
+        student_ids: selectedStudentIds.map((id) => Number(id)),
+      });
+      setAddOpen(false);
+      setSelectedStudentIds([]);
+      setSelectedStudentLabels({});
+    } catch {
+      // 422 toast is shown by callApi
+    }
   };
 
   const tableConfig: DataTableConfig<ClassStudentRow> = useMemo(
