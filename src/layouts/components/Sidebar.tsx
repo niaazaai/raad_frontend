@@ -23,6 +23,7 @@ import {
   Coins,
   PageEdit,
   HandCash,
+  List,
 } from "iconoir-react";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
@@ -88,6 +89,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   "Finance report": "sidebar.financeReport",
   Invoices: "sidebar.invoices",
   "Upcoming dues": "sidebar.upcomingDues",
+  Transactions: "sidebar.transactions",
   "Manual invoice": "sidebar.manualInvoice",
   "Manual invoices": "sidebar.manualInvoices",
   "Service income": "sidebar.manualInvoices",
@@ -294,6 +296,12 @@ const Sidebar = () => {
             title: "Upcoming dues",
             path: "/finance/upcoming-dues",
             icon: <CalendarArrowDown className={iconSm} />,
+            permission: "finance.read",
+          },
+          {
+            title: "Transactions",
+            path: "/finance/transactions",
+            icon: <List className={iconSm} />,
             permission: "finance.read",
           },
           {
