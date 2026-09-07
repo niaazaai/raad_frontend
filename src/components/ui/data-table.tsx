@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
 } from "./dropdown-menu";
 import { Button } from "./button";
+import ExcelSheetIcon from "./excel-sheet-icon";
 import { cn } from "@/lib/utils";
 import type {
   DataTableConfig,
@@ -35,6 +36,7 @@ import type {
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useFormatMessage } from "@/i18n/useConfirmPresets";
+import DataTableExportDrawer from "./data-table-export-drawer";
 
 export interface DataTableProps<T = unknown> {
   data: T[];
@@ -211,10 +213,13 @@ export function DataTable<T>({
     paginationEnabled = true,
     showRecordCount = true,
     emptyMessage,
+    onRowDoubleClick,
+    exportEnabled = true,
   } = config;
 
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("dataTable.search");
   const resolvedEmptyMessage = emptyMessage ?? t("dataTable.noRecords");
+  const [exportOpen, setExportOpen] = React.useState(false);
 
   const visibleActions = usePermissionFilteredActions(actions);
   const hasActions = visibleActions.length > 0;
@@ -245,19 +250,29 @@ export function DataTable<T>({
   );
 
   return (
-    <div className="w-full min-w-0 max-w-full overflow-hidden space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       {/* Search - top left */}
-      {searchable && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder={resolvedSearchPlaceholder}
-            value={params.search}
-            onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
-            className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            aria-label={t("dataTable.searchLabel")}
-          />
+      {(searchable || exportEnabled) && (
+        <div className="flex max-w-xl items-center gap-2">
+          {searchable ? (
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder={resolvedSearchPlaceholder}
+                value={params.search}
+                onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
+                className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                aria-label={t("dataTable.searchLabel")}
+              />
+            </div>
+          ) : null}
+          {exportEnabled ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+              <ExcelSheetIcon />
+              {t("dataTable.exportExcel")}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -310,7 +325,16 @@ export function DataTable<T>({
               </tr>
             ) : (
               data.map((row) => (
-                <tr key={String(rowId(row))} className="hover:bg-muted/30">
+                <tr
+                  key={String(rowId(row))}
+                  className={cn("hover:bg-muted/30", onRowDoubleClick && "cursor-pointer")}
+                  onDoubleClick={(event) => {
+                    if (!onRowDoubleClick) return;
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest("button, a, input, textarea, select, [role='menuitem']")) return;
+                    onRowDoubleClick(row);
+                  }}
+                >
                   {columns.map((col) => (
                     <td
                       key={col.key}
@@ -392,6 +416,15 @@ export function DataTable<T>({
           </div>
         </div>
       )}
+
+      {exportEnabled ? (
+        <DataTableExportDrawer
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          data={data}
+          config={config}
+        />
+      ) : null}
     </div>
   );
 }
