@@ -9,6 +9,10 @@
  * that overrides the default server-side search behavior.
  */
 
+import type { DataTableExportQuery } from "@/lib/exportSpreadsheet";
+
+export type { DataTableExportQuery };
+
 export type SortDirection = "asc" | "desc";
 
 export interface DataTablePaginationMeta {
@@ -42,6 +46,10 @@ export interface DataTableColumnConfig<T = unknown> {
   minWidth?: string;
   /** Column alignment */
   align?: "left" | "center" | "right";
+  /** Include this column in Excel export (default: true, except key "actions") */
+  exportable?: boolean;
+  /** Plain value used for Excel export */
+  exportValue?: (row: T) => string | number | null | undefined;
 }
 
 export interface DataTableActionItem<T = unknown> {
@@ -81,6 +89,16 @@ export interface DataTableConfig<T = unknown> {
   showRecordCount?: boolean;
   /** Empty state message */
   emptyMessage?: string;
+  /** Double-click handler for a data row */
+  onRowDoubleClick?: (row: T) => void;
+  /** Show Excel export control (default: true) */
+  exportEnabled?: boolean;
+  /** Downloaded file name without extension */
+  exportFilename?: string;
+  /** Row field used to apply the export date range */
+  exportDateKey?: string;
+  /** Fetch rows for export (all pages / date range). Falls back to currently loaded rows. */
+  fetchExportRows?: (query: DataTableExportQuery) => Promise<T[]>;
 }
 
 export interface DataTableParams {
