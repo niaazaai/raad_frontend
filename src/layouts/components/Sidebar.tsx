@@ -9,7 +9,6 @@ import {
   OpenBook,
   NavArrowDown,
   ClipboardCheck,
-  PeopleTag,
   Activity,
   UserBadgeCheck,
   Learning,
@@ -25,6 +24,7 @@ import {
   HandCash,
   List,
 } from "iconoir-react";
+import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
 import { useLocaleStore } from "@/store/locale/localeStore";
@@ -55,6 +55,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import NavUser from "./NavUser";
 
 interface NavItem {
   title: string;
@@ -165,8 +166,8 @@ function courseRowsToNavItems(rows: CourseSidebarRow[]): NavItem[] {
   });
 }
 
-const iconLg = "h-[18px] w-[18px] shrink-0 stroke-[1.5]";
-const iconSm = "h-4 w-4 shrink-0 stroke-[1.5]";
+const iconLg = "h-[18px] w-[18px] shrink-0 stroke-2";
+const iconSm = "h-4 w-4 shrink-0 stroke-2";
 
 const baseNavItems: NavItem[] = [
   {
@@ -176,7 +177,7 @@ const baseNavItems: NavItem[] = [
   },
   {
     title: "User Management",
-    icon: <PeopleTag className={iconLg} />,
+    icon: <ShieldUserIcon className={iconLg} />,
     children: [
       {
         title: "Activity log",
@@ -467,7 +468,7 @@ const Sidebar = () => {
   };
 
   return (
-    <SidebarRoot side={side} collapsible="icon" variant="sidebar">
+    <SidebarRoot side={side} collapsible="icon" variant="inset">
       <SidebarHeader className="">
         <NavLink
           to="/dashboard"
@@ -496,13 +497,8 @@ const Sidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
-        <div className="px-2 py-1.5 group-data-[collapsible=icon]:hidden">
-          <p className="text-[11px] font-medium leading-snug tracking-tight text-sidebar-foreground">
-            {t("sidebar.productName")}
-          </p>
-          <p className="mt-0.5 text-[10px] text-sidebar-foreground/60">{t("sidebar.version")}</p>
-        </div>
+      <SidebarFooter>
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </SidebarRoot>

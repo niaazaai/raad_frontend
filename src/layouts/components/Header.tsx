@@ -1,16 +1,5 @@
-import {
-  User,
-  LogOut,
-  Settings,
-  SunLight,
-  MoonSat,
-  Refresh,
-  Globe,
-  Check,
-  NavArrowDown,
-} from "iconoir-react";
+import { SunLight, MoonSat, Globe, Check, NavArrowDown } from "iconoir-react";
 import { useLayoutStore } from "@/store";
-import { useAuth } from "@/features/auth";
 import { ThemeMode } from "@/data/enums";
 import { AppLocale, AppLocaleLabels } from "@/data/enums/locale";
 import { useLocaleStore } from "@/store/locale/localeStore";
@@ -23,7 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useState, useRef, useEffect } from "react";
 
 const LanguageSwitcher = () => {
   const locale = useLocaleStore((s) => s.locale);
@@ -62,34 +50,7 @@ const LanguageSwitcher = () => {
 
 const Header = () => {
   const { theme, setTheme } = useLayoutStore();
-  const { user, logout, fetchUser } = useAuth();
   const { t } = useTranslation();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = "/login";
-  };
-
-  const handleRefreshPermissions = async () => {
-    setIsRefreshing(true);
-    setUserMenuOpen(false);
-    await fetchUser();
-    setIsRefreshing(false);
-  };
 
   const toggleTheme = () => {
     const newTheme = theme === ThemeMode.DARK ? ThemeMode.LIGHT : ThemeMode.DARK;
@@ -97,15 +58,16 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4">
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="size-9" aria-label={t("header.toggleSidebar")} />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <LanguageSwitcher />
 
         <button
+          type="button"
           onClick={toggleTheme}
           className="rounded-lg p-2 hover:bg-muted"
           aria-label={t("header.toggleTheme")}
@@ -116,65 +78,6 @@ const Header = () => {
             <MoonSat className="h-5 w-5" />
           )}
         </button>
-
-        <div className="relative" ref={userMenuRef}>
-          <button
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 rounded-lg p-2 hover:bg-muted"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-white">
-              {user?.name?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <span className="hidden text-sm font-medium md:block">
-              {user?.name || t("header.user")}
-            </span>
-          </button>
-
-          {userMenuOpen && (
-            <div className="absolute end-0 top-full mt-2 w-56 rounded-lg border border-border bg-card py-2 shadow-lg">
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-
-              <div className="py-1">
-                <a
-                  href="/profile"
-                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted"
-                >
-                  <User className="h-4 w-4" />
-                  {t("header.profile")}
-                </a>
-                <button
-                  type="button"
-                  onClick={handleRefreshPermissions}
-                  disabled={isRefreshing}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-muted"
-                >
-                  <Refresh className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-                  {isRefreshing ? t("header.refreshing") : t("header.syncPermissions")}
-                </button>
-                <a
-                  href="/settings"
-                  className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted"
-                >
-                  <Settings className="h-4 w-4" />
-                  {t("header.settings")}
-                </a>
-              </div>
-
-              <div className="border-t border-border pt-1">
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger hover:bg-muted"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {t("header.signOut")}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

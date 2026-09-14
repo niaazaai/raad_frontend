@@ -5,11 +5,11 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { SidebarCollapse } from "iconoir-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "@/components/icons/sidebar-icons";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -265,7 +265,8 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state, isMobile, openMobile } = useSidebar();
+  const isOpen = isMobile ? openMobile : state === "expanded";
 
   return (
     <Button
@@ -280,7 +281,11 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      <SidebarCollapse className="rtl:rotate-180" />
+      {isOpen ? (
+        <PanelLeftCloseIcon className="rtl:-scale-x-100" />
+      ) : (
+        <PanelLeftOpenIcon className="rtl:-scale-x-100" />
+      )}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -322,7 +327,11 @@ const SidebarInset = React.forwardRef<HTMLDivElement, React.ComponentProps<"main
         ref={ref}
         className={cn(
           "relative flex w-full flex-1 flex-col bg-background",
-          "md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+          // Floating inset card: soft elevation (not a heavy drop shadow)
+          "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=inset]:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_16px_rgba(15,23,42,0.06)]",
+          // Logical margins so LTR (side=left) and RTL (side=right) both hug the sidebar
+          "md:peer-data-[variant=inset]:peer-data-[side=left]:ms-0 md:peer-data-[variant=inset]:peer-data-[side=left]:peer-data-[state=collapsed]:ms-2",
+          "md:peer-data-[variant=inset]:peer-data-[side=right]:me-0 md:peer-data-[variant=inset]:peer-data-[side=right]:peer-data-[state=collapsed]:me-2",
           className
         )}
         {...props}

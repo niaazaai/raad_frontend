@@ -20,10 +20,10 @@ const MainLayout = () => {
     <SidebarProvider
       open={!sidebarCollapsed}
       onOpenChange={(open) => setSidebarCollapsed(!open)}
-      className="h-svh max-h-svh overflow-hidden bg-layout-body"
+      className="h-svh max-h-svh overflow-hidden bg-layout-body has-[[data-variant=inset]]:bg-layout-body"
     >
       <Sidebar />
-      <SidebarInset className="min-h-0 min-w-0 overflow-hidden bg-layout-body">
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
         <Header />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
           <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col">

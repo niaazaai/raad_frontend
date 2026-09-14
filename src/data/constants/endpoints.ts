@@ -8,12 +8,8 @@ export const API_ENDPOINTS = {
     LOGOUT: "/auth/logout",
     ME: "/auth/me",
     REGISTER: "/auth/register",
-    VERIFY_2FA: "/auth/2fa/verify",
-    RESEND_2FA: "/auth/2fa/resend",
-    ENABLE_2FA: "/auth/2fa/enable",
-    CONFIRM_2FA: "/auth/2fa/confirm",
-    DISABLE_2FA: "/auth/2fa/disable",
     EMAIL_RESEND: "/auth/email/resend",
+    PREFERENCES: "/auth/preferences",
   },
 
   NOTIFICATIONS: {

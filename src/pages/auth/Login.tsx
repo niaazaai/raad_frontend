@@ -9,7 +9,6 @@ import { useAuth } from "@/features/auth";
 import { useAuthStore } from "@/store";
 import { cn } from "@/lib/utils";
 import { getSafeRedirectPath } from "@/lib/authRedirect";
-import LoginWith2FA from "./LoginWith2FA";
 
 const authFormLightScope =
   "[color-scheme:light] text-foreground [--background:#ffffff] [--foreground:#071437] [--muted-foreground:#64748b] [--border:#e5e7eb] [--input:#e5e7eb] [--ring:#0069B4] [--card:#ffffff] [--accent:#f1f5f9] [--accent-foreground:#071437] [--secondary-foreground:#071437]";
@@ -18,7 +17,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login, pending2FA } = useAuth();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const registrationState = location.state as { registered?: boolean; email?: string } | null;
@@ -45,7 +44,7 @@ const LoginPage = () => {
         const u = useAuthStore.getState().user;
         const redirect = getSafeRedirectPath(searchParams.get("redirect"));
         navigate(redirect ?? getDashboardPath(u?.type ?? "student"), { replace: true });
-      } else if (result !== "requires_2fa") {
+      } else {
         const currentError = useAuthStore.getState().error;
         setError("email", { type: "manual", message: currentError || "Invalid email or password" });
       }
@@ -56,25 +55,6 @@ const LoginPage = () => {
       setIsSubmitting(false);
     }
   };
-
-  if (pending2FA) {
-    return (
-      <div className="min-h-screen bg-layout-body flex flex-col">
-        <header className="border-b border-border bg-card/60 backdrop-blur">
-          <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
-            <Link to="/" className="text-base font-semibold text-foreground hover:text-primary transition-colors">
-              Raad LMS
-            </Link>
-          </nav>
-        </header>
-        <main className="mx-auto flex w-full max-w-md flex-1 items-center px-4 py-8">
-          <section className={cn("w-full rounded-xl border border-border bg-card p-6 shadow-sm md:p-7", authFormLightScope)}>
-            <LoginWith2FA />
-          </section>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-layout-body">

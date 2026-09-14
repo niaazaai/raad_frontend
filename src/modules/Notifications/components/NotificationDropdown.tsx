@@ -48,7 +48,7 @@ const NotificationDropdown = ({ isOpen, onClose, anchorRef }: NotificationDropdo
   return (
     <div
       ref={dropdownRef}
-      className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-border bg-card shadow-lg"
+      className="absolute bottom-full end-0 z-50 mb-2 w-80 rounded-lg border border-border bg-card shadow-lg"
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h3 className="text-sm font-semibold">Notifications</h3>

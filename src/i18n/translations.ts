@@ -278,6 +278,8 @@ const en = {
   },
   header: {
     profile: "Profile",
+    account: "Account",
+    version: "Version",
     syncPermissions: "Sync Permissions",
     refreshing: "Refreshing...",
     settings: "Settings",
@@ -304,6 +306,21 @@ const en = {
     descriptionPlaceholder: "Short description (optional)",
     image: "Image",
     imageHint: "PNG, JPG or SVG up to 5MB",
+  },
+  settings: {
+    title: "Settings",
+    subtitle: "Manage your account preferences",
+    appearanceTitle: "Language & theme",
+    appearanceHint:
+      "Saved preferences apply the next time you sign in. You can still change language and theme from the header anytime.",
+    language: "Language",
+    theme: "Theme",
+    themeLight: "Light",
+    themeDark: "Dark",
+    selected: "Selected",
+    save: "Save preferences",
+    saved: "Preferences saved",
+    saveFailed: "Could not save preferences",
   },
   ...dashboardEn,
 } as const;
@@ -581,6 +598,8 @@ const ps = {
   },
   header: {
     profile: "پروفایل",
+    account: "حساب",
+    version: "نسخه",
     syncPermissions: "اجازې همغږي کول",
     refreshing: "تازه کیږي...",
     settings: "تنظیمات",
@@ -607,6 +626,21 @@ const ps = {
     descriptionPlaceholder: "لنډه تشریح (اختیاري)",
     image: "انځور",
     imageHint: "PNG، JPG یا SVG تر ۵MB پورې",
+  },
+  settings: {
+    title: "تنظیمات",
+    subtitle: "د خپل حساب غوره توبونه اداره کړئ",
+    appearanceTitle: "ژبه او ظاهر",
+    appearanceHint:
+      "خوندي شوي غوره توبونه په راتلونکي ننوتلو کې پلي کیږي. تاسو کولی شئ ژبه او ظاهر له سرلیک څخه هم بدل کړئ.",
+    language: "ژبه",
+    theme: "ظاهر",
+    themeLight: "روښانه",
+    themeDark: "تیاره",
+    selected: "ټاکل شوی",
+    save: "غوره توبونه خوندي کړئ",
+    saved: "غوره توبونه خوندي شول",
+    saveFailed: "غوره توبونه خوندي نه شول",
   },
   ...dashboardPs,
 };
@@ -884,6 +918,8 @@ const fa = {
   },
   header: {
     profile: "پروفایل",
+    account: "حساب",
+    version: "نسخه",
     syncPermissions: "همگام‌سازی دسترسی‌ها",
     refreshing: "در حال به‌روزرسانی...",
     settings: "تنظیمات",
@@ -910,6 +946,21 @@ const fa = {
     descriptionPlaceholder: "توضیح کوتاه (اختیاری)",
     image: "تصویر",
     imageHint: "PNG، JPG یا SVG تا ۵ مگابایت",
+  },
+  settings: {
+    title: "تنظیمات",
+    subtitle: "ترجیحات حساب خود را مدیریت کنید",
+    appearanceTitle: "زبان و ظاهر",
+    appearanceHint:
+      "ترجیحات ذخیره‌شده در ورود بعدی اعمال می‌شوند. همچنان می‌توانید زبان و ظاهر را از هدر تغییر دهید.",
+    language: "زبان",
+    theme: "ظاهر",
+    themeLight: "روشن",
+    themeDark: "تاریک",
+    selected: "انتخاب‌شده",
+    save: "ذخیره ترجیحات",
+    saved: "ترجیحات ذخیره شد",
+    saveFailed: "ذخیره ترجیحات ناموفق بود",
   },
   ...dashboardFa,
 };

@@ -30,7 +30,7 @@ All tokens live in `src/assets/css/index.css` as CSS custom properties and are e
 | `--border` | `oklch(0.922 0 0)` | `#2d2d2d` | `border-border` |
 | `--muted` | `oklch(0.97 0 0)` | `#2d2d2d` | `bg-muted` |
 | `--muted-foreground` | `oklch(0.556 0 0)` | `#a1a1a1` | `text-muted-foreground` |
-| `--layout-body` | `#f8fafd` | `#1a1a1a` | `bg-layout-body` |
+| `--layout-body` | `#f1f2f4` | `#1a1a1a` | `bg-layout-body` |
 
 ### Tinted Backgrounds (light variants)
 

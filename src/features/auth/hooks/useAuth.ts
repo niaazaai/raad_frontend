@@ -12,17 +12,7 @@ import { AuthStatus } from "@/data/enums";
  * - Login/logout actions
  */
 export const useAuth = () => {
-  const {
-    user,
-    status,
-    permissions,
-    login,
-    logout,
-    fetchUser,
-    verify2FA,
-    pending2FA,
-    setPending2FA,
-  } = useAuthStore();
+  const { user, status, permissions, login, logout, fetchUser } = useAuthStore();
 
   /**
    * Check if user has a specific permission
@@ -99,7 +89,6 @@ export const useAuth = () => {
     user,
     status,
     permissions,
-    pending2FA,
     isAuthenticated,
     isLoading,
     isFailed,
@@ -108,8 +97,6 @@ export const useAuth = () => {
     hasAllPermissions,
     hasAnyRole,
     login,
-    verify2FA,
-    setPending2FA,
     logout,
     fetchUser,
   };

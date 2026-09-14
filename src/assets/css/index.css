@@ -101,8 +101,8 @@ html.lenis body {
   /* Brand */
   --brand-color: #0069B4;
 
-  /* Layout */
-  --layout-body: #f8fafd;
+  /* Layout — soft gray chrome so the inset card reads clearly */
+  --layout-body: #f1f2f4;
   --color-scrollbar: #eeeeee;
 
   /* Shadcn Variables */
@@ -132,14 +132,14 @@ html.lenis body {
   --chart-4: #9B3D9A;
   --chart-5: #7E3280;
 
-  /* Sidebar - Blue Theme */
-  --sidebar: #ffffff;
+  /* Sidebar — light gray (matches layout chrome; inset card stays white) */
+  --sidebar: #f1f2f4;
   --sidebar-foreground: #071437;
   --sidebar-primary: #0069B4;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #E6F0FA;
+  --sidebar-accent: #e6e8ec;
   --sidebar-accent-foreground: #002D4D;
-  --sidebar-border: #e5e7eb;
+  --sidebar-border: color-mix(in oklab, var(--ring) 50%, transparent);
   --sidebar-ring: #0069B4;
 
   /* Data Table */

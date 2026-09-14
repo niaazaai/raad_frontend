@@ -20,7 +20,7 @@ import type { CourseEntitySlug } from "./courseRegistry";
 
 type Ico = ComponentType<SVGProps<SVGSVGElement>>;
 
-const iconClass = "h-[18px] w-[18px] shrink-0 stroke-[1.5]";
+const iconClass = "h-[18px] w-[18px] shrink-0 stroke-2";
 
 const ENTITY_ICON: Record<CourseEntitySlug, Ico> = {
   "main-categories": Label,

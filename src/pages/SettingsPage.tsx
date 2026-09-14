@@ -1,227 +1,185 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Shield } from "iconoir-react";
-import { Spinner } from "@/components/ui/spinner";
+import { useEffect, useState } from "react";
+import { Globe, HalfMoon, SunLight } from "iconoir-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth";
+import { applyUserUiPreferences } from "@/features/auth/applyUserUiPreferences";
 import { callApi, fetchCsrfCookie } from "@/services";
 import { API_ENDPOINTS } from "@/data/constants/endpoints";
 import { RequestMethod } from "@/data/constants/methods";
-import { toast } from "sonner";
-import * as z from "zod";
+import { ThemeMode } from "@/data/enums";
+import { AppLocale, AppLocaleLabels } from "@/data/enums/locale";
+import type { User } from "@/data/models/User";
+import { useTranslation } from "@/i18n/useTranslation";
+import { useLayoutStore } from "@/store";
+import { useLocaleStore, applyAdminLocale } from "@/store/locale/localeStore";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth/authStore";
 
-const TwoFactorEnableSchema = z.object({
-  code: z.string().length(6, "Enter the 6-digit code"),
-});
-
-const TwoFactorDisableSchema = z.object({
-  password: z.string().min(1, "Password is required"),
-});
-
-type TwoFactorEnableData = z.infer<typeof TwoFactorEnableSchema>;
-type TwoFactorDisableData = z.infer<typeof TwoFactorDisableSchema>;
+type ThemeChoice = ThemeMode.LIGHT | ThemeMode.DARK;
 
 const SettingsPage = () => {
-  const { user, fetchUser } = useAuth();
-  const [enableStep, setEnableStep] = useState<"idle" | "code">("idle");
-  const [showDisable, setShowDisable] = useState(false);
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
+  const theme = useLayoutStore((s) => s.theme);
+  const setTheme = useLayoutStore((s) => s.setTheme);
 
-  const enableForm = useForm<TwoFactorEnableData>({
-    resolver: zodResolver(TwoFactorEnableSchema),
-    defaultValues: { code: "" },
-  });
+  const initialTheme: ThemeChoice =
+    (user?.preferred_theme === ThemeMode.DARK ? ThemeMode.DARK : null) ??
+    (theme === ThemeMode.DARK ? ThemeMode.DARK : ThemeMode.LIGHT);
 
-  const disableForm = useForm<TwoFactorDisableData>({
-    resolver: zodResolver(TwoFactorDisableSchema),
-    defaultValues: { password: "" },
-  });
+  const [draftLocale, setDraftLocale] = useState<AppLocale>(
+    (user?.preferred_locale as AppLocale | null | undefined) ?? locale
+  );
+  const [draftTheme, setDraftTheme] = useState<ThemeChoice>(initialTheme);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleRequestEnable = async () => {
-    try {
-      await fetchCsrfCookie();
-      const response = await callApi({
-        url: API_ENDPOINTS.AUTH.ENABLE_2FA,
-        method: RequestMethod.POST,
-      });
-      if (response.ok) {
-        setEnableStep("code");
-        toast.success("Verification code sent to your email");
-      }
-    } catch {
-      toast.error("Failed to send code");
+  useEffect(() => {
+    if (user?.preferred_locale) {
+      setDraftLocale(user.preferred_locale as AppLocale);
+    } else {
+      setDraftLocale(locale);
     }
-  };
+  }, [user?.preferred_locale, locale]);
 
-  const handleConfirmEnable = async (data: TwoFactorEnableData) => {
+  useEffect(() => {
+    if (user?.preferred_theme === ThemeMode.LIGHT || user?.preferred_theme === ThemeMode.DARK) {
+      setDraftTheme(user.preferred_theme as ThemeChoice);
+    } else {
+      setDraftTheme(theme === ThemeMode.DARK ? ThemeMode.DARK : ThemeMode.LIGHT);
+    }
+  }, [user?.preferred_theme, theme]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
       await fetchCsrfCookie();
-      const response = await callApi({
-        url: "/auth/2fa/confirm",
-        method: RequestMethod.POST,
-        data: { code: data.code },
+      const response = await callApi<User>({
+        url: API_ENDPOINTS.AUTH.PREFERENCES,
+        method: RequestMethod.PUT,
+        data: {
+          preferred_locale: draftLocale,
+          preferred_theme: draftTheme,
+        },
       });
-      if (response.ok) {
-        toast.success("Two-factor authentication enabled");
-        setEnableStep("idle");
-        enableForm.reset();
-        await fetchUser();
-      } else {
+
+      if (!response.ok) {
         const body = response.data as { message?: string };
-        toast.error(body?.message ?? "Invalid code");
+        toast.error(body?.message ?? t("settings.saveFailed"));
+        return;
       }
+
+      const updated = (response.data as { data?: User })?.data;
+      if (updated) {
+        useAuthStore.getState().setUser(updated);
+        applyUserUiPreferences(updated);
+      } else {
+        setLocale(draftLocale);
+        applyAdminLocale(draftLocale);
+        setTheme(draftTheme);
+      }
+
+      toast.success(t("settings.saved"));
     } catch {
-      toast.error("Failed to enable 2FA");
+      toast.error(t("settings.saveFailed"));
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDisable = async (data: TwoFactorDisableData) => {
-    try {
-      await fetchCsrfCookie();
-      const response = await callApi({
-        url: API_ENDPOINTS.AUTH.DISABLE_2FA,
-        method: RequestMethod.POST,
-        data: { password: data.password },
-      });
-      if (response.ok) {
-        toast.success("Two-factor authentication disabled");
-        setShowDisable(false);
-        disableForm.reset();
-        await fetchUser();
-      } else {
-        const body = response.data as { message?: string };
-        toast.error(body?.message ?? "Invalid password");
-      }
-    } catch {
-      toast.error("Failed to disable 2FA");
-    }
-  };
+  const dirty = draftLocale !== locale || draftTheme !== (theme === ThemeMode.DARK ? ThemeMode.DARK : ThemeMode.LIGHT);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account settings</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("settings.subtitle")}</p>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="flex items-center gap-3">
-          <Shield className="h-6 w-6 text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold">Two-Factor Authentication</h2>
-            <p className="text-sm text-muted-foreground">
-              Add an extra layer of security to your account
-            </p>
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Globe className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-foreground">{t("settings.appearanceTitle")}</h2>
+            <p className="text-sm text-muted-foreground">{t("settings.appearanceHint")}</p>
           </div>
         </div>
 
-        <div className="mt-6">
-          {user?.two_factor_enabled ? (
-            <div>
-              <p className="text-sm text-success font-medium">2FA is enabled</p>
-              {!showDisable ? (
-                <button
-                  type="button"
-                  onClick={() => setShowDisable(true)}
-                  className="mt-2 text-sm text-danger hover:underline"
-                >
-                  Disable two-factor authentication
-                </button>
-              ) : (
-                <form
-                  onSubmit={disableForm.handleSubmit(handleDisable)}
-                  className="mt-4 space-y-4 max-w-sm"
-                >
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Enter your password to disable 2FA
-                    </label>
-                    <input
-                      type="password"
-                      {...disableForm.register("password")}
-                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm"
-                      placeholder="Your password"
-                    />
-                    {disableForm.formState.errors.password && (
-                      <p className="text-sm text-danger mt-1">
-                        {disableForm.formState.errors.password.message}
-                      </p>
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">{t("settings.language")}</p>
+            <div className="flex flex-col gap-2">
+              {Object.values(AppLocale).map((code) => {
+                const active = draftLocale === code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setDraftLocale(code)}
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border px-3 py-2.5 text-start text-sm transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-muted"
                     )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={disableForm.formState.isSubmitting}
-                      className="rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white hover:bg-danger/90"
-                    >
-                      {disableForm.formState.isSubmitting ? (
-                        <Spinner className="h-4 w-4" />
-                      ) : (
-                        "Disable 2FA"
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDisable(false);
-                        disableForm.reset();
-                      }}
-                      className="rounded-lg border border-input px-4 py-2 text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
+                  >
+                    <span>{AppLocaleLabels[code]}</span>
+                    {active ? (
+                      <span className="text-xs font-medium">{t("settings.selected")}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
-          ) : enableStep === "code" ? (
-            <form
-              onSubmit={enableForm.handleSubmit(handleConfirmEnable)}
-              className="mt-4 space-y-4 max-w-sm"
-            >
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Enter the 6-digit code from your email
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  {...enableForm.register("code")}
-                  className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm font-mono tracking-widest"
-                  placeholder="000000"
-                />
-                {enableForm.formState.errors.code && (
-                  <p className="text-sm text-danger mt-1">
-                    {enableForm.formState.errors.code.message}
-                  </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">{t("settings.theme")}</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setDraftTheme(ThemeMode.LIGHT)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-start text-sm transition-colors",
+                  draftTheme === ThemeMode.LIGHT
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
                 )}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={enableForm.formState.isSubmitting}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-active"
-                >
-                  {enableForm.formState.isSubmitting ? <Spinner className="h-4 w-4" /> : "Confirm"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEnableStep("idle")}
-                  className="rounded-lg border border-input px-4 py-2 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={handleRequestEnable}
-              className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-active"
-            >
-              Enable two-factor authentication
-            </button>
-          )}
+              >
+                <SunLight className="h-5 w-5 shrink-0" />
+                <span className="flex-1">{t("settings.themeLight")}</span>
+                {draftTheme === ThemeMode.LIGHT ? (
+                  <span className="text-xs font-medium">{t("settings.selected")}</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDraftTheme(ThemeMode.DARK)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-start text-sm transition-colors",
+                  draftTheme === ThemeMode.DARK
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                <HalfMoon className="h-5 w-5 shrink-0" />
+                <span className="flex-1">{t("settings.themeDark")}</span>
+                {draftTheme === ThemeMode.DARK ? (
+                  <span className="text-xs font-medium">{t("settings.selected")}</span>
+                ) : null}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <Button type="button" onClick={() => void handleSave()} disabled={isSaving || !dirty} loading={isSaving}>
+            {t("settings.save")}
+          </Button>
         </div>
       </div>
     </div>
