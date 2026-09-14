@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,11 +14,48 @@ import { getSafeRedirectPath } from "@/lib/authRedirect";
 const authFormLightScope =
   "[color-scheme:light] text-foreground [--background:#ffffff] [--foreground:#071437] [--muted-foreground:#64748b] [--border:#e5e7eb] [--input:#e5e7eb] [--ring:#0069B4] [--card:#ffffff] [--accent:#f1f5f9] [--accent-foreground:#071437] [--secondary-foreground:#071437]";
 
+/** Subtle radiating lines behind the brand mark (shadcn-style panel). */
+const LogoRaysPanel = () => (
+  <div className="relative hidden overflow-hidden bg-muted md:block">
+    <svg
+      className="absolute inset-0 h-full w-full text-foreground/10"
+      viewBox="0 0 400 400"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden
+    >
+      {Array.from({ length: 24 }, (_, i) => {
+        const angle = (i * 360) / 24;
+        return (
+          <line
+            key={angle}
+            x1="200"
+            y1="200"
+            x2={200 + Math.cos((angle * Math.PI) / 180) * 280}
+            y2={200 + Math.sin((angle * Math.PI) / 180) * 280}
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+        );
+      })}
+      <circle cx="200" cy="200" r="72" fill="none" stroke="currentColor" strokeWidth="1" />
+      <circle cx="200" cy="200" r="96" fill="none" stroke="currentColor" strokeWidth="0.75" opacity="0.6" />
+    </svg>
+    {/* Opaque circular backing so PNG transparency does not show the rays through the logo */}
+    <div className="absolute inset-0 m-auto h-40 w-40 rounded-full bg-muted p-2">
+      <img
+        src="/favicon/R.png"
+        alt="Raad LMS"
+        className="h-full w-full rounded-full bg-muted object-contain opacity-100"
+      />
+    </div>
+  </div>
+);
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const registrationState = location.state as { registered?: boolean; email?: string } | null;
@@ -36,6 +73,13 @@ const LoginPage = () => {
     resolver: zodResolver(LoginSchema),
     defaultValues: { email: "", password: "", remember: false },
   });
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirect = getSafeRedirectPath(searchParams.get("redirect"));
+      navigate(redirect ?? getDashboardPath(user.type ?? "student"), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, searchParams]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
@@ -61,7 +105,12 @@ const LoginPage = () => {
   };
 
   return (
-    <div className={cn("flex min-h-svh flex-col items-center justify-center bg-layout-body p-4 md:p-8", authFormLightScope)}>
+    <div
+      className={cn(
+        "flex min-h-svh flex-col items-center justify-center bg-layout-body p-4 md:p-8",
+        authFormLightScope
+      )}
+    >
       <div className="w-full max-w-4xl">
         <Card className="overflow-hidden p-0 shadow-sm">
           <CardContent className="grid p-0 md:grid-cols-2">
@@ -141,40 +190,19 @@ const LoginPage = () => {
                 <span className="text-sm text-muted-foreground">Remember me</span>
               </label>
 
-              <Button type="submit" className="h-11 w-full font-semibold" disabled={isSubmitting} loading={isSubmitting}>
+              <Button
+                type="submit"
+                className="h-11 w-full font-semibold"
+                disabled={isSubmitting}
+                loading={isSubmitting}
+              >
                 Sign in
               </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link to="/register" className="font-medium text-primary hover:text-primary-active">
-                  Sign up
-                </Link>
-              </p>
             </form>
 
-            <div className="relative hidden bg-muted md:block">
-              <img
-                src="/favicon/R.png"
-                alt="Raad LMS"
-                className="absolute inset-0 m-auto h-40 w-40 object-contain opacity-90 dark:brightness-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-auxiliary/10" />
-            </div>
+            <LogoRaysPanel />
           </CardContent>
         </Card>
-
-        <p className="mt-4 px-2 text-center text-xs text-muted-foreground md:text-sm">
-          By continuing, you agree to our{" "}
-          <Link to="/privacy-policy" className="underline underline-offset-2 hover:text-foreground">
-            Privacy Policy
-          </Link>{" "}
-          and{" "}
-          <Link to="/cookie-policy" className="underline underline-offset-2 hover:text-foreground">
-            Cookie Policy
-          </Link>
-          .
-        </p>
       </div>
     </div>
   );
