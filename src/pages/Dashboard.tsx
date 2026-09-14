@@ -1,9 +1,7 @@
 import { useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   Group,
-  Shield,
-  NavArrowRight,
   Dollar,
   GraduationCap,
   BookStack,
@@ -13,24 +11,27 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth";
 import { useDashboardStats, useDashboardAnalytics } from "@/hooks";
-import { AnalyticsLineChart, Sparkline } from "@/components/dashboard/DashboardCharts";
+import {
+  Sparkline,
+  EarningsBarChart,
+  ServiceIncomeCostBarChart,
+  EnrolmentsPieChart,
+  ClassesStatusRadial,
+} from "@/components/dashboard/DashboardCharts";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useFormatMessage } from "@/i18n/useConfirmPresets";
 
 const DashboardPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const { t } = useTranslation();
 
   const hasDashboardPermission = hasPermission("dashboard.read");
   const hasAnalyticsPermission =
     hasPermission("dashboard.analytics.read") || hasDashboardPermission;
-  const hasUsersPermission = hasPermission("users.read");
-  const hasRolesPermission = hasPermission("roles.read");
 
-  const hasAdminDashboard =
-    hasDashboardPermission || hasUsersPermission || hasRolesPermission || hasAnalyticsPermission;
+  const hasAdminDashboard = hasDashboardPermission || hasAnalyticsPermission;
 
   useEffect(() => {
     if (searchParams.get("from") === "google") {
@@ -47,6 +48,7 @@ const DashboardPage = () => {
 
   const stats = statsRes?.data ?? {};
   const analytics = analyticsRes?.data ?? {};
+  const year = analytics.year ?? new Date().getFullYear();
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
@@ -56,18 +58,6 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#004d87] via-primary to-[#0080d6] p-8 text-white">
-        <div className="relative z-10">
-          <h1 className="text-3xl font-bold text-white">
-            {t("dashboard.welcomeBack")}, {user?.name || t("header.user")}!
-          </h1>
-          <p className="mt-2 text-white/90">{t("dashboard.greeting")}</p>
-        </div>
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10" />
-        <div className="absolute -bottom-12 -right-12 h-48 w-48 rounded-full bg-white/10" />
-        <div className="absolute -left-4 bottom-4 h-24 w-24 rounded-full bg-white/5" />
-      </div>
-
       {hasAdminDashboard && (
         <>
           {loadingStats ? (
@@ -141,7 +131,7 @@ const DashboardPage = () => {
           {hasAnalyticsPermission && (
             <>
               {loadingAnalytics ? (
-                <div className="grid gap-4 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="rounded-xl border border-border bg-card p-4">
                       <Skeleton className="h-4 w-32" />
@@ -151,57 +141,33 @@ const DashboardPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-4 xl:grid-cols-4">
-                  <AnalyticsLineChart
-                    title={t("dashboard.earningsOverTime")}
-                    subtitle={t("dashboard.earningsSubtitle")}
-                    data={analytics.earnings_over_time ?? []}
-                    valueSuffix=" AFN"
-                    colorClass="text-primary"
+                <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <EarningsBarChart
+                    title={t("dashboard.classEarningsOverTime")}
+                    subtitle={t("dashboard.ytdSubtitle").replace("{year}", String(year))}
+                    data={analytics.class_earnings_ytd ?? []}
                   />
-                  <AnalyticsLineChart
-                    title={t("dashboard.enrollmentsOverTime")}
-                    subtitle={t("dashboard.enrollmentsSubtitle")}
-                    data={analytics.enrollments_over_time ?? []}
-                    colorClass="text-success"
+                  <ServiceIncomeCostBarChart
+                    title={t("dashboard.serviceIncomeOverTime")}
+                    subtitle={t("dashboard.ytdSubtitle").replace("{year}", String(year))}
+                    income={analytics.service_income_ytd ?? []}
+                    cost={analytics.service_cost_ytd ?? []}
                   />
-                  <AnalyticsLineChart
-                    title={t("dashboard.classesOverTime")}
-                    subtitle={t("dashboard.classesSubtitle")}
-                    data={analytics.classes_over_time ?? []}
-                    colorClass="text-auxiliary"
+                  <EnrolmentsPieChart
+                    title={t("dashboard.enrolmentsAndRegistrations")}
+                    subtitle={t("dashboard.ytdSubtitle").replace("{year}", String(year))}
+                    enrollments={analytics.enrollments_ytd ?? []}
+                    registrations={analytics.registrations_ytd ?? []}
                   />
-                  <AnalyticsLineChart
-                    title={t("dashboard.registrationsOverTime")}
-                    subtitle={t("dashboard.registrationsSubtitle")}
-                    data={analytics.user_registrations_over_time ?? []}
-                    colorClass="text-info"
+                  <ClassesStatusRadial
+                    title={t("dashboard.classesStatusOverTime")}
+                    subtitle={t("dashboard.ytdSubtitle").replace("{year}", String(year))}
+                    active={analytics.classes_status_ytd?.active ?? 0}
+                    completed={analytics.classes_status_ytd?.completed ?? 0}
                   />
                 </div>
               )}
             </>
-          )}
-
-          {(hasUsersPermission || hasRolesPermission) && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <h2 className="mb-4 font-semibold text-foreground">{t("dashboard.quickActions")}</h2>
-              <div className="flex flex-wrap gap-3">
-                {hasUsersPermission && (
-                  <QuickAction
-                    icon={<Group className="h-4 w-4" />}
-                    label={t("dashboard.manageUsers")}
-                    href="/users"
-                  />
-                )}
-                {hasRolesPermission && (
-                  <QuickAction
-                    icon={<Shield className="h-4 w-4" />}
-                    label={t("dashboard.manageRoles")}
-                    href="/roles"
-                  />
-                )}
-              </div>
-            </div>
           )}
         </>
       )}
@@ -322,24 +288,5 @@ const StatCard = ({ title, value, icon, color }: StatCardProps) => {
     </div>
   );
 };
-
-interface QuickActionProps {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-}
-
-const QuickAction = ({ icon, label, href }: QuickActionProps) => (
-  <Link
-    to={href}
-    className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted"
-  >
-    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-      {icon}
-    </div>
-    <span className="text-sm font-medium text-foreground">{label}</span>
-    <NavArrowRight className="h-4 w-4 text-muted-foreground" />
-  </Link>
-);
 
 export default DashboardPage;

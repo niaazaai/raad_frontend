@@ -46,15 +46,16 @@ const NavUser = () => {
   const firstName = nameParts[0] ?? name;
   const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : null;
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = "/login";
+  const handleLogout = () => {
+    // Clear session + navigate immediately; do not block on the API round-trip.
+    void logout();
+    window.location.assign("/login");
   };
 
   return (
     <SidebarMenu>
       <SidebarMenuItem className="relative">
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               ref={triggerRef}
@@ -149,8 +150,10 @@ const NavUser = () => {
             <DropdownMenuItem
               variant="danger"
               className="cursor-pointer"
-              onSelect={() => {
-                void handleLogout();
+              onSelect={(event) => {
+                // Keep the item handler from being cancelled when the menu unmounts.
+                event.preventDefault();
+                handleLogout();
               }}
             >
               <LogOut className="size-4" />

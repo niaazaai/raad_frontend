@@ -1,4 +1,5 @@
-import { SunLight, MoonSat, Globe, Check, NavArrowDown } from "iconoir-react";
+import { SunLight, MoonSat, Globe, Check, NavArrowDown, LogOut } from "iconoir-react";
+import { useAuth } from "@/features/auth";
 import { useLayoutStore } from "@/store";
 import { ThemeMode } from "@/data/enums";
 import { AppLocale, AppLocaleLabels } from "@/data/enums/locale";
@@ -51,6 +52,8 @@ const LanguageSwitcher = () => {
 const Header = () => {
   const { theme, setTheme } = useLayoutStore();
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const fullName = user?.name?.trim() || t("header.user");
 
   const toggleTheme = () => {
     const newTheme = theme === ThemeMode.DARK ? ThemeMode.LIGHT : ThemeMode.DARK;
@@ -58,12 +61,21 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex items-center gap-2">
-        <SidebarTrigger className="size-9" aria-label={t("header.toggleSidebar")} />
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <SidebarTrigger className="size-9 shrink-0" aria-label={t("header.toggleSidebar")} />
+        <p className="truncate text-sm font-medium text-foreground sm:text-base">
+          <span className="text-muted-foreground">{t("dashboard.welcomeBack")},</span>{" "}
+          <span className="font-semibold">{fullName}</span>
+        </p>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <img
+          src="/favicon/R.png"
+          alt="Raad LMS"
+          className="me-1 hidden h-7 w-7 object-contain sm:block"
+        />
         <LanguageSwitcher />
 
         <button
@@ -77,6 +89,15 @@ const Header = () => {
           ) : (
             <MoonSat className="h-5 w-5" />
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="rounded-lg p-2 hover:bg-muted"
+          aria-label={t("header.signOut")}
+        >
+          <LogOut className="h-5 w-5" />
         </button>
       </div>
     </header>

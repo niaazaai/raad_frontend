@@ -26,6 +26,13 @@ export interface DashboardChartPoint {
 }
 
 export interface DashboardAnalytics {
+  year?: number;
+  class_earnings_ytd?: DashboardChartPoint[];
+  service_income_ytd?: DashboardChartPoint[];
+  service_cost_ytd?: DashboardChartPoint[];
+  enrollments_ytd?: DashboardChartPoint[];
+  registrations_ytd?: DashboardChartPoint[];
+  classes_status_ytd?: { active: number; completed: number; year: number };
   earnings_over_time?: DashboardChartPoint[];
   enrollments_over_time?: DashboardChartPoint[];
   classes_over_time?: DashboardChartPoint[];

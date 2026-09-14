@@ -133,8 +133,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  // Logout user
+  // Logout user — clear local auth first so the shell can leave immediately.
   logout: async () => {
+    get().clearAuth();
     try {
       await callApi({
         url: API_ENDPOINTS.AUTH.LOGOUT,
@@ -142,10 +143,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         shouldPopError: false,
       });
     } catch {
-      // Always clear local state regardless of API failure
-    } finally {
-      // Always clear local state regardless of API response
-      get().clearAuth();
+      // Server session cleanup is best-effort; local state is already cleared.
     }
   },
 
