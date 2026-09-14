@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, LogOut, MoreVert, UserCircle } from "iconoir-react";
+import { Bell, UserCircle } from "iconoir-react";
+import { ChevronsUpDownIcon, LogOutIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useLocaleStore } from "@/store/locale/localeStore";
@@ -76,7 +77,7 @@ const NavUser = () => {
                 <span className="truncate text-xs text-muted-foreground">{email}</span>
               </div>
               <span className="relative ms-auto group-data-[collapsible=icon]:ms-0">
-                <MoreVert className="size-4" />
+                <ChevronsUpDownIcon className="size-4" />
                 {unreadCount > 0 ? (
                   <span
                     className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white"
@@ -156,7 +157,7 @@ const NavUser = () => {
                 handleLogout();
               }}
             >
-              <LogOut className="size-4" />
+              <LogOutIcon className="size-4" />
               {t("header.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>

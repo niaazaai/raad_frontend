@@ -1,4 +1,4 @@
-import { SunLight, MoonSat, Globe, Check, NavArrowDown, LogOut } from "iconoir-react";
+import { SunLight, MoonSat, Globe, Check, NavArrowDown } from "iconoir-react";
 import { useAuth } from "@/features/auth";
 import { useLayoutStore } from "@/store";
 import { ThemeMode } from "@/data/enums";
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LogOutIcon } from "@/components/icons/sidebar-icons";
 import { cn } from "@/lib/utils";
 
 const LanguageSwitcher = () => {
@@ -71,11 +72,6 @@ const Header = () => {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <img
-          src="/favicon/R.png"
-          alt="Raad LMS"
-          className="me-1 hidden h-7 w-7 object-contain sm:block"
-        />
         <LanguageSwitcher />
 
         <button
@@ -97,7 +93,7 @@ const Header = () => {
           className="rounded-lg p-2 hover:bg-muted"
           aria-label={t("header.signOut")}
         >
-          <LogOut className="h-5 w-5" />
+          <LogOutIcon className="h-5 w-5" />
         </button>
       </div>
     </header>
