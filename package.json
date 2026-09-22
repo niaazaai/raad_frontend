@@ -53,6 +53,7 @@
     "postprocessing": "^6.36.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-day-picker": "^9.11.1",
     "react-error-boundary": "^5.0.0",
     "react-hook-form": "^7.68.0",
     "react-router-dom": "^7.3.0",

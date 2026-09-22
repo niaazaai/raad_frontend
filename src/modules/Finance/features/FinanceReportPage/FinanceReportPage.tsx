@@ -27,7 +27,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   PageBreadcrumb,
+  Tooltip,
+  TooltipContent,
   TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
@@ -777,20 +780,28 @@ const FinanceReportPage = () => {
               {t("fin.scope.label")}
             </span>
             <div className="inline-flex rounded-lg border border-border bg-card p-1">
-              {(["activity", "cohort"] as FinanceReportScope[]).map((value) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={scope === value ? "default" : "ghost"}
-                  onClick={() => {
-                    setScope(value);
-                    updateParams({ page: 1 });
-                  }}
-                >
-                  {t(value === "activity" ? "fin.scope.activity" : "fin.scope.cohort")}
-                </Button>
-              ))}
+              <TooltipProvider delayDuration={150}>
+                {(["activity", "cohort"] as FinanceReportScope[]).map((value) => (
+                  <Tooltip key={value}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={scope === value ? "default" : "ghost"}
+                        onClick={() => {
+                          setScope(value);
+                          updateParams({ page: 1 });
+                        }}
+                      >
+                        {t(value === "activity" ? "fin.scope.activity" : "fin.scope.cohort")}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      {t(value === "activity" ? "fin.scope.activityHint" : "fin.scope.cohortHint")}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
             </div>
           </div>
           <DataTable

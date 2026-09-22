@@ -1,4 +1,7 @@
+import { endOfIsoMonth, localIsoDate } from "@/lib/date";
 import type { FinancePeriod } from "../data/models/FinanceReport";
+
+export { localIsoDate };
 
 export function toNumber(value: unknown): number {
   const n = Number(value);
@@ -15,21 +18,19 @@ export function formatMoney(value: unknown, currency?: string | null): string {
   return currency ? `${formatted} ${currency}` : formatted;
 }
 
-/** YYYY-MM-DD in the browser's local time zone (toISOString() is UTC and is a day behind in Kabul after midnight). */
-export function localIsoDate(date: Date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 export function openPdf(url?: string | null): void {
   if (!url) return;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+/**
+ * UI-only tab set. `today` is not a backend period: it is sent as `daily` with the current
+ * local date, so the API contract (`daily|monthly|yearly|range|all`) stays unchanged.
+ */
+export type PeriodTab = FinancePeriod | "today";
+
 export interface PeriodState {
-  period: FinancePeriod;
+  period: PeriodTab;
   date: string;
   month: string;
   year: string;
@@ -37,7 +38,7 @@ export interface PeriodState {
   to: string;
 }
 
-export function defaultPeriodState(period: FinancePeriod = "daily"): PeriodState {
+export function defaultPeriodState(period: PeriodTab = "today"): PeriodState {
   const today = localIsoDate();
   return {
     period,
@@ -61,6 +62,8 @@ export interface PeriodQuery {
 /** Params understood by /finance/report and /finance/report/breakdown. */
 export function periodParams(state: PeriodState): PeriodQuery {
   switch (state.period) {
+    case "today":
+      return { period: "daily", date: localIsoDate() };
     case "daily":
       return { period: "daily", date: state.date };
     case "yearly":
@@ -77,6 +80,10 @@ export function periodParams(state: PeriodState): PeriodQuery {
 /** from/to (inclusive) for endpoints that take a plain date range; null means all time. */
 export function periodRange(state: PeriodState): { from: string; to: string } | null {
   switch (state.period) {
+    case "today": {
+      const today = localIsoDate();
+      return { from: today, to: today };
+    }
     case "daily":
       return { from: state.date, to: state.date };
     case "yearly": {
@@ -89,10 +96,7 @@ export function periodRange(state: PeriodState): { from: string; to: string } | 
         : { from: state.to, to: state.from };
     case "all":
       return null;
-    default: {
-      const [y, m] = state.month.split("-").map(Number);
-      const last = new Date(y, m, 0).getDate();
-      return { from: `${state.month}-01`, to: `${state.month}-${String(last).padStart(2, "0")}` };
-    }
+    default:
+      return { from: `${state.month}-01`, to: endOfIsoMonth(state.month) };
   }
 }

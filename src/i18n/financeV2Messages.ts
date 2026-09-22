@@ -81,10 +81,40 @@ export const financeV2En = {
     identity: "Net − refunds − cancelled = paid + irrecoverable + receivable",
     clickForBreakdown: "Click to see the breakdown",
     more: "More",
+    period: {
+      label: "Period",
+      today: "Today",
+      daily: "Daily",
+      monthly: "Monthly",
+      yearly: "Yearly",
+      range: "Date range",
+      all: "All time",
+      pickDate: "Pick a day",
+      pickMonth: "Pick a month",
+      pickYear: "Pick a year",
+      pickRange: "Pick a range",
+    },
+    filters: {
+      trigger: "Filter transaction records",
+      title: "Filter transactions",
+      subtitle: "All filters apply together. Nothing changes until you press Apply.",
+      apply: "Apply filters",
+      reset: "Reset all",
+      close: "Cancel",
+      type: "Transaction type",
+      payer: "Paid by",
+      none: "No filter applied — showing today's records.",
+      activeOne: "1 filter",
+      activeMany: "filters",
+    },
     scope: {
       label: "Rows",
       activity: "Money movement in period",
       cohort: "Fee date in period",
+      activityHint:
+        "Shows students who had a payment, refund, write-off or recovery with a transaction date in the selected period. Use it to see who paid what in this period.",
+      cohortHint:
+        "Shows students whose class fee falls in the selected period (their fee date), even if they haven't paid anything yet. Use it to follow up on this period's fees and who still owes.",
     },
     columns: {
       paidInPeriod: "Paid in period",
@@ -120,6 +150,13 @@ export const financeV2En = {
         upcoming: "Upcoming",
         all: "All with due date",
         no_date: "No due date",
+      },
+      tips: {
+        overdue: "Instalments whose due date has already passed and are still unpaid.",
+        week: "Instalments falling due in the next 7 days.",
+        upcoming: "Instalments due later than 7 days from today.",
+        all: "Every unpaid instalment that has a due date.",
+        no_date: "Unpaid balances with no due date set yet — agree a date with the student.",
       },
       daysOverdue: "days overdue",
       dueToday: "Due today",
@@ -310,6 +347,10 @@ export const financeV2Ps: typeof financeV2En = {
       label: "کرښې",
       activity: "په موده کې د پیسو حرکت",
       cohort: "د فیس نېټه په موده کې",
+      activityHint:
+        "هغه زده کوونکي ښيي چې په ټاکلې موده کې یې تادیه، بېرته ورکړه، نه راټولېدونکی پور یا بېرته راټول شوی پور درلود (د معاملې نېټې له مخې). د دې لپاره چې وګورئ په دې موده کې چا څومره ورکړي.",
+      cohortHint:
+        "هغه زده کوونکي ښيي چې د ټولګي فیس یې په ټاکلې موده کې دی (د فیس نېټه)، که څه هم تر اوسه یې هېڅ نه وي ورکړي. د دې مودې د فیسونو او پاتې پورونو د تعقیب لپاره.",
     },
     columns: {
       paidInPeriod: "په موده کې ورکړل شوی",
@@ -535,6 +576,10 @@ export const financeV2Fa: typeof financeV2En = {
       label: "ردیف‌ها",
       activity: "حرکت پول در دوره",
       cohort: "تاریخ فیس در دوره",
+      activityHint:
+        "شاگردانی را نشان می‌دهد که در دوره انتخاب‌شده پرداخت، بازپرداخت، ثبت غیرقابل وصول یا وصول مجدد داشته‌اند (بر اساس تاریخ معامله). برای دیدن اینکه در این دوره چه کسی چقدر پرداخته است.",
+      cohortHint:
+        "شاگردانی را نشان می‌دهد که فیس صنف‌شان در دوره انتخاب‌شده است (تاریخ فیس)، حتی اگر هنوز چیزی نپرداخته باشند. برای پیگیری فیس‌های این دوره و باقی‌داران.",
     },
     columns: {
       paidInPeriod: "پرداخت در دوره",
