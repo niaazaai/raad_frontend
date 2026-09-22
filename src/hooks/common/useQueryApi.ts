@@ -7,7 +7,6 @@ import {
   useSuspenseQuery,
   QueryKey,
   useQueryClient,
-  keepPreviousData,
 } from "@tanstack/react-query";
 import { ApisauceConfig } from "apisauce";
 import { callApi } from "@/services";
@@ -72,8 +71,9 @@ export function useQueryApi<TData = ObjectAny>({
 
       return response.data as ApiResponse<TData>;
     },
+    // No implicit keepPreviousData: showing the previous filter's rows while a new filter loads made
+    // e.g. "today" look like last week's data. Paginated tables opt in explicitly and show a loading state.
     ...options,
-    placeholderData: options.placeholderData ?? keepPreviousData,
   });
 }
 

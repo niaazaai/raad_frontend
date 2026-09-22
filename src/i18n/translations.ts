@@ -1,5 +1,6 @@
 import { AppLocale } from "@/data/enums/locale";
 import { dashboardEn, dashboardPs, dashboardFa } from "./dashboardMessages";
+import { financeV2En, financeV2Fa, financeV2Ps } from "./financeV2Messages";
 
 const en = {
   nav: {
@@ -96,7 +97,8 @@ const en = {
     timeline2024Label: "Growing Community",
     timeline2024Desc: "Thousands of graduates working in top firms and organizations.",
     timeline2026Label: "Digital LMS Expansion",
-    timeline2026Desc: "Launched the Raad LMS platform to deliver flexible online and blended learning nationwide.",
+    timeline2026Desc:
+      "Launched the Raad LMS platform to deliver flexible online and blended learning nationwide.",
   },
   success: {
     badge: "Success Stories",
@@ -142,7 +144,8 @@ const en = {
     sendMessage: "Send Message",
     sending: "Sending…",
     successTitle: "Message Sent!",
-    successBody: "Thank you for reaching out. Our team will get back to you within 1–2 business days.",
+    successBody:
+      "Thank you for reaching out. Our team will get back to you within 1–2 business days.",
     sendAnother: "Send another message",
     selectSubject: "Select a subject…",
     subjects: {
@@ -323,6 +326,7 @@ const en = {
     saveFailed: "Could not save preferences",
   },
   ...dashboardEn,
+  ...financeV2En,
 } as const;
 
 export type Messages = typeof en;
@@ -340,8 +344,9 @@ const ps = {
   },
   hero: {
     badge: "د راد مسلکي پراختیا",
-    title: "په افغانستان کې ACCA او CIA ځانګړی کور", 
-    subtitle: "په افغانستان کې مخکښ مسلکي زده کړه — نړیوال پېژندل شوي وړتیاوې، ډېر تجربه لرونکي استادان او هڅونکي زده کوونکي.",
+    title: "په افغانستان کې ACCA او CIA ځانګړی کور",
+    subtitle:
+      "په افغانستان کې مخکښ مسلکي زده کړه — نړیوال پېژندل شوي وړتیاوې، ډېر تجربه لرونکي استادان او هڅونکي زده کوونکي.",
     explorePrograms: "پروګرامونه وګورئ",
     getInTouch: "موږ سره اړیکه ونیسئ",
     scroll: "ښکته",
@@ -357,8 +362,7 @@ const ps = {
   about: {
     badge: "د راد په اړه",
     title: "په افغانستان کې مسلکي زده کړه بدله کول",
-    subtitle:
-      "له یوې لسیزې څخه زیات، راد د نړیوالو مالي او محاسبې وړتیاوو باوري دروازه ده.",
+    subtitle: "له یوې لسیزې څخه زیات، راد د نړیوالو مالي او محاسبې وړتیاوو باوري دروازه ده.",
     storyBadge: "زموږ کیسه",
     storyTitle: "پر لید بنا، د موخې له لارې",
     valuesBadge: "زموږ ارزښتونه",
@@ -407,7 +411,8 @@ const ps = {
       "راد په ۲۰۱۲ کال کې د افغان مالي متخصصینو لخوا تاسیس شو چې د نړیوالو وړتیاوو لاسرسي کې تشه پېژندل.",
     excellenceDesc: "موږ د لوړو اکاډمیکو معیارونو ته ژمن یو.",
     integrityDesc: "صادقیت او شفافیت زموږ د هر کار بنسټ دی.",
-    accessibilityDesc: "موږ باور لرو چې نړیواله زده کړه باید د هر افغان زده کوونکي لپاره د لاسرسي وړ وي.",
+    accessibilityDesc:
+      "موږ باور لرو چې نړیواله زده کړه باید د هر افغان زده کوونکي لپاره د لاسرسي وړ وي.",
     timeline2012Label: "تاسیس",
     timeline2012Desc: "د راد مسلکي پراختیا موسسه په کابل کې پرانیستل شوه.",
     timeline2015Label: "د ACCA ملګرتیا",
@@ -417,7 +422,8 @@ const ps = {
     timeline2024Label: "پراخېدونکې ټولنه",
     timeline2024Desc: "په زرګونو فارغ‌التحصیلان په مخکښو شرکتونو کې کار کوي.",
     timeline2026Label: "د ډیجیټل LMS پراختیا",
-    timeline2026Desc: "د راد LMS پلیټفارم پیل شو ترڅو آنلاین او مختلط زده کړه په ټول هیواد کې وړاندې شي.",
+    timeline2026Desc:
+      "د راد LMS پلیټفارم پیل شو ترڅو آنلاین او مختلط زده کړه په ټول هیواد کې وړاندې شي.",
   },
   success: {
     badge: "د بریا کیسې",
@@ -643,6 +649,7 @@ const ps = {
     saveFailed: "غوره توبونه خوندي نه شول",
   },
   ...dashboardPs,
+  ...financeV2Ps,
 };
 
 const fa = {
@@ -736,7 +743,8 @@ const fa = {
     timeline2024Label: "جامعه در حال رشد",
     timeline2024Desc: "هزاران فارغ‌التحصیل در شرکت‌های برتر کار می‌کنند.",
     timeline2026Label: "گسترش LMS دیجیتال",
-    timeline2026Desc: "پلتفرم راد LMS راه‌اندازی شد تا یادگیری آنلاین و ترکیبی در سراسر کشور ارائه شود.",
+    timeline2026Desc:
+      "پلتفرم راد LMS راه‌اندازی شد تا یادگیری آنلاین و ترکیبی در سراسر کشور ارائه شود.",
   },
   success: {
     badge: "داستان‌های موفقیت",
@@ -963,6 +971,7 @@ const fa = {
     saveFailed: "ذخیره ترجیحات ناموفق بود",
   },
   ...dashboardFa,
+  ...financeV2Fa,
 };
 
 export const translations: Record<AppLocale, Messages> = {

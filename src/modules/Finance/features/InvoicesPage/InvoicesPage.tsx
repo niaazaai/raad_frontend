@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Page } from "iconoir-react";
 import { Link } from "react-router-dom";
-import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
+import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -13,35 +14,34 @@ import {
   useFinanceInvoices,
 } from "../../hooks/useFinanceInvoices";
 import type { FinanceInvoiceRow } from "../../data/models/FinanceReport";
-
-function formatMoney(value: unknown, currency?: string | null): string {
-  const n = Number(value);
-  if (Number.isNaN(n)) return "—";
-  const formatted = n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  return currency ? `${formatted} ${currency}` : formatted;
-}
+import FinancePeriodFilter from "../../components/FinancePeriodFilter";
+import {
+  defaultPeriodState,
+  formatMoney,
+  openPdf,
+  periodRange,
+  type PeriodState,
+} from "../../components/financeFormat";
 
 const InvoicesPage = () => {
   const { t } = useTranslation();
   const { hasPermission } = useAuth();
+  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("all"));
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
     searchDebounceMs: 400,
   });
 
+  const range = periodRange(periodState);
   const { data, isLoading } = useFinanceInvoices({
     search: debouncedSearch || undefined,
     page: params.page,
     per_page: params.per_page,
+    ...(range ? { from: range.from, to: range.to } : { all_time: 1 as const }),
   });
 
   const rows = extractFinanceInvoices(data);
   const pagination = extractFinanceInvoicesPagination(data);
-
-  const openPdf = (url?: string | null) => {
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   const config: DataTableConfig<FinanceInvoiceRow> = {
     columns: [
@@ -52,10 +52,25 @@ const InvoicesPage = () => {
         render: (row) => <span className="font-mono text-xs">{row.invoice_number}</span>,
       },
       {
-        key: "issued_at",
-        header: t("finance.invoices.columns.date"),
+        key: "transaction_date",
+        header: t("fin.columns.transactionDate"),
         sortable: false,
-        render: (row) => row.issued_at || "—",
+        render: (row) => (
+          <span className="whitespace-nowrap font-medium tabular-nums">
+            {row.transaction_date || row.issued_at || "—"}
+          </span>
+        ),
+        exportValue: (row) => row.transaction_date || row.issued_at,
+      },
+      {
+        key: "issued_at",
+        header: t("fin.columns.issueDate"),
+        sortable: false,
+        render: (row) => (
+          <span className="whitespace-nowrap tabular-nums text-muted-foreground">
+            {row.issued_at || "—"}
+          </span>
+        ),
       },
       {
         key: "student_name",
@@ -77,7 +92,9 @@ const InvoicesPage = () => {
         render: (row) => (
           <div>
             <div>{row.class_name || "—"}</div>
-            {row.class_code ? <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div> : null}
+            {row.class_code ? (
+              <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div>
+            ) : null}
           </div>
         ),
       },
@@ -103,7 +120,7 @@ const InvoicesPage = () => {
     emptyMessage: t("finance.invoices.empty"),
     onRowDoubleClick: (row) => openPdf(row.pdf_url),
     exportFilename: "invoices",
-    exportDateKey: "issued_at",
+    exportDateKey: "transaction_date",
     fetchExportRows: (query) =>
       fetchAllListPages({
         url: FINANCE_ENDPOINTS.INVOICES,
@@ -130,11 +147,13 @@ const InvoicesPage = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 p-6">
+    <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("finance.invoices.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("finance.invoices.subtitle")}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {t("finance.invoices.title")}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("fin.invoices.subtitle")}</p>
           <div className="mt-2">
             <PageBreadcrumb
               items={[
@@ -149,6 +168,19 @@ const InvoicesPage = () => {
           <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
         </Button>
       </div>
+
+      <Card className="shadow-none">
+        <CardContent className="p-4">
+          <FinancePeriodFilter
+            value={periodState}
+            idPrefix="invoice-period"
+            onChange={(next) => {
+              setPeriodState(next);
+              updateParams({ page: 1 });
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <DataTable
         data={rows}

@@ -142,7 +142,8 @@ const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>)
   if (response.ok) {
     // Show success message if provided
     if (response.data?.message && response.config?.method !== "get") {
-      toast.success(response.data.message);
+      // Same id = same toast: a message fired twice (e.g. double submit, retry) is shown once.
+      toast.success(response.data.message, { id: `api-success:${response.data.message}` });
     }
     return response;
   }
@@ -162,18 +163,21 @@ const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>)
 
   if (response.status === 419) {
     toast.error(
-      response.data?.message ?? "Session expired. Please refresh the page and try again."
+      response.data?.message ?? "Session expired. Please refresh the page and try again.",
+      {
+        id: "api-error",
+      }
     );
     return;
   }
 
   if (response.status === 403) {
-    toast.error("You do not have permission to perform this action");
+    toast.error("You do not have permission to perform this action", { id: "api-error" });
     return;
   }
 
   if (response.status === 404) {
-    toast.error("Resource not found");
+    toast.error("Resource not found", { id: "api-error" });
     return;
   }
 
@@ -183,21 +187,22 @@ const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>)
     if (errors && typeof errors === "object") {
       const firstError = Object.values(errors)[0];
       if (Array.isArray(firstError) && typeof firstError[0] === "string") {
-        toast.error(firstError[0]);
+        toast.error(firstError[0], { id: "api-error" });
         return;
       }
     }
     toast.error(
       typeof response.data?.message === "string" && response.data.message
         ? response.data.message
-        : "Validation failed"
+        : "Validation failed",
+      { id: "api-error" }
     );
     return;
   }
 
   // Never surface raw Laravel / SQL dumps in the UI
   if (response.status != null && response.status >= 500) {
-    toast.error("An unexpected error occurred");
+    toast.error("An unexpected error occurred", { id: "api-error" });
     return;
   }
 
@@ -209,9 +214,9 @@ const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>)
   const looksLikeInternalError =
     /SQLSTATE|Illuminate\\|QueryException|Stack trace|Connection: mysql/i.test(rawMessage);
 
-  toast.error(
-    looksLikeInternalError || !rawMessage ? "An unexpected error occurred" : rawMessage
-  );
+  toast.error(looksLikeInternalError || !rawMessage ? "An unexpected error occurred" : rawMessage, {
+    id: "api-error",
+  });
 };
 
 /**

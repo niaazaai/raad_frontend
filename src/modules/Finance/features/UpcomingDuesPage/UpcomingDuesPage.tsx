@@ -1,154 +1,309 @@
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Page, Phone, Wallet } from "iconoir-react";
 import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
 import type { DataTableConfig } from "@/types/datatable";
-import { extractUpcomingInstallments, useUpcomingInstallments } from "../../hooks/useUpcomingInstallments";
-import type { UpcomingInstallmentRow } from "../../data/models/FinanceReport";
+import FinanceStatusBadge from "../../components/FinanceStatusBadge";
+import { formatMoney, openPdf } from "../../components/financeFormat";
+import type {
+  DuesBucket,
+  FinanceClassRow,
+  UpcomingInstallmentRow,
+} from "../../data/models/FinanceReport";
+import { extractDuesMeta, extractDuesRows, useFinanceDues } from "../../hooks/useFinanceDues";
+import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
 
-function PaymentBadge({ value, label }: { value?: string | null; label?: string | null }) {
-  const raw = String(value ?? "pending");
-  const colors: Record<string, string> = {
-    pending: "bg-warning/10 text-warning",
-    paid: "bg-success/10 text-success",
-    partial: "bg-info/10 text-info",
-    mof_pending: "bg-auxiliary/10 text-auxiliary",
-    other_party: "bg-info/10 text-info",
-  };
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
-      {label || raw}
-    </span>
-  );
-}
+const BUCKETS: DuesBucket[] = ["overdue", "week", "upcoming", "all", "no_date"];
 
+/**
+ * Dues & follow-up. A due stays listed until it is paid (or classified / written off / cancelled):
+ * overdue instalments are never hidden, oldest first.
+ */
 const UpcomingDuesPage = () => {
   const { t } = useTranslation();
-  const { hasPermission } = useAuth();
-  const { params, updateParams } = useDataTableParams({
+  const navigate = useNavigate();
+  const { hasPermission, hasAnyPermission } = useAuth();
+  const [bucket, setBucket] = useState<DuesBucket>("overdue");
+  const [account, setAccount] = useState<(Partial<FinanceClassRow> & { id: number }) | null>(null);
+  const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
     defaultSortBy: "next_due_date",
     defaultSortDir: "asc",
+    searchDebounceMs: 350,
   });
-  const { data, isLoading } = useUpcomingInstallments(2);
-  const rows = extractUpcomingInstallments(data);
 
-  const openInvoice = (row: UpcomingInstallmentRow) => {
-    if (row.pdf_url) {
-      window.open(row.pdf_url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    toast.error(t("finance.upcomingDues.noInvoice"));
-  };
+  const { data, isLoading } = useFinanceDues({
+    bucket,
+    search: debouncedSearch || undefined,
+    page: params.page,
+    per_page: params.per_page,
+  });
+  const rows = extractDuesRows(data);
+  const { pagination, counts } = extractDuesMeta(data);
+  const canReceive = hasAnyPermission([
+    "course.class_students.payment",
+    "course.class_students.update",
+  ]);
 
-  const config: DataTableConfig<UpcomingInstallmentRow> = {
-    columns: [
-      {
-        key: "next_due_date",
-        header: t("finance.columns.nextInstallment"),
-        sortable: false,
-        render: (row) => <span className="font-medium">{row.next_due_date || "—"}</span>,
-      },
-      {
-        key: "student_name",
-        header: t("finance.columns.name"),
-        sortable: false,
-        render: (row) => (
-          <button
-            type="button"
-            className="text-start"
-            onClick={() => openInvoice(row)}
-          >
-            <div className="font-medium text-primary underline-offset-2 hover:underline">{row.student_name || "—"}</div>
-            {row.student_code ? (
-              <div className="font-mono text-xs text-muted-foreground">{row.student_code}</div>
-            ) : null}
-          </button>
-        ),
-      },
-      {
-        key: "father_name",
-        header: t("finance.columns.fatherName"),
-        sortable: false,
-        render: (row) => row.father_name || "—",
-      },
-      {
-        key: "phone_number",
-        header: t("finance.details.phone"),
-        sortable: false,
-        render: (row) => row.phone_number || "—",
-      },
-      {
-        key: "class_name",
-        header: t("finance.columns.class"),
-        sortable: false,
-        render: (row) => (
-          <div>
-            <div>{row.class_name || "—"}</div>
-            {row.class_code ? <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div> : null}
-          </div>
-        ),
-      },
-      {
-        key: "payment_status",
-        header: t("finance.columns.paymentStatus"),
-        sortable: false,
-        render: (row) => <PaymentBadge value={row.payment_status} label={row.payment_status_label} />,
-      },
-    ],
-    rowId: (row) => row.id,
-    searchable: false,
-    filtersEnabled: false,
-    paginationEnabled: false,
-    emptyMessage: t("finance.upcomingDues.empty"),
-  };
+  const receiveLink = (row: UpcomingInstallmentRow) =>
+    `/finance/receive-payment?student=${row.student_id ?? ""}&enrollment=${row.id}`;
+
+  const config: DataTableConfig<UpcomingInstallmentRow> = useMemo(
+    () => ({
+      columns: [
+        {
+          key: "next_due_date",
+          header: t("fin.columns.dueDate"),
+          render: (row) => (
+            <div className="whitespace-nowrap">
+              <div className="font-medium tabular-nums">{row.next_due_date || "—"}</div>
+              {row.is_overdue ? (
+                <span className="mt-1 inline-flex rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+                  {row.days_overdue} {t("fin.dues.daysOverdue")}
+                </span>
+              ) : row.next_due_date ? (
+                <span className="mt-1 inline-flex rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                  {daysUntil(row.next_due_date) === 0
+                    ? t("fin.dues.dueToday")
+                    : `${t("fin.dues.dueIn")} ${daysUntil(row.next_due_date)} ${t("fin.dues.days")}`}
+                </span>
+              ) : null}
+            </div>
+          ),
+          exportValue: (row) => row.next_due_date,
+        },
+        {
+          key: "student_name",
+          header: t("finance.columns.name"),
+          render: (row) => (
+            <div>
+              <div className="font-medium">{row.student_name || "—"}</div>
+              <div className="text-xs text-muted-foreground">
+                {row.student_code ? <span className="font-mono">{row.student_code}</span> : null}
+                {row.father_name ? <span> · {row.father_name}</span> : null}
+              </div>
+            </div>
+          ),
+          exportValue: (row) => row.student_name,
+        },
+        {
+          key: "phone_number",
+          header: t("finance.details.phone"),
+          render: (row) =>
+            row.phone_number ? (
+              <a
+                href={`tel:${row.phone_number}`}
+                dir="ltr"
+                className="inline-flex items-center gap-1.5 whitespace-nowrap text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {row.phone_number}
+              </a>
+            ) : (
+              "—"
+            ),
+          exportValue: (row) => row.phone_number,
+        },
+        {
+          key: "class_name",
+          header: t("finance.columns.class"),
+          render: (row) => (
+            <div>
+              <div>{row.class_name || "—"}</div>
+              {row.class_code ? (
+                <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div>
+              ) : null}
+            </div>
+          ),
+          exportValue: (row) => row.class_code ?? row.class_name,
+        },
+        {
+          key: "balance_due",
+          header: t("fin.columns.balanceDue"),
+          align: "right",
+          render: (row) => (
+            <span className="font-semibold tabular-nums text-warning">
+              {formatMoney(row.balance_due, row.currency)}
+            </span>
+          ),
+          exportValue: (row) => row.balance_due,
+        },
+        {
+          key: "paid_amount",
+          header: t("fin.columns.totalPaid"),
+          align: "right",
+          render: (row) => formatMoney(row.paid_amount),
+          exportValue: (row) => row.paid_amount,
+        },
+        {
+          key: "last_payment_date",
+          header: t("fin.columns.lastPayment"),
+          render: (row) => row.last_payment_date || "—",
+        },
+        {
+          key: "payment_status",
+          header: t("finance.columns.paymentStatus"),
+          render: (row) => (
+            <FinanceStatusBadge
+              value={row.payment_status}
+              fallbackLabel={row.payment_status_label}
+            />
+          ),
+          exportValue: (row) => row.payment_status_label ?? row.payment_status,
+        },
+      ],
+      rowId: (row) => row.id,
+      searchable: true,
+      searchPlaceholder: t("fin.dues.search"),
+      filtersEnabled: false,
+      paginationEnabled: true,
+      emptyMessage: t("fin.dues.empty"),
+      exportFilename: "finance-dues",
+      onRowDoubleClick: (row) =>
+        setAccount({
+          id: row.id,
+          class_id: row.class_id ?? undefined,
+          student_id: row.student_id ?? undefined,
+          student_name: row.student_name,
+          student_code: row.student_code,
+          class_name: row.class_name,
+          class_code: row.class_code,
+          payment_status: row.payment_status,
+        }),
+      actions: [
+        ...(canReceive
+          ? [
+              {
+                key: "receive",
+                label: t("fin.dues.receive"),
+                icon: <Wallet className="h-4 w-4" />,
+                onClick: (row: UpcomingInstallmentRow) => navigate(receiveLink(row)),
+              },
+            ]
+          : []),
+        {
+          key: "invoice",
+          label: t("finance.invoices.print"),
+          icon: <Page className="h-4 w-4" />,
+          onClick: (row: UpcomingInstallmentRow) => openPdf(row.pdf_url),
+          hidden: (row: UpcomingInstallmentRow) => !row.pdf_url,
+        },
+      ],
+    }),
+    [t, canReceive, navigate]
+  );
 
   if (!hasPermission("finance.read")) {
     return <PermissionDeniedCard />;
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 p-6">
+    <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("finance.upcomingDues.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("finance.upcomingDues.subtitle")}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {t("fin.dues.title")}
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{t("fin.dues.subtitle")}</p>
           <div className="mt-2">
             <PageBreadcrumb
               items={[
                 { label: t("breadcrumb.dashboard"), to: "/dashboard" },
                 { label: t("finance.title"), to: "/finance" },
-                { label: t("finance.upcomingDues.title") },
+                { label: t("fin.dues.title") },
               ]}
             />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" asChild>
-            <Link to="/finance/receive-payment">{t("finance.receivePayment.title")}</Link>
-          </Button>
+          {canReceive ? (
+            <Button type="button" asChild>
+              <Link to="/finance/receive-payment">
+                <Wallet className="h-4 w-4" />
+                {t("finance.receivePayment.title")}
+              </Link>
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" asChild>
             <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4 text-sm text-muted-foreground">{t("finance.upcomingDues.hint")}</CardContent>
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {BUCKETS.map((value) => {
+          const active = bucket === value;
+          const count = counts?.[value];
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setBucket(value);
+                updateParams({ page: 1 });
+              }}
+              className={cn(
+                "rounded-xl border p-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border bg-card hover:bg-muted/40"
+              )}
+              aria-pressed={active}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t(`fin.dues.tabs.${value}`)}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 text-2xl font-bold tabular-nums",
+                  value === "overdue" && (count ?? 0) > 0
+                    ? "text-danger"
+                    : active
+                      ? "text-primary"
+                      : "text-foreground"
+                )}
+              >
+                {count ?? "—"}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <Card className="shadow-none">
+        <CardContent className="p-0">
+          <DataTable
+            data={rows}
+            config={config}
+            params={params}
+            onParamsChange={updateParams}
+            pagination={pagination ?? null}
+            isLoading={isLoading}
+          />
+        </CardContent>
       </Card>
 
-      <DataTable
-        data={rows}
-        config={config}
-        params={params}
-        onParamsChange={updateParams}
-        isLoading={isLoading}
+      <FinanceDetailsDrawer
+        open={account != null}
+        onClose={() => setAccount(null)}
+        module="class"
+        classRow={account}
       />
     </div>
   );
 };
+
+function daysUntil(isoDate: string): number {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const due = new Date(y, m - 1, d).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.max(0, Math.round((due - today) / 86_400_000));
+}
 
 export default UpcomingDuesPage;

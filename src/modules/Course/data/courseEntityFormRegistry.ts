@@ -268,7 +268,12 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "date_of_birth", label: "Date of birth", type: "date" },
       { name: "gender", label: "Gender", type: "select", options: GENDER },
       { name: "acca_id", label: "ACCA ID", type: "text" },
-      { name: "academic_background", label: "background", type: "select", options: ACADEMIC_BACKGROUND },
+      {
+        name: "academic_background",
+        label: "background",
+        type: "select",
+        options: ACADEMIC_BACKGROUND,
+      },
       { name: "address", label: "Address", type: "textarea" },
       { name: "phone_number", label: "Phone number", type: "text" },
       { name: "whatsapp_number", label: "WhatsApp number", type: "text" },
@@ -404,7 +409,8 @@ export function courseRowToFormValuesForSlug(
 
 export function serializeCourseEntityPayload(
   values: Record<string, string | boolean | File | null | undefined>,
-  fields: CourseEntityFormField[]
+  fields: CourseEntityFormField[],
+  options: { clearEmptyFields?: boolean } = {}
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
 
@@ -422,6 +428,10 @@ export function serializeCourseEntityPayload(
     }
 
     if (raw === "" || raw === undefined || raw === null) {
+      // On edit, an emptied optional field must be sent as null so the server actually clears it.
+      if (options.clearEmptyFields && raw !== undefined && !f.required) {
+        out[f.name] = null;
+      }
       continue;
     }
 

@@ -16,8 +16,14 @@ import { useDebounce } from "@/hooks/common/useDebounce";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
 import { CURRENCIES } from "@/modules/Course/components/ClassStudentPaymentForm";
-import { useCourseEntityList, getCourseListFromResponse } from "@/modules/Course/hooks/useCourseEntity";
-import { extractStudentEnrollments, useStudentActiveEnrollments } from "../../hooks/useReceivePayment";
+import {
+  useCourseEntityList,
+  getCourseListFromResponse,
+} from "@/modules/Course/hooks/useCourseEntity";
+import {
+  extractStudentEnrollments,
+  useStudentActiveEnrollments,
+} from "../../hooks/useReceivePayment";
 import {
   extractManualInvoice,
   extractNextInvoiceNumber,
@@ -25,6 +31,7 @@ import {
   useNextManualInvoiceNumber,
 } from "../../hooks/useManualInvoice";
 import type { FinanceInvoiceRow, FinanceTransaction } from "../../data/models/FinanceReport";
+import { localIsoDate } from "../../components/financeFormat";
 
 interface LastCreatedManualInvoice {
   invoiceNumber: string;
@@ -38,14 +45,17 @@ interface LastCreatedManualInvoice {
 const notesTextareaClass = cn(
   "flex w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none",
   "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-  "md:text-sm resize-y",
+  "md:text-sm resize-y"
 );
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localIsoDate();
 }
 
-function formatStudentPickerLabel(student: Record<string, unknown>): { value: string; label: string } {
+function formatStudentPickerLabel(student: Record<string, unknown>): {
+  value: string;
+  label: string;
+} {
   const name = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "—";
   const code = String(student.student_code ?? student.id);
   const nationalId = String(student.national_id ?? "—");
@@ -121,13 +131,17 @@ const ManualInvoicePage = () => {
       picker: 1,
       search: studentSearchTerm || undefined,
     },
-    { enabled: studentSearchTerm.length >= 1, keepPreviousData: true },
+    { enabled: studentSearchTerm.length >= 1, keepPreviousData: true }
   );
 
   const availableStudents = getCourseListFromResponse(studentsListQuery.data);
   const studentOptions = useMemo(() => {
     const fromSearch = availableStudents.map((s) => formatStudentPickerLabel(s));
-    if (studentId && selectedStudentLabel && !fromSearch.some((o) => o.value === String(studentId))) {
+    if (
+      studentId &&
+      selectedStudentLabel &&
+      !fromSearch.some((o) => o.value === String(studentId))
+    ) {
       return [{ value: String(studentId), label: selectedStudentLabel }, ...fromSearch];
     }
     return fromSearch;
@@ -142,7 +156,7 @@ const ManualInvoicePage = () => {
         value: String(row.id),
         label: `${row.class_name || t("finance.receivePayment.unknownClass")}${row.class_code ? ` (${row.class_code})` : ""}`,
       })),
-    [enrollments, t],
+    [enrollments, t]
   );
 
   const needsExchangeRate = currency === "USD" || currency === "GBP";
@@ -156,7 +170,7 @@ const ManualInvoicePage = () => {
       setSelectedStudentLabel(match?.label ?? "");
       setEnrollmentId(null);
     },
-    [studentOptions],
+    [studentOptions]
   );
 
   const resetForm = () => {
@@ -198,7 +212,7 @@ const ManualInvoicePage = () => {
       const response = await createManualInvoice.mutateAsync(payload);
       const invoice = extractManualInvoice(response);
       const created = invoice ? lastCreatedFromInvoice(invoice) : null;
-      toast.success(t("finance.manualInvoice.success"));
+      // success toast comes from the API response (callApi)
       if (created) {
         setLastCreated(created);
       }
@@ -206,8 +220,8 @@ const ManualInvoicePage = () => {
         window.open(invoice.pdf_url, "_blank", "noopener,noreferrer");
       }
       resetForm();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("finance.manualInvoice.error"));
+    } catch {
+      // error toast is shown by callApi
     }
   };
 
@@ -220,8 +234,12 @@ const ManualInvoicePage = () => {
       <div className="shrink-0 space-y-6 p-6 pb-0">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("finance.manualInvoice.title")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("finance.manualInvoice.subtitle")}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {t("finance.manualInvoice.title")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("finance.manualInvoice.subtitle")}
+            </p>
             <div className="mt-2">
               <PageBreadcrumb
                 items={[
@@ -265,7 +283,9 @@ const ManualInvoicePage = () => {
                   {enrollmentsQuery.isLoading ? (
                     <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
                   ) : enrollmentOptions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t("finance.receivePayment.noEnrollments")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("finance.receivePayment.noEnrollments")}
+                    </p>
                   ) : (
                     <SearchableSelect
                       options={enrollmentOptions}
@@ -358,6 +378,7 @@ const ManualInvoicePage = () => {
                     value={transactionDate}
                     onChange={(e) => setTransactionDate(e.target.value)}
                   />
+                  <p className="text-xs text-muted-foreground">{t("fin.manual.issueDateAuto")}</p>
                 </div>
               </div>
 
@@ -373,7 +394,9 @@ const ManualInvoicePage = () => {
               </div>
 
               <Button type="button" onClick={handleSubmit} disabled={createManualInvoice.isPending}>
-                {createManualInvoice.isPending ? t("common.loading") : t("finance.manualInvoice.submit")}
+                {createManualInvoice.isPending
+                  ? t("common.loading")
+                  : t("finance.manualInvoice.submit")}
               </Button>
             </CardContent>
           </Card>
@@ -384,7 +407,9 @@ const ManualInvoicePage = () => {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t("finance.manualInvoice.totalCard")}
                 </p>
-                <p className="mt-2 text-3xl font-bold tabular-nums text-success">{formatMoney(amount || 0, currency)}</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-success">
+                  {formatMoney(amount || 0, currency)}
+                </p>
               </div>
               <div className="border-t border-border pt-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -407,10 +432,14 @@ const ManualInvoicePage = () => {
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t("finance.manualInvoice.createdInvoice")}
                   </p>
-                  <p className="mt-1.5 font-mono text-lg font-semibold text-foreground">{lastCreated.invoiceNumber}</p>
+                  <p className="mt-1.5 font-mono text-lg font-semibold text-foreground">
+                    {lastCreated.invoiceNumber}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {t("finance.manualInvoice.transactionNumber")}{" "}
-                    <span className="font-mono font-medium text-foreground">{lastCreated.transactionId}</span>
+                    <span className="font-mono font-medium text-foreground">
+                      {lastCreated.transactionId}
+                    </span>
                   </p>
                   {lastCreated.transactionDate ? (
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -421,7 +450,13 @@ const ManualInvoicePage = () => {
                     </p>
                   ) : null}
                   {lastCreated.pdfUrl ? (
-                    <Button type="button" variant="outline" size="sm" className="mt-3 w-full" asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 w-full"
+                      asChild
+                    >
                       <a href={lastCreated.pdfUrl} target="_blank" rel="noopener noreferrer">
                         {t("finance.manualInvoice.viewPdf")}
                       </a>
@@ -429,7 +464,9 @@ const ManualInvoicePage = () => {
                   ) : null}
                 </div>
               ) : null}
-              <p className="text-sm text-muted-foreground">{t("finance.manualInvoice.totalHint")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("finance.manualInvoice.totalHint")}
+              </p>
             </CardContent>
           </Card>
         </div>

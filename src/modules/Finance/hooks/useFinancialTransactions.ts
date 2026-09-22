@@ -1,8 +1,17 @@
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import type { DataTablePaginationMeta } from "@/types/datatable";
-import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../data/constants/endpoints";
-import type { FinancialTransactionFilter, FinancialTransactionRow } from "../data/models/FinanceReport";
+import {
+  FINANCE_ENDPOINTS,
+  FINANCE_QUERY_KEYS,
+  FINANCE_STALE_TIME,
+} from "../data/constants/endpoints";
+import type {
+  FinancialTransactionFilter,
+  FinancialTransactionRow,
+  FinancialTransactionTotals,
+  TransactionPayer,
+} from "../data/models/FinanceReport";
 
 export interface FinancialTransactionListParams {
   search?: string;
@@ -14,6 +23,7 @@ export interface FinancialTransactionListParams {
   from?: string;
   to?: string;
   all_time?: 0 | 1;
+  payer?: TransactionPayer;
 }
 
 export function useFinancialTransactions(params: FinancialTransactionListParams) {
@@ -22,6 +32,7 @@ export function useFinancialTransactions(params: FinancialTransactionListParams)
     url: FINANCE_ENDPOINTS.TRANSACTIONS,
     method: RequestMethod.GET,
     params,
+    options: { staleTime: FINANCE_STALE_TIME, refetchOnMount: "always" },
   });
 }
 
@@ -32,7 +43,16 @@ export function extractFinancialTransactions(response: unknown): FinancialTransa
   return [];
 }
 
-export function extractFinancialTransactionsPagination(response: unknown): DataTablePaginationMeta | null {
+export function extractFinancialTransactionsPagination(
+  response: unknown
+): DataTablePaginationMeta | null {
   if (!response || typeof response !== "object") return null;
   return (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta?.pagination ?? null;
+}
+
+export function extractFinancialTransactionTotals(
+  response: unknown
+): FinancialTransactionTotals | null {
+  if (!response || typeof response !== "object") return null;
+  return (response as { meta?: { totals?: FinancialTransactionTotals } }).meta?.totals ?? null;
 }

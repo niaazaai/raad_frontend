@@ -287,11 +287,12 @@ const CourseEntityFormDrawer = ({
     }));
   }, [studentUsersRes]);
 
-  const { register, handleSubmit, reset, control, setValue, getValues, formState } = useForm<FormValues>({
-    defaultValues: getCreateDefaultsForEntity(slug),
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
-  });
+  const { register, handleSubmit, reset, control, setValue, getValues, formState } =
+    useForm<FormValues>({
+      defaultValues: getCreateDefaultsForEntity(slug),
+      mode: "onSubmit",
+      reValidateMode: "onSubmit",
+    });
 
   const watchedCourseId = useWatch({ control, name: "course_id", defaultValue: "" });
   const watchedMainCategoryId = useWatch({ control, name: "main_category_id", defaultValue: "" });
@@ -430,7 +431,9 @@ const CourseEntityFormDrawer = ({
 
   useEffect(() => {
     if (slug !== "lms-classes" || readOnly) return;
-    const selected = lmsClassCourseOptions.find((opt) => opt.value === String(watchedCourseId ?? ""));
+    const selected = lmsClassCourseOptions.find(
+      (opt) => opt.value === String(watchedCourseId ?? "")
+    );
     if (!selected?.title) return;
     const currentName = String(getValues("name") ?? "").trim();
     if (!formState.dirtyFields.name || currentName === "") {
@@ -458,14 +461,7 @@ const CourseEntityFormDrawer = ({
     if (!stillValid) {
       setValue("sub_category_id", "", { shouldDirty: true });
     }
-  }, [
-    slug,
-    readOnly,
-    watchedMainCategoryId,
-    subCategoryOptionsQuery.data,
-    getValues,
-    setValue,
-  ]);
+  }, [slug, readOnly, watchedMainCategoryId, subCategoryOptionsQuery.data, getValues, setValue]);
 
   const watchedStudentUserId = useWatch({ control, name: "user_id", defaultValue: "" });
   useEffect(() => {
@@ -487,14 +483,7 @@ const CourseEntityFormDrawer = ({
     if (!String(getValues("email") ?? "").trim() && email) {
       setValue("email", email, { shouldDirty: false });
     }
-  }, [
-    slug,
-    readOnly,
-    watchedStudentUserId,
-    classStudentUserOptions,
-    getValues,
-    setValue,
-  ]);
+  }, [slug, readOnly, watchedStudentUserId, classStudentUserOptions, getValues, setValue]);
 
   const { mutate: createEntity, isPending: creating } = useCreateCourseEntity(slug);
   const { mutate: updateEntity, isPending: updating } = useUpdateCourseEntity(slug);
@@ -588,7 +577,11 @@ const CourseEntityFormDrawer = ({
     }
 
     if (slug === "lms-class-students") {
-      for (const phoneKey of ["phone_number", "whatsapp_number", "emergency_phone_number"] as const) {
+      for (const phoneKey of [
+        "phone_number",
+        "whatsapp_number",
+        "emergency_phone_number",
+      ] as const) {
         const phone = String(normalizedValues[phoneKey] ?? "").trim();
         if (phone && !/^\+?[0-9]{7,15}$/.test(phone)) {
           toast.error("Phone numbers must be 7–15 digits (optional + prefix).");
@@ -681,7 +674,9 @@ const CourseEntityFormDrawer = ({
       return;
     }
     const fields = getSerializeFieldsForSlug(slug);
-    const payload = serializeCourseEntityPayload(normalizedValues, fields);
+    const payload = serializeCourseEntityPayload(normalizedValues, fields, {
+      clearEmptyFields: slug === "lms-class-students" && mode !== "create",
+    });
     if (THUMB_SLUGS.includes(slug) && thumbnailFile) {
       payload.thumbnail_file = thumbnailFile;
     }
@@ -808,10 +803,7 @@ const CourseEntityFormDrawer = ({
         <DrawerDescription>{drawerDescription}</DrawerDescription>
       </DrawerHeader>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="flex min-h-0 flex-1 flex-col"
-      >
+      <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
         <DrawerBody className="min-h-0 flex-1 space-y-4 overflow-y-auto scroll-smooth pb-4">
           {readOnly && (slug === "main-categories" || slug === "sub-categories")
             ? renderCategoryReadOnly()
@@ -823,7 +815,9 @@ const CourseEntityFormDrawer = ({
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Plan name
                 </p>
-                <p className="text-lg font-semibold text-foreground">{String(detail.plan_name ?? "—")}</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {String(detail.plan_name ?? "—")}
+                </p>
               </div>
               <div
                 className="prose prose-sm dark:prose-invert max-w-none text-foreground"
@@ -967,8 +961,7 @@ const CourseEntityFormDrawer = ({
                   disabled={approvingStudentSubscription || detail.id == null}
                   onClick={() => {
                     const rawId = detail.id;
-                    const numericId =
-                      typeof rawId === "number" ? rawId : Number(rawId);
+                    const numericId = typeof rawId === "number" ? rawId : Number(rawId);
                     if (rawId == null || Number.isNaN(numericId)) return;
 
                     void confirm({
@@ -1007,7 +1000,9 @@ const CourseEntityFormDrawer = ({
                   </p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Class name</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Class name
+                  </p>
                   <p className="mt-1 text-base font-semibold">{String(detail.name ?? "—")}</p>
                 </div>
               </div>
@@ -1021,7 +1016,9 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Cash className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Class fee</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Class fee
+                    </p>
                     <p className="mt-1 text-base font-semibold tabular-nums">
                       {detail.class_fee != null && detail.class_fee !== ""
                         ? Number(detail.class_fee).toLocaleString(undefined, {
@@ -1037,15 +1034,23 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Page className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Main category</p>
-                    <p className="mt-1 text-sm font-medium">{String(detail.main_category_name ?? "—")}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Main category
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      {String(detail.main_category_name ?? "—")}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Page className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Sub category</p>
-                    <p className="mt-1 text-sm font-medium">{String(detail.sub_category_name ?? "—")}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Sub category
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      {String(detail.sub_category_name ?? "—")}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1060,14 +1065,20 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <User className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Instructor</p>
-                    <p className="mt-1 text-sm font-medium">{String(detail.instructor_name ?? "—")}</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Instructor
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      {String(detail.instructor_name ?? "—")}
+                    </p>
                   </div>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-muted/15 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Schedule days</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Schedule days
+                  </p>
                   <p className="mt-1 text-sm font-medium capitalize">
                     {String(detail.schedule_days ?? "—").replace(/_/g, " ")}
                   </p>
@@ -1077,17 +1088,25 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Start date</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Start date
+                    </p>
                     <p className="text-sm font-medium">{formatDateHuman(detail.start_date)}</p>
-                    <p className="text-xs text-muted-foreground">{formatDateYmd(detail.start_date)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateYmd(detail.start_date)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">End date</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      End date
+                    </p>
                     <p className="text-sm font-medium">{formatDateHuman(detail.end_date)}</p>
-                    <p className="text-xs text-muted-foreground">{formatDateYmd(detail.end_date)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateYmd(detail.end_date)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1095,14 +1114,18 @@ const CourseEntityFormDrawer = ({
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Start time</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Start time
+                    </p>
                     <p className="text-sm font-medium">{formatTimeHms(detail.start_time)}</p>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-lg border border-border bg-muted/15 p-4">
                   <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">End time</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      End time
+                    </p>
                     <p className="text-sm font-medium">{formatTimeHms(detail.end_time)}</p>
                   </div>
                 </div>
@@ -1127,7 +1150,8 @@ const CourseEntityFormDrawer = ({
                   )}
                 </div>
                 <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                  {typeof detail.national_id_attachment_url === "string" && detail.national_id_attachment_url ? (
+                  {typeof detail.national_id_attachment_url === "string" &&
+                  detail.national_id_attachment_url ? (
                     detail.national_id_attachment_url.toLowerCase().includes(".pdf") ? (
                       <a
                         href={detail.national_id_attachment_url}
@@ -1158,11 +1182,14 @@ const CourseEntityFormDrawer = ({
                   {String(
                     detail.full_name ??
                       detail.user_name ??
-                      (`${String(detail.first_name ?? "")} ${String(detail.last_name ?? "")}`.trim() || "—")
+                      (`${String(detail.first_name ?? "")} ${String(detail.last_name ?? "")}`.trim() ||
+                        "—")
                   )}
                 </p>
                 {detail.student_code ? (
-                  <p className="mt-1 font-mono text-sm text-primary">{String(detail.student_code)}</p>
+                  <p className="mt-1 font-mono text-sm text-primary">
+                    {String(detail.student_code)}
+                  </p>
                 ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1180,7 +1207,9 @@ const CourseEntityFormDrawer = ({
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Academic background</p>
-                  <p className="text-sm font-medium">{String(detail.academic_background ?? "—").replace(/_/g, " ")}</p>
+                  <p className="text-sm font-medium">
+                    {String(detail.academic_background ?? "—").replace(/_/g, " ")}
+                  </p>
                 </div>
               </div>
               <div className="rounded-lg border border-border bg-muted/15 p-4">
@@ -1208,7 +1237,9 @@ const CourseEntityFormDrawer = ({
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Emergency phone</p>
-                  <p className="text-sm font-medium">{String(detail.emergency_phone_number ?? "—")}</p>
+                  <p className="text-sm font-medium">
+                    {String(detail.emergency_phone_number ?? "—")}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Father name</p>
@@ -1216,7 +1247,9 @@ const CourseEntityFormDrawer = ({
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="text-sm font-medium capitalize">{String(detail.status ?? "active")}</p>
+                  <p className="text-sm font-medium capitalize">
+                    {String(detail.status ?? "active")}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/15 p-3">
                   <p className="text-xs text-muted-foreground">Linked user</p>
@@ -1231,11 +1264,15 @@ const CourseEntityFormDrawer = ({
               </div>
               {Array.isArray(detail.classes_taken) && detail.classes_taken.length > 0 ? (
                 <div className="rounded-lg border border-border bg-muted/10 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Classes taken</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Classes taken
+                  </p>
                   <ul className="mt-2 space-y-1 text-sm">
                     {detail.classes_taken.map((cls: Record<string, unknown>) => (
                       <li key={String(cls.id)} className="flex items-center justify-between">
-                        <span>{String(cls.class_name ?? `Class #${String(cls.class_id ?? "")}`)}</span>
+                        <span>
+                          {String(cls.class_name ?? `Class #${String(cls.class_id ?? "")}`)}
+                        </span>
                         <span className="text-muted-foreground">
                           {String(cls.grade ?? "PENDING")} · {String(cls.status ?? "active")}
                         </span>
@@ -1263,7 +1300,11 @@ const CourseEntityFormDrawer = ({
                 <Label htmlFor="cef-plan-name">
                   Plan name <span className="text-destructive">*</span>
                 </Label>
-                <Input id="cef-plan-name" placeholder="e.g. 90-day Pro access" {...register("plan_name")} />
+                <Input
+                  id="cef-plan-name"
+                  placeholder="e.g. 90-day Pro access"
+                  {...register("plan_name")}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Description</Label>
@@ -1295,7 +1336,11 @@ const CourseEntityFormDrawer = ({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-plan-type">Subscription type</Label>
-                  <select id="cef-plan-type" className={inputClass} {...register("subscription_type")}>
+                  <select
+                    id="cef-plan-type"
+                    className={inputClass}
+                    {...register("subscription_type")}
+                  >
                     {SUB_FREE_PAID_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -1368,7 +1413,11 @@ const CourseEntityFormDrawer = ({
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="cef-sub-start">Subscription start</Label>
-                    <Input id="cef-sub-start" type="date" {...register("subscription_start_date")} />
+                    <Input
+                      id="cef-sub-start"
+                      type="date"
+                      {...register("subscription_start_date")}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="cef-sub-end">Subscription end</Label>
@@ -1496,8 +1545,12 @@ const CourseEntityFormDrawer = ({
             <div className="space-y-4">
               {isCreateMode && nextClassCode ? (
                 <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Next class ID</p>
-                  <p className="mt-1 font-mono text-sm font-semibold text-primary">{nextClassCode}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Next class ID
+                  </p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-primary">
+                    {nextClassCode}
+                  </p>
                 </div>
               ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1527,7 +1580,10 @@ const CourseEntityFormDrawer = ({
                       value={String(field.value ?? "")}
                       onChange={field.onChange}
                       placeholder="Select sub category…"
-                      disabled={subCategoryOptionsQuery.isFetching || !String(watchedMainCategoryId ?? "").trim()}
+                      disabled={
+                        subCategoryOptionsQuery.isFetching ||
+                        !String(watchedMainCategoryId ?? "").trim()
+                      }
                     />
                   )}
                 />
@@ -1545,7 +1601,10 @@ const CourseEntityFormDrawer = ({
                     name="class_type"
                     control={control}
                     render={({ field }) => (
-                      <Select value={String(field.value ?? "online")} onValueChange={field.onChange}>
+                      <Select
+                        value={String(field.value ?? "online")}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger id="cef-class-type" className="w-full">
                           <SelectValue placeholder="Select class type…" />
                         </SelectTrigger>
@@ -1663,8 +1722,12 @@ const CourseEntityFormDrawer = ({
             <div className="space-y-4">
               {isCreateMode && nextStudentCode ? (
                 <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Next student ID</p>
-                  <p className="mt-1 font-mono text-sm font-semibold text-primary">{nextStudentCode}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Next student ID
+                  </p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-primary">
+                    {nextStudentCode}
+                  </p>
                 </div>
               ) : null}
               <Controller
@@ -1701,11 +1764,19 @@ const CourseEntityFormDrawer = ({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-acca-id">ACCA ID</Label>
-                  <Input id="cef-acca-id" {...register("acca_id")} placeholder="ACCA registration ID" />
+                  <Input
+                    id="cef-acca-id"
+                    {...register("acca_id")}
+                    placeholder="ACCA registration ID"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-academic-background">Academic background</Label>
-                  <select id="cef-academic-background" className={inputClass} {...register("academic_background")}>
+                  <select
+                    id="cef-academic-background"
+                    className={inputClass}
+                    {...register("academic_background")}
+                  >
                     <option value="">Select background…</option>
                     <option value="grade_12">12th Grade</option>
                     <option value="undergraduate">Undergraduate</option>
@@ -1733,7 +1804,11 @@ const CourseEntityFormDrawer = ({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cef-address">Address</Label>
-                <textarea id="cef-address" className={cn(inputClass, "min-h-[72px]")} {...register("address")} />
+                <textarea
+                  id="cef-address"
+                  className={cn(inputClass, "min-h-[72px]")}
+                  {...register("address")}
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -1748,20 +1823,36 @@ const CourseEntityFormDrawer = ({
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-phone-number">Phone number</Label>
-                  <Input id="cef-phone-number" {...register("phone_number")} placeholder="+937XXXXXXXX" />
+                  <Input
+                    id="cef-phone-number"
+                    {...register("phone_number")}
+                    placeholder="+937XXXXXXXX"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-whatsapp">WhatsApp number</Label>
-                  <Input id="cef-whatsapp" {...register("whatsapp_number")} placeholder="+937XXXXXXXX" />
+                  <Input
+                    id="cef-whatsapp"
+                    {...register("whatsapp_number")}
+                    placeholder="+937XXXXXXXX"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cef-emergency-phone">Emergency phone number</Label>
-                  <Input id="cef-emergency-phone" {...register("emergency_phone_number")} placeholder="+937XXXXXXXX" />
+                  <Input
+                    id="cef-emergency-phone"
+                    {...register("emergency_phone_number")}
+                    placeholder="+937XXXXXXXX"
+                  />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cef-student-note">Note</Label>
-                <textarea id="cef-student-note" className={cn(inputClass, "min-h-[96px]")} {...register("notes")} />
+                <textarea
+                  id="cef-student-note"
+                  className={cn(inputClass, "min-h-[96px]")}
+                  {...register("notes")}
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <ImageDropzone
@@ -1772,7 +1863,11 @@ const CourseEntityFormDrawer = ({
                   onSelect={setStudentProfileImage}
                   previewMode="square"
                   initialPreviewUrl={
-                    studentProfileImage ? null : (typeof detail?.profile_image_url === "string" ? detail.profile_image_url : null)
+                    studentProfileImage
+                      ? null
+                      : typeof detail?.profile_image_url === "string"
+                        ? detail.profile_image_url
+                        : null
                   }
                 />
                 <ImageDropzone
@@ -1786,7 +1881,9 @@ const CourseEntityFormDrawer = ({
                   initialPreviewUrl={
                     studentNationalIdAttachment
                       ? null
-                      : (typeof detail?.national_id_attachment_url === "string" ? detail.national_id_attachment_url : null)
+                      : typeof detail?.national_id_attachment_url === "string"
+                        ? detail.national_id_attachment_url
+                        : null
                   }
                 />
               </div>

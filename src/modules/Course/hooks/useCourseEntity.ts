@@ -5,6 +5,7 @@ import { callApi } from "@/services";
 import type { CourseEntitySlug } from "../data/courseRegistry";
 import { COURSE_ENTITY_REGISTRY } from "../data/courseRegistry";
 import { courseQueryKeys } from "../data/constants/queryKeys";
+import { FINANCE_RELATED_QUERY_KEYS } from "@/modules/Finance/data/constants/endpoints";
 
 export type CourseRow = Record<string, unknown>;
 
@@ -141,6 +142,12 @@ export function useUpdateCourseEntity(slug: CourseEntitySlug) {
     onSuccess: (_data: unknown, vars: { id: number; body: Record<string, unknown> }) => {
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug, "detail", vars.id] });
+      if (slug === "lms-class-students") {
+        // Student name / phone / ID / email also show on class, finance and dashboard screens.
+        FINANCE_RELATED_QUERY_KEYS.forEach((key) =>
+          queryClient.invalidateQueries({ queryKey: [...key] })
+        );
+      }
       if (slug === "main-categories") {
         queryClient.invalidateQueries({ queryKey: ["course", "form-meta"] });
       }
