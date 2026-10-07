@@ -75,6 +75,7 @@ const COLUMN_KEYS = new Set([
   "updated_at",
   "uploaded_at",
   "course_id",
+  "course_module_id",
   "lesson_id",
   "content_type",
   "subscription_status",
