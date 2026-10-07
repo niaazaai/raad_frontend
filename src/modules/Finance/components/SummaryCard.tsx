@@ -87,7 +87,7 @@ const SummaryCard = ({
           onClick={onClick}
           disabled={!onClick}
           className={cn(
-            "group relative w-full rounded-xl border bg-gradient-to-br p-4 text-start outline-none transition",
+            "group relative w-full rounded-xl border bg-gradient-to-br p-3 text-start outline-none transition sm:p-4",
             "hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:translate-y-0",
             theme.border,
             theme.bg
@@ -99,7 +99,7 @@ const SummaryCard = ({
           </p>
           <p
             className={cn(
-              "mt-2 text-2xl font-bold tabular-nums tracking-tight",
+              "mt-2 text-xl font-bold tabular-nums tracking-tight sm:text-2xl",
               theme.value,
               loading && "opacity-50"
             )}
