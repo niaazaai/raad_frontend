@@ -122,7 +122,7 @@ async function slidingWindow<T>(
   });
 }
 
-// 8 concurrent part uploads — good balance of throughput vs. connection overhead.
+// Larger parts (from the server) plus a wide window keep multi-gigabyte lessons moving.
 const CONCURRENT_PARTS = 8;
 
 /**
