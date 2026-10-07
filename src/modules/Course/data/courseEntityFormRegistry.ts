@@ -120,7 +120,6 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "is_featured", label: "Featured", type: "checkbox" },
       { name: "is_popular", label: "Popular", type: "checkbox" },
       { name: "is_new", label: "New", type: "checkbox" },
-      { name: "is_best_seller", label: "Best seller", type: "checkbox" },
       { name: "is_free", label: "Free", type: "checkbox" },
       {
         name: "course_module_id",
@@ -168,7 +167,7 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   assignments: {
     fields: [
       { name: "course_id", label: "Course ID", type: "number", required: true },
-      { name: "lesson_id", label: "Lesson ID", type: "number" },
+      { name: "course_module_id", label: "Module ID", type: "number", required: true },
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
       { name: "assignment_file_url", label: "Assignment file URL", type: "text", required: true },
