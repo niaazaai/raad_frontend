@@ -46,6 +46,8 @@ import {
   COURSE_LEVEL_OPTIONS,
   CourseLanguage,
   CourseLevel,
+  courseLevelLabel,
+  isCourseLevelValue,
   type CourseLanguageValue,
   type CourseLevelValue,
 } from "@/data/enums/courseWizard";
@@ -92,7 +94,12 @@ function stripHtmlToText(html: string): string {
 }
 
 const courseLanguageSchema = z.enum(["PASHTOO", "DARI", "ENGLISH"]);
-const courseLevelSchema = z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]);
+const courseLevelSchema = z.enum([
+  CourseLevel.ESSENTIAL,
+  CourseLevel.COMPREHENSIVE,
+  CourseLevel.PRACTICE_INTENSIVE,
+  CourseLevel.EXPERT_LED,
+]);
 
 const schema = z.object({
   course_main_category_id: z.coerce.number().min(1, "Main category is required"),
@@ -103,7 +110,7 @@ const schema = z.object({
   long_description: z.string().optional(),
   prerequisites: z.string().optional(),
   language: courseLanguageSchema.default(CourseLanguage.DARI),
-  level: courseLevelSchema.default(CourseLevel.INTERMEDIATE),
+  level: z.union([courseLevelSchema, z.literal("")]),
   thumbnail: z.string().optional(),
   banner: z.string().optional(),
   instructor_id: z.coerce.number().optional(),
@@ -199,12 +206,8 @@ function normalizeCourseLanguage(raw: unknown): CourseLanguageValue {
   return CourseLanguage.DARI;
 }
 
-function normalizeCourseLevel(raw: unknown): CourseLevelValue {
-  const s = String(raw ?? "")
-    .trim()
-    .toUpperCase();
-  if (s === "BEGINNER" || s === "INTERMEDIATE" || s === "ADVANCED") return s;
-  return CourseLevel.INTERMEDIATE;
+function normalizeCourseLevel(raw: unknown): CourseLevelValue | "" {
+  return isCourseLevelValue(String(raw ?? "").trim()) ? (String(raw).trim() as CourseLevelValue) : "";
 }
 
 function mediaUrlForPreview(path: unknown): string | undefined {
@@ -558,13 +561,14 @@ const CourseWizardPage = () => {
       is_new: false,
       is_free: false,
       language: CourseLanguage.DARI,
-      level: CourseLevel.INTERMEDIATE,
+      level: editId != null ? "" : CourseLevel.ESSENTIAL,
     },
   });
 
   const { register, handleSubmit, setValue, watch, control, formState, getValues, trigger } =
     form;
 
+  const [savedLegacyLevel, setSavedLegacyLevel] = useState<string | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
 
@@ -688,7 +692,10 @@ const CourseWizardPage = () => {
     setValue("long_description", String(detail.long_description ?? ""));
     setValue("prerequisites", String(detail.prerequisites ?? ""));
     setValue("language", normalizeCourseLanguage(detail.language));
-    setValue("level", normalizeCourseLevel(detail.level));
+    const nextLevel = normalizeCourseLevel(detail.level);
+    setValue("level", nextLevel);
+    const rawLevel = String(detail.level ?? "").trim();
+    setSavedLegacyLevel(nextLevel || !rawLevel ? null : rawLevel);
     setValue("thumbnail", String(detail.thumbnail ?? ""));
     setValue("banner", String(detail.banner ?? ""));
     const instructorId = Number(detail.instructor_id ?? 0);
@@ -756,7 +763,6 @@ const CourseWizardPage = () => {
       long_description: values.long_description,
       prerequisites: values.prerequisites,
       language: values.language,
-      level: values.level,
       instructor_id: values.instructor_id,
       is_featured: values.is_featured,
       is_popular: values.is_popular,
@@ -765,6 +771,7 @@ const CourseWizardPage = () => {
       status: "active",
       subscription_plan_ids: selectedSubscriptionPlanIds,
     };
+    if (values.level) payload.level = values.level;
 
     if (thumbnailFile) {
       payload.thumbnail_file = thumbnailFile;
@@ -833,7 +840,7 @@ const CourseWizardPage = () => {
       long_description: values.long_description,
       prerequisites: values.prerequisites,
       language: values.language,
-      level: values.level,
+      ...(values.level ? { level: values.level } : {}),
       instructor_id: values.instructor_id,
       is_featured: values.is_featured,
       is_popular: values.is_popular,
@@ -1376,18 +1383,32 @@ const CourseWizardPage = () => {
                     name="level"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange} disabled={viewMode}>
-                        <SelectTrigger id="course-level">
-                          <SelectValue placeholder="Difficulty" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COURSE_LEVEL_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select
+                          value={field.value || undefined}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSavedLegacyLevel(null);
+                          }}
+                          disabled={viewMode}
+                        >
+                          <SelectTrigger id="course-level">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COURSE_LEVEL_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {savedLegacyLevel ? (
+                          <p className="text-xs text-muted-foreground">
+                            Saved as {courseLevelLabel(savedLegacyLevel)}. Choose a level to replace it.
+                          </p>
+                        ) : null}
+                      </>
                     )}
                   />
                 </div>
