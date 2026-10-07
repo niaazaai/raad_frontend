@@ -80,7 +80,10 @@ function Calendar({
         ),
         week: cn("mt-2 flex w-full", defaultClassNames.week),
         week_number_header: cn("w-(--cell-size) select-none", defaultClassNames.week_number_header),
-        week_number: cn("text-[0.8rem] text-muted-foreground select-none", defaultClassNames.week_number),
+        week_number: cn(
+          "text-[0.8rem] text-muted-foreground select-none",
+          defaultClassNames.week_number
+        ),
         day: cn(
           "group/day relative aspect-square h-full w-full p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-e-md",
           props.showWeekNumber
@@ -112,7 +115,9 @@ function Calendar({
             return <ChevronLeftIcon className={cn("size-4", chevronClassName)} {...chevronProps} />;
           }
           if (orientation === "right") {
-            return <ChevronRightIcon className={cn("size-4", chevronClassName)} {...chevronProps} />;
+            return (
+              <ChevronRightIcon className={cn("size-4", chevronClassName)} {...chevronProps} />
+            );
           }
           return <ChevronDownIcon className={cn("size-4", chevronClassName)} {...chevronProps} />;
         },
