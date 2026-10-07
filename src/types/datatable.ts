@@ -123,6 +123,8 @@ export interface DataTableProps<T = unknown> {
   pagination?: DataTablePaginationMeta | null;
   /** Loading state */
   isLoading?: boolean;
+  /** Rendered on the toolbar's trailing edge, beside search and export (e.g. period filters) */
+  toolbar?: React.ReactNode;
   /** Optional: adapter for Typesense or other search backends (future) */
   // searchAdapter?: DataTableSearchAdapter;
 }
