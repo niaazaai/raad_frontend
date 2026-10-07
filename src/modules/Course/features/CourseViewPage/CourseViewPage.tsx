@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { courseLevelLabel } from "@/data/enums/courseWizard";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,14 +8,12 @@ import {
   BookStack,
   CheckCircle,
   Clock,
-  EditPencil,
+  Coins,
+  GraduationCap,
   Hashtag,
   InfoCircle,
   Language,
   Medal,
-  NavArrowLeft,
-  NavArrowRight,
-  Page,
   Phone,
   Play,
   ShoppingBag,
@@ -22,6 +21,10 @@ import {
   ViewGrid,
 } from "iconoir-react";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Button,
   Card,
   CardContent,
@@ -39,7 +42,9 @@ import {
   Label,
 } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
-import { Can, useAuth } from "@/features/auth";
+import { CONTACT_INFO } from "@/components/website/websiteData";
+import { useAuth } from "@/features/auth";
+import { AuthStatus } from "@/data/enums";
 import { cn } from "@/lib/utils";
 import { RequestMethod } from "@/data/constants/methods";
 import { useMutationApi } from "@/hooks";
@@ -47,19 +52,40 @@ import {
   getPublicCourseDetailFromResponse,
   getPreviewPlaybackFromResponse,
   PUBLIC_COURSES_QUERY_KEY,
+  getPublicCoursesFromResponse,
   usePublicCourseDetail,
   usePublicCoursePreviewPlayback,
+  usePublicCourses,
 } from "@/hooks/usePublicCourses";
 import { getMyEnrollmentsFromResponse, useMyEnrollments } from "@/hooks/useStudentLearning";
 import { toast } from "sonner";
 import type { PublicSubscriptionPlan } from "@/hooks/usePublicCourses";
 import LessonVideoPlayer from "./LessonVideoPlayer";
 
-function formatMoney(amount: string | null | undefined): string {
+function formatMoney(amount: string | number | null | undefined): string {
   if (amount == null || String(amount).trim() === "") return "—";
   const n = Number.parseFloat(String(amount));
-  if (Number.isNaN(n)) return String(amount);
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(n);
+  if (Number.isNaN(n)) return `${amount} AFN`;
+  const whole = Math.abs(n - Math.round(n)) < 0.001;
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: whole ? 0 : 2,
+    minimumFractionDigits: whole ? 0 : 2,
+  }).format(n);
+  return `${formatted} AFN`;
+}
+
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function sanitizeRichText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
+    .replace(/javascript:/gi, "");
 }
 
 /** API may send strings or numbers (e.g. decimal duration). */
@@ -85,7 +111,7 @@ type EnrollmentData = z.infer<typeof EnrollmentSchema>;
 
 const CourseViewPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, status, isAuthenticated, fetchUser } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
   const id = courseId ? Number(courseId) : NaN;
   const validId = !Number.isNaN(id) ? id : null;
@@ -95,8 +121,20 @@ const CourseViewPage = () => {
   const myEnrollmentsQuery = useMyEnrollments({
     course_id: validId ?? undefined,
     per_page: 48,
-    enabled: Boolean(user && validId != null),
+    enabled: Boolean(isAuthenticated && validId != null),
   });
+  const latestQuery = usePublicCourses({
+    page: 1,
+    per_page: 10,
+    exclude_id: validId ?? undefined,
+    enabled: validId != null,
+  });
+
+  useEffect(() => {
+    if (status === AuthStatus.IDLE) {
+      void fetchUser();
+    }
+  }, [status, fetchUser]);
 
   const payload = useMemo(
     () => getPublicCourseDetailFromResponse(detailQuery.data),
@@ -139,8 +177,14 @@ const CourseViewPage = () => {
   const loading = validId == null || detailQuery.isLoading;
   const isError = detailQuery.isError || (!loading && !course);
 
-  const backHref = user ? "/course/courses" : "/explore-courses";
-  const isSignedIn = !!user;
+  const latestCourses = useMemo(
+    () => getPublicCoursesFromResponse(latestQuery.data).filter((row) => row.id !== validId).slice(0, 10),
+    [latestQuery.data, validId],
+  );
+
+  const backHref = isAuthenticated ? "/course/courses" : "/explore-courses";
+  const isSignedIn = isAuthenticated;
+  const authPending = status === AuthStatus.IDLE || status === AuthStatus.LOADING;
 
   const [plansOpen, setPlansOpen] = useState(false);
   const [authRequiredModalOpen, setAuthRequiredModalOpen] = useState(false);
@@ -180,6 +224,17 @@ const CourseViewPage = () => {
     resolver: zodResolver(EnrollmentSchema),
     defaultValues: defaultFormValues,
   });
+
+  useEffect(() => {
+    if (!user) return;
+    enrollmentForm.reset({
+      first_name: user.name?.split(" ")[0] || "",
+      last_name: user.name?.split(" ").slice(1).join(" ") || "",
+      email: user.email || "",
+      phone_number: enrollmentForm.getValues("phone_number") || "",
+      national_id: enrollmentForm.getValues("national_id") || "",
+    });
+  }, [user, enrollmentForm]);
 
   const createSubscriptionMutation = useMutationApi({
     url: "/student-subscriptions",
@@ -228,17 +283,33 @@ const CourseViewPage = () => {
   const prerequisites = String(course.prerequisites ?? "").trim();
   const bannerUrl =
     typeof course.banner_url === "string" && course.banner_url ? course.banner_url : null;
-  const thumbUrl =
-    typeof course.thumbnail_url === "string" && course.thumbnail_url ? course.thumbnail_url : null;
   const language = String(course.language ?? "—");
-  const level = String(course.level ?? "—");
+  const level = courseLevelLabel(course.level);
+
+  const lessons = course.lessons ?? [];
+  const lectureCount = lessons.length;
+  const previewLesson =
+    lessons.find((lesson) => lesson.id === course.preview_lesson_id) ?? lessons[0] ?? null;
+  const mainCategory = course.main_category?.title || "Category";
+  const courseType = course.is_free ? "Free" : "Paid";
+  const startingPrice = course.is_free ? "Free" : formatMoney(lowestPlanPrice);
+  const durationLabel = formatOptionalDisplay(course.estimated_duration);
 
   const flagBadges: { key: string; label: string }[] = [];
-  if (course.is_featured) flagBadges.push({ key: "featured", label: "Featured" });
   if (course.is_popular) flagBadges.push({ key: "popular", label: "Popular" });
+  flagBadges.push({ key: "type", label: courseType });
+  if (course.is_featured) flagBadges.push({ key: "featured", label: "Featured" });
   if (course.is_new) flagBadges.push({ key: "new", label: "New" });
-  if (course.is_best_seller) flagBadges.push({ key: "bestseller", label: "Best seller" });
-  if (course.is_free) flagBadges.push({ key: "free", label: "Free" });
+
+  const purchaseDisabled = authPending || (plans.length === 0 && !course.is_free);
+  const openPurchase = () => {
+    if (purchaseDisabled) return;
+    if (!isAuthenticated) {
+      setAuthRequiredModalOpen(true);
+      return;
+    }
+    setPlansOpen(true);
+  };
 
   const showPreviewPlayer =
     previewPlayback &&
@@ -246,292 +317,323 @@ const CourseViewPage = () => {
     previewPlayback.src.length > 0 &&
     previewPlayback.lesson_id != null;
 
+  const factRows: { icon: typeof Language; label: string; value: string }[] = [
+    { icon: ViewGrid, label: "Main category", value: course.main_category?.title || "—" },
+    { icon: Hashtag, label: "Sub category", value: course.sub_category?.title || "—" },
+    { icon: Language, label: "Language", value: language },
+    { icon: Medal, label: "Level", value: level },
+    { icon: Clock, label: "Duration", value: durationLabel },
+    { icon: ShoppingBag, label: "Type", value: courseType },
+    { icon: Play, label: "Lecture count", value: String(lectureCount) },
+    { icon: Coins, label: "Price starting", value: startingPrice },
+  ];
+
+  const statTiles = [
+    {
+      key: "category",
+      icon: BookStack,
+      label: mainCategory,
+      hint: "Main category",
+      iconClass: "bg-primary/10 text-primary",
+    },
+    {
+      key: "lessons",
+      icon: Play,
+      label: `${lectureCount} lecture${lectureCount === 1 ? "" : "s"}`,
+      hint: "Lessons",
+      iconClass: "bg-auxiliary/10 text-auxiliary",
+    },
+    {
+      key: "duration",
+      icon: Clock,
+      label: durationLabel,
+      hint: "Duration",
+      iconClass: "bg-warning/10 text-warning",
+    },
+    {
+      key: "level",
+      icon: GraduationCap,
+      label: level,
+      hint: "Level",
+      iconClass: "bg-success/10 text-success",
+    },
+  ] as const;
+
   return (
-    <div className="min-h-0 bg-background pb-12">
-      <div className="border-b border-border bg-card">
-        <div className="relative h-52 w-full overflow-hidden bg-muted sm:h-60 md:h-72 lg:h-80">
+    <div className="min-h-0 bg-background pb-16">
+      <header className="border-b border-border bg-card">
+        <div dir="ltr" className="flex items-center justify-between gap-4 px-4 py-3 md:px-8">
+          <h1 className="min-w-0 flex-1 truncate text-[1.17rem] font-bold leading-tight text-foreground sm:text-[1.3rem]">
+            {title}
+          </h1>
+          <a
+            href={CONTACT_INFO.phoneHref}
+            dir="ltr"
+            className="inline-flex shrink-0 items-center gap-2.5 text-foreground"
+          >
+            <Phone className="h-7 w-7 text-primary" strokeWidth={1.6} />
+            <span className="hidden items-baseline gap-1.5 sm:inline-flex">
+              <span className="text-xs font-medium text-muted-foreground">Call us</span>
+              <span className="text-sm font-semibold tabular-nums">{CONTACT_INFO.phone}</span>
+            </span>
+          </a>
+        </div>
+      </header>
+
+      <section className="relative">
+        <div className="h-[35vh] min-h-[220px] w-full overflow-hidden bg-muted">
           {bannerUrl ? (
             <img
               src={bannerUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className="h-full w-full object-cover"
               loading="eager"
               decoding="async"
             />
-          ) : null}
-          <div
-            className={cn(
-              "absolute inset-0 bg-gradient-to-t from-background via-background/75 to-transparent",
-              !bannerUrl && "from-background via-background",
-            )}
-          />
-          <div className="relative mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-6 pt-5 sm:flex-row sm:items-end sm:justify-between sm:pb-8 sm:pt-6 md:px-6">
-            <div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
-              {thumbUrl ? (
-                <img
-                  src={thumbUrl}
-                  alt=""
-                  className="h-24 w-24 shrink-0 rounded-xl border-2 border-background object-cover shadow-lg ring-1 ring-border sm:h-28 sm:w-28 md:h-36 md:w-36"
-                  loading="eager"
-                  decoding="async"
-                />
-              ) : (
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border-2 border-border bg-primary/10 sm:h-28 sm:w-28 md:h-36 md:w-36">
-                  <BookStack className="h-10 w-10 text-primary/60 md:h-14 md:w-14" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  {flagBadges.map((b) => (
-                    <span
-                      key={b.key}
-                      className="rounded-md border border-border bg-background/95 px-2 py-0.5 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm"
-                    >
-                      {b.label}
-                    </span>
-                  ))}
-                </div>
-                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl">
-                  {title}
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">{shortDesc || "—"}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground sm:text-sm">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Language className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    {language}
-                  </span>
-                  <span className="text-border" aria-hidden>
-                    |
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Medal className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    {level}
-                  </span>
-                </div>
-              </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm font-medium text-muted-foreground">
+              Course banner
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => navigate(backHref)}
-              >
-                <NavArrowLeft className="h-4 w-4" />
-                Courses
-              </Button>
-              <Can permission="course.courses.update">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => navigate(`/course/courses/${validId}/edit`)}
-                >
-                  <EditPencil className="h-4 w-4" />
-                  Edit
-                </Button>
-              </Can>
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
+          <div className="mx-auto max-w-6xl px-4 md:px-6">
+            <div dir="ltr" className="pointer-events-auto grid translate-y-1/2 grid-cols-2 gap-3 lg:grid-cols-4">
+              {statTiles.map((stat) => {
+                const StatIcon = stat.icon;
+                return (
+                  <div
+                    key={stat.key}
+                    className="flex h-36 w-full flex-col items-center justify-center rounded-md border border-border bg-card px-3 text-center shadow-sm"
+                  >
+                    <span
+                      className={cn(
+                        "mb-2 flex h-12 w-12 items-center justify-center rounded-full",
+                        stat.iconClass
+                      )}
+                    >
+                      <StatIcon className="h-7 w-7" strokeWidth={1.5} />
+                    </span>
+                    <span className="line-clamp-2 text-sm font-semibold text-foreground">{stat.label}</span>
+                    <span className="mt-0.5 text-[11px] text-muted-foreground">{stat.hint}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
-          <div className="min-w-0 space-y-10">
-            {previewQuery.isLoading ? (
-              <div className="flex justify-center py-10">
-                <Spinner className="h-8 w-8 text-primary" />
-              </div>
-            ) : showPreviewPlayer ? (
-              <section className="space-y-3 rounded-xl border border-border bg-card/50 p-4 shadow-sm sm:p-6">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Play className="h-5 w-5 shrink-0 text-primary" />
-                  Course preview
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Introductory clip. Full lessons unlock after you enroll.
-                </p>
+      <div className="mx-auto max-w-6xl space-y-6 px-4 pb-6 pt-[calc(4.5rem+0.75rem)] md:px-6">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,300px)]">
+          <div className="min-w-0 space-y-4">
+            <div className="overflow-hidden rounded-md border border-border bg-muted">
+              {previewQuery.isLoading ? (
+                <div className="flex h-56 items-center justify-center sm:h-72">
+                  <Spinner className="h-8 w-8 text-primary" />
+                </div>
+              ) : showPreviewPlayer ? (
                 <LessonVideoPlayer
                   src={previewPlayback.src}
                   playbackType={previewPlayback.type === "hls" ? "hls" : "progressive"}
                   className="w-full max-w-full"
                 />
-              </section>
+              ) : (
+                <div className="flex h-56 items-center justify-center sm:h-72">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card text-primary">
+                    <Play className="h-6 w-6" />
+                  </span>
+                </div>
+              )}
+            </div>
+            {previewLesson ? (
+              <div>
+                <p className="text-base font-semibold text-foreground">{previewLesson.title}</p>
+                {previewLesson.description ? (
+                  <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                    {stripHtml(previewLesson.description)}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
+            <Button
+              type="button"
+              className="h-11 w-full rounded-md text-base font-semibold"
+              disabled={purchaseDisabled}
+              onClick={openPurchase}
+            >
+              {authPending ? <Spinner className="me-2 h-4 w-4" /> : <ShoppingBag className="me-2 h-4 w-4" />}
+              Admit to this course
+            </Button>
 
-            {longDesc ? (
-              <section className="space-y-3">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Page className="h-5 w-5 shrink-0 text-primary" />
-                  About this course
-                </h2>
-                {looksLikeHtml(longDesc) ? (
+            <section className="space-y-3 pt-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Course details</p>
+              <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+              {shortDesc ? (
+                looksLikeHtml(shortDesc) ? (
                   <div
-                    className="prose-custom max-w-none text-sm text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: longDesc }}
+                    className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(shortDesc) }}
                   />
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{longDesc}</p>
-                )}
-              </section>
-            ) : null}
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{shortDesc}</p>
+                )
+              ) : null}
+              {longDesc ? (
+                looksLikeHtml(longDesc) ? (
+                  <div
+                    className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(longDesc) }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{longDesc}</p>
+                )
+              ) : null}
+            </section>
 
             {prerequisites ? (
-              <section className="space-y-3">
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <CheckCircle className="h-5 w-5 shrink-0 text-primary" />
-                  Prerequisites
-                </h2>
+              <section className="space-y-2">
+                <h2 className="text-lg font-semibold text-foreground">Course prerequisites</h2>
                 {looksLikeHtml(prerequisites) ? (
                   <div
-                    className="prose-custom max-w-none text-sm text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: prerequisites }}
+                    className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(prerequisites) }}
                   />
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{prerequisites}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{prerequisites}</p>
                 )}
               </section>
             ) : null}
 
             <section className="space-y-3">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                <BookStack className="h-5 w-5 shrink-0 text-primary" />
-                Course content
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {modules.length} module{modules.length === 1 ? "" : "s"}
-              </p>
+              <h2 className="text-lg font-semibold text-foreground">Course curriculum</h2>
               {modules.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
                   No modules published yet.
                 </p>
               ) : (
-                <ul className="space-y-2">
-                  {modules.map((mod) => (
-                    <li
-                      key={mod.id}
-                      className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <NavArrowRight className="h-4 w-4" />
-                      </span>
-                      <span className="font-medium text-foreground">{String(mod.title ?? "Module")}</span>
-                    </li>
-                  ))}
-                </ul>
+                <Accordion dir="ltr" className="overflow-hidden rounded-md border border-border" defaultValue={[]} multiple>
+                  {modules.map((mod) => {
+                    const chapterLessons = lessons.filter((lesson) => lesson.course_module_id === mod.id);
+                    return (
+                      <AccordionItem key={mod.id} value={String(mod.id)}>
+                        <AccordionTrigger className="bg-muted/80">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <BookStack className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="truncate">{String(mod.title ?? "Chapter")}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="bg-muted/30">
+                          {chapterLessons.length === 0 ? (
+                            <p className="py-1 text-sm text-muted-foreground">No lessons in this chapter yet.</p>
+                          ) : (
+                            <ul className="divide-y divide-border">
+                              {chapterLessons.map((lesson) => (
+                                <li key={lesson.id} className="py-2.5 first:pt-1 last:pb-1">
+                                  <p className="text-sm font-medium text-foreground">{lesson.title}</p>
+                                  {lesson.description ? (
+                                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                                      {stripHtml(lesson.description)}
+                                    </p>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
               )}
             </section>
           </div>
 
-          <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
-            <Card className="border-primary/25 shadow-md ring-1 ring-primary/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ShoppingBag className="h-5 w-5 text-primary" />
-                  Enroll
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-baseline justify-between gap-2 border-b border-border pb-3">
-                  <span className="text-sm text-muted-foreground">
-                    {course.is_free ? "Price" : "Starting from"}
-                  </span>
-                  <span
-                    className={`text-2xl font-bold tabular-nums ${course.is_free ? "text-primary" : "text-foreground"}`}
-                  >
-                    {course.is_free ? "Free" : formatMoney(lowestPlanPrice)}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {user
-                    ? "Choose a plan, upload your payment voucher, and submit for review."
-                    : "Sign in or create an account to view plans and complete your purchase."}
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    className="w-full gap-2"
-                    onClick={() => {
-                      if (plans.length === 0 && !course.is_free) return;
-                      if (!user) {
-                        setAuthRequiredModalOpen(true);
-                        return;
-                      }
-                      setPlansOpen(true);
-                    }}
-                    disabled={plans.length === 0 && !course.is_free}
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    {plans.length > 0 ? "View plans" : "Plans unavailable"}
-                  </Button>
-                  {!user ? (
-                    <>
-                      <Button type="button" variant="outline" className="w-full" asChild>
-                        <Link to={loginHref}>Sign in to continue</Link>
-                      </Button>
-                      <Button type="button" variant="ghost" className="w-full text-muted-foreground" asChild>
-                        <Link to={registerHref}>New here? Create an account</Link>
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Page className="h-4 w-4 text-primary" />
-                Details
-              </h3>
-              <dl className="mt-3 space-y-2.5 text-sm">
-                {course.main_category?.title ? (
-                  <div className="flex justify-between gap-2">
-                    <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                      <ViewGrid className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      Main category
-                    </dt>
-                    <dd className="text-right font-medium text-foreground">
-                      {course.main_category.title}
-                    </dd>
-                  </div>
-                ) : null}
-                {course.sub_category?.title ? (
-                  <div className="flex justify-between gap-2">
-                    <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                      <Hashtag className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      Sub category
-                    </dt>
-                    <dd className="text-right font-medium text-foreground">
-                      {course.sub_category.title}
-                    </dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between gap-2">
-                  <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Language className="h-3.5 w-3.5 shrink-0" />
-                    Language
-                  </dt>
-                  <dd className="text-right font-medium text-foreground">{language}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Medal className="h-3.5 w-3.5 shrink-0" />
-                    Level
-                  </dt>
-                  <dd className="text-right font-medium text-foreground">{level}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    Duration
-                  </dt>
-                  <dd className="text-right font-medium text-foreground">
-                    {formatOptionalDisplay(course.estimated_duration)}
-                  </dd>
-                </div>
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-4">
+            <div dir="ltr" className="rounded-md border border-border bg-card p-3">
+              <dl>
+                {factRows.map((row, index) => {
+                  const FactIcon = row.icon;
+                  return (
+                    <div
+                      key={row.label}
+                      className={cn(
+                        "flex items-center justify-between gap-3 py-2 text-sm",
+                        index > 0 && "border-t border-border"
+                      )}
+                    >
+                      <dt className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                        <FactIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="truncate">{row.label}</span>
+                      </dt>
+                      <dd
+                        className="max-w-[55%] truncate text-end font-semibold text-foreground"
+                        dir={row.label === "Price starting" ? "ltr" : undefined}
+                      >
+                        {row.value}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
+              {flagBadges.length > 0 ? (
+                <div className="mt-1 flex flex-wrap gap-1.5 border-t border-border pt-3">
+                  {flagBadges.map((badge) => (
+                    <span
+                      key={badge.key}
+                      className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div dir="ltr" className="rounded-md border border-border bg-card p-3">
+              <h2 className="text-sm font-semibold text-foreground">Latest courses</h2>
+              {latestQuery.isLoading ? (
+                <div className="flex justify-center py-6">
+                  <Spinner className="h-5 w-5 text-primary" />
+                </div>
+              ) : latestCourses.length === 0 ? (
+                <p className="py-4 text-center text-xs text-muted-foreground">No other courses yet.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-border">
+                  {latestCourses.map((row) => (
+                    <li key={row.id}>
+                      <Link
+                        to={`/course/courses/${row.id}/view`}
+                        className="flex items-center gap-2.5 py-2 transition-colors hover:bg-muted/50"
+                      >
+                        {row.thumbnail_url ? (
+                          <img
+                            src={row.thumbnail_url}
+                            alt=""
+                            className="h-11 w-16 shrink-0 rounded-md object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <span className="flex h-11 w-16 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+                            <BookStack className="h-4 w-4" />
+                          </span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
+                            {row.title}
+                          </span>
+                          {row.short_description ? (
+                            <span className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                              {stripHtml(row.short_description)}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </aside>
         </div>
@@ -590,15 +692,20 @@ const CourseViewPage = () => {
         </div>
       ) : null}
 
-      <Drawer open={plansOpen} onClose={() => {
-        setPlansOpen(false);
-        setShowSuccess(false);
-        setSelectedPlanId(null);
-        setVoucherFile(null);
-        enrollmentForm.reset(defaultFormValues);
-      }}>
+      <Drawer
+        open={plansOpen}
+        swipeDirection="down"
+        showSwipeHandle
+        onClose={() => {
+          setPlansOpen(false);
+          setShowSuccess(false);
+          setSelectedPlanId(null);
+          setVoucherFile(null);
+          enrollmentForm.reset(defaultFormValues);
+        }}
+      >
         <DrawerOverlay />
-        <DrawerContent className="max-w-[70vw] max-w-6xl min-w-[800px]">
+        <DrawerContent className="mx-auto w-full max-w-5xl">
           <DrawerHeader>
             <DrawerTitle>Course Subscription</DrawerTitle>
             <DrawerDescription>
@@ -609,17 +716,18 @@ const CourseViewPage = () => {
 
           <DrawerBody className="space-y-6">
             {/* Bank Payment Explanation */}
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/50 p-5">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
-                <Phone className="h-4 w-4" /> Payment Instructions
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-5">
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Phone className="h-4 w-4 text-warning" /> Payment Instructions
               </p>
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                Pay the selected plan amount to:<br />
-                <span className="font-mono text-xs block mt-1 bg-white/70 dark:bg-black/30 p-2 rounded">
+              <p className="text-sm leading-relaxed text-foreground">
+                Pay the selected plan amount to:
+                <span className="mt-2 block rounded-md bg-card px-3 py-2 font-mono text-xs">
                   Raad Institute • A/C: 1234567890 • IBAN: AE12 3456 7890 1234 5678
                 </span>
-                <br />
-                Upload the bank voucher (image or PDF) below. Your subscription will be reviewed and activated within 24-48 hours. Support: +971 50 123 4567
+                <span className="mt-2 block text-muted-foreground">
+                  Upload the bank voucher (image or PDF) below. Your subscription will be reviewed and activated within 24-48 hours. Support: {CONTACT_INFO.phone}
+                </span>
               </p>
             </div>
 
@@ -632,11 +740,12 @@ const CourseViewPage = () => {
                 <>
                   <div>
                     <p className="mb-4 text-sm font-medium text-foreground">Select a Subscription Plan</p>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       {plans.map((p) => {
                         const isSelected = selectedPlanId === p.id;
                         const blocked = isPlanBlocked(p.id);
                         const planPrice = formatMoney(String(p.price));
+                        const description = p.plan_description ? stripHtml(p.plan_description) : "";
                         return (
                           <div
                             key={p.id}
@@ -654,45 +763,45 @@ const CourseViewPage = () => {
                               }
                             }}
                             className={cn(
-                              "rounded-2xl border p-6 transition-all",
+                              "flex h-full flex-col rounded-2xl border bg-card p-5 text-start transition-colors",
                               blocked
-                                ? "cursor-not-allowed border-muted bg-muted/30 opacity-70"
-                                : "cursor-pointer hover:shadow-lg hover:-translate-y-0.5",
-                              !blocked &&
-                                (isSelected
-                                  ? "border-primary bg-primary/5 ring-2 ring-primary ring-offset-2"
-                                  : "border-border hover:border-primary/60 bg-card"),
+                                ? "cursor-not-allowed border-border bg-muted/40 opacity-70"
+                                : "cursor-pointer hover:border-primary/50",
+                              !blocked && isSelected && "border-primary ring-2 ring-primary/25",
                             )}
                           >
-                            <div className="flex justify-between">
-                              <div className="flex-1 pr-4">
-                                <p className="font-semibold text-xl text-foreground">{p.plan_name}</p>
-                                {p.plan_description && (
-                                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed pr-2">
-                                    {p.plan_description}
-                                  </p>
-                                )}
-                                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span className="px-2.5 py-0.5 bg-muted rounded-full">
-                                    {p.duration_in_days} days
-                                  </span>
-                                  <span>{p.subscription_type}</span>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <div className="text-3xl font-bold text-primary tabular-nums tracking-tighter">
-                                  {planPrice}
-                                </div>
-                                {blocked ? (
-                                  <div className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-muted px-4 py-1 text-xs font-medium text-muted-foreground">
-                                    Already pending or active
-                                  </div>
-                                ) : isSelected ? (
-                                  <div className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1 text-xs font-medium text-primary-foreground">
-                                    <CheckCircle className="h-3.5 w-3.5" /> Selected
-                                  </div>
-                                ) : null}
-                              </div>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-base font-semibold text-foreground">{p.plan_name}</p>
+                              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium capitalize text-primary">
+                                {p.subscription_type}
+                              </span>
+                            </div>
+                            <p dir="ltr" className="mt-4 text-3xl font-bold tabular-nums tracking-tight text-foreground">
+                              {planPrice}
+                            </p>
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" />
+                              {p.duration_in_days} days
+                            </p>
+                            {description ? (
+                              <p className="mt-3 line-clamp-4 flex-1 text-sm leading-relaxed text-muted-foreground">
+                                {description}
+                              </p>
+                            ) : (
+                              <span className="flex-1" />
+                            )}
+                            <div className="mt-4">
+                              {blocked ? (
+                                <span className="inline-flex rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                                  Already pending or active
+                                </span>
+                              ) : isSelected ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                                  <CheckCircle className="h-3.5 w-3.5" /> Selected
+                                </span>
+                              ) : (
+                                <span className="text-sm font-medium text-primary">Select plan</span>
+                              )}
                             </div>
                           </div>
                         );
@@ -845,7 +954,7 @@ const CourseViewPage = () => {
                 <div className="mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-800 dark:bg-emerald-950/30 text-left w-full max-w-md">
                   <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-2">Need help?</p>
                   <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                    <Phone className="h-4 w-4" /> Support: <span className="font-mono">+971 50 123 4567</span>
+                    <Phone className="h-4 w-4" /> Support: <span className="font-mono">{CONTACT_INFO.phone}</span>
                   </p>
                 </div>
                 <Button
