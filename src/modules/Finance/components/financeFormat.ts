@@ -1,5 +1,9 @@
 import { endOfIsoMonth, localIsoDate } from "@/lib/date";
-import type { FinancePeriod } from "../data/models/FinanceReport";
+import type {
+  FinancePeriod,
+  FinancialTransactionFilter,
+  TransactionPayer,
+} from "../data/models/FinanceReport";
 
 export { localIsoDate };
 
@@ -48,6 +52,22 @@ export function defaultPeriodState(period: PeriodTab = "today"): PeriodState {
     from: `${today.slice(0, 7)}-01`,
     to: today,
   };
+}
+
+/** Every filter on the transactions page, applied together. */
+export interface TransactionFilterState {
+  period: PeriodState;
+  filter: FinancialTransactionFilter | "";
+  payer: TransactionPayer | "";
+}
+
+export function defaultTransactionFilters(): TransactionFilterState {
+  return { period: defaultPeriodState("all"), filter: "", payer: "" };
+}
+
+/** How many filters the user moved away from the default (all time / all types / all payers). */
+export function countActiveTransactionFilters(value: TransactionFilterState): number {
+  return (value.period.period === "all" ? 0 : 1) + (value.filter ? 1 : 0) + (value.payer ? 1 : 0);
 }
 
 export interface PeriodQuery {
