@@ -1,21 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { Page } from "iconoir-react";
-import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
+import { DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
 import { fetchAllListPages } from "@/lib/fetchAllListPages";
 import { cn } from "@/lib/utils";
 import type { DataTableConfig } from "@/types/datatable";
-import FinancePeriodFilter from "../../components/FinancePeriodFilter";
 import FinanceStatusBadge from "../../components/FinanceStatusBadge";
+import TransactionFiltersDrawer from "../../components/TransactionFiltersDrawer";
 import {
-  defaultPeriodState,
+  defaultTransactionFilters,
   formatMoney,
   openPdf,
   periodRange,
-  type PeriodState,
+  type TransactionFilterState,
 } from "../../components/financeFormat";
 import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
 import type {
@@ -35,9 +34,8 @@ import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
 const TransactionsPage = () => {
   const { t } = useTranslation();
   const { hasPermission } = useAuth();
-  const [filter, setFilter] = useState<FinancialTransactionFilter | "">("");
-  const [payer, setPayer] = useState<TransactionPayer | "">("");
-  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("daily"));
+  const [filters, setFilters] = useState<TransactionFilterState>(defaultTransactionFilters);
+  const { filter, payer, period: periodState } = filters;
   const [account, setAccount] = useState<(Partial<FinanceClassRow> & { id: number }) | null>(null);
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
@@ -63,7 +61,7 @@ const TransactionsPage = () => {
   const pagination = extractFinancialTransactionsPagination(data);
   const totals = extractFinancialTransactionTotals(data);
 
-  const filters: { value: FinancialTransactionFilter | ""; label: string }[] = [
+  const typeOptions: { value: FinancialTransactionFilter | ""; label: string }[] = [
     { value: "", label: t("finance.transactions.filterAll") },
     { value: "payment", label: t("fin.transactions.filterPayment") },
     { value: "refund", label: t("finance.transactions.filterRefund") },
@@ -75,12 +73,18 @@ const TransactionsPage = () => {
     { value: "pending", label: t("finance.transactions.filterPending") },
   ];
 
-  const payers: { value: TransactionPayer | ""; label: string }[] = [
+  const payerOptions: { value: TransactionPayer | ""; label: string }[] = [
     { value: "", label: t("fin.payer.all") },
     { value: "student", label: t("fin.payer.student") },
     { value: "mof", label: t("fin.payer.mof") },
     { value: "other_party", label: t("fin.payer.other_party") },
   ];
+
+  const activeSummary = [
+    periodState.period === "all" ? null : t(`fin.period.${periodState.period}`),
+    filter ? typeOptions.find((option) => option.value === filter)?.label : null,
+    payer ? payerOptions.find((option) => option.value === payer)?.label : null,
+  ].filter((label): label is string => Boolean(label));
 
   const openRow = useCallback((row: FinancialTransactionRow) => {
     if (row.class_student_id) {
@@ -277,59 +281,16 @@ const TransactionsPage = () => {
             />
           </div>
         </div>
-        <Button type="button" variant="outline" asChild>
-          <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
-        </Button>
+        <TransactionFiltersDrawer
+          value={filters}
+          typeOptions={typeOptions}
+          payerOptions={payerOptions}
+          onApply={(next) => {
+            setFilters(next);
+            updateParams({ page: 1 });
+          }}
+        />
       </div>
-
-      <Card className="shadow-none">
-        <CardContent className="space-y-4 p-4">
-          <FinancePeriodFilter
-            value={periodState}
-            idPrefix="tx-period"
-            onChange={(next) => {
-              setPeriodState(next);
-              updateParams({ page: 1 });
-            }}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex flex-wrap rounded-lg border border-border p-1">
-              {filters.map((item) => (
-                <Button
-                  key={item.value || "all"}
-                  type="button"
-                  size="sm"
-                  variant={filter === item.value ? "default" : "ghost"}
-                  className="whitespace-nowrap"
-                  onClick={() => {
-                    setFilter(item.value);
-                    updateParams({ page: 1 });
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-            <div className="inline-flex flex-wrap rounded-lg border border-border p-1">
-              {payers.map((item) => (
-                <Button
-                  key={item.value || "all-payers"}
-                  type="button"
-                  size="sm"
-                  variant={payer === item.value ? "secondary" : "ghost"}
-                  className="whitespace-nowrap"
-                  onClick={() => {
-                    setPayer(item.value);
-                    updateParams({ page: 1 });
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div
         className={cn(
@@ -356,6 +317,21 @@ const TransactionsPage = () => {
           value={formatMoney(totals?.net_cash ?? 0)}
           tone="text-primary"
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {activeSummary.length === 0 ? (
+          <span className="text-muted-foreground">{t("fin.filters.none")}</span>
+        ) : (
+          activeSummary.map((label) => (
+            <span
+              key={label}
+              className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary"
+            >
+              {label}
+            </span>
+          ))
+        )}
       </div>
 
       <DataTable
