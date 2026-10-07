@@ -12,6 +12,7 @@ export { Popover, PopoverTrigger, PopoverClose, PopoverContent } from "./popover
 export { Calendar, CalendarDayButton } from "./calendar";
 export { DatePicker, MonthPicker, YearPicker, DateRangePicker } from "./date-picker";
 export type { IsoDateRange } from "./date-picker";
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "./tabs";
 export {
   Sidebar,
   SidebarContent,
