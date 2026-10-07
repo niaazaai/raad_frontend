@@ -37,9 +37,10 @@ const LANG = [
 ];
 
 const LEVEL = [
-  { value: "BEGINNER", label: "Beginner" },
-  { value: "INTERMEDIATE", label: "Intermediate" },
-  { value: "ADVANCED", label: "Advanced" },
+  { value: "Essential", label: "Essential" },
+  { value: "Comprehensive", label: "Comprehensive" },
+  { value: "Practice-Intensive", label: "Practice-Intensive" },
+  { value: "Expert-Led", label: "Expert-Led" },
 ];
 
 const ACTIVE_INACTIVE = [
