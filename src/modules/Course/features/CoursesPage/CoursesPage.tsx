@@ -12,6 +12,7 @@ import {
 import { useDataTableParams } from "@/hooks";
 import { Can, useAuth } from "@/features/auth";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
+import { courseLevelLabel } from "@/data/enums/courseWizard";
 import { COURSE_ENTITY_REGISTRY } from "../../data/courseRegistry";
 import {
   getCourseListFromResponse,
@@ -62,7 +63,7 @@ const CoursesPage = () => {
           key: "level",
           header: "Level",
           sortable: true,
-          render: (row) => String(row.level ?? "—"),
+          render: (row) => courseLevelLabel(row.level),
         },
         {
           key: "status",
@@ -159,7 +160,7 @@ const CoursesPage = () => {
                   {String(row.short_description ?? row.long_description ?? "No description")}
                 </p>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{String(row.level ?? "—")}</span>
+                  <span>{courseLevelLabel(row.level)}</span>
                   <span>{String(row.language ?? "—")}</span>
                 </div>
                 <div className="flex items-center justify-end">
