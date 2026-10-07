@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useMemo, useState, type ComponentType } from "react";
+import { useNavigate } from "react-router-dom";
 import { Page, Phone, Wallet } from "iconoir-react";
-import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
+import { AlertTriangle, CalendarClock, CalendarDays, CalendarOff, ListFilter } from "lucide-react";
+import {
+  DataTable,
+  PageBreadcrumb,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -18,6 +26,17 @@ import { extractDuesMeta, extractDuesRows, useFinanceDues } from "../../hooks/us
 import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
 
 const BUCKETS: DuesBucket[] = ["overdue", "week", "upcoming", "all", "no_date"];
+
+const BUCKET_THEMES: Record<
+  DuesBucket,
+  { icon: ComponentType<{ className?: string }>; tone: string }
+> = {
+  overdue: { icon: AlertTriangle, tone: "bg-danger/15 text-danger" },
+  week: { icon: CalendarClock, tone: "bg-warning/15 text-warning" },
+  upcoming: { icon: CalendarDays, tone: "bg-info/15 text-info" },
+  all: { icon: ListFilter, tone: "bg-primary/15 text-primary" },
+  no_date: { icon: CalendarOff, tone: "bg-muted text-muted-foreground" },
+};
 
 /**
  * Dues & follow-up. A due stays listed until it is paid (or classified / written off / cancelled):
@@ -220,73 +239,68 @@ const UpcomingDuesPage = () => {
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {canReceive ? (
-            <Button type="button" asChild>
-              <Link to="/finance/receive-payment">
-                <Wallet className="h-4 w-4" />
-                {t("finance.receivePayment.title")}
-              </Link>
-            </Button>
-          ) : null}
-          <Button type="button" variant="outline" asChild>
-            <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
-          </Button>
+      </div>
+
+      <TooltipProvider delayDuration={150}>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {BUCKETS.map((value) => {
+            const active = bucket === value;
+            const count = counts?.[value];
+            const { icon: Icon, tone } = BUCKET_THEMES[value];
+            return (
+              <Tooltip key={value}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBucket(value);
+                      updateParams({ page: 1 });
+                    }}
+                    className={cn(
+                      "relative rounded-xl border p-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      active
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border bg-card hover:bg-muted/40"
+                    )}
+                    aria-pressed={active}
+                  >
+                    <span className={cn("absolute end-3 top-3 rounded-lg p-2", tone)}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <p className="pe-11 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t(`fin.dues.tabs.${value}`)}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 text-2xl font-bold tabular-nums",
+                        value === "overdue" && (count ?? 0) > 0
+                          ? "text-danger"
+                          : active
+                            ? "text-primary"
+                            : "text-foreground"
+                      )}
+                    >
+                      {count ?? "—"}
+                    </p>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  {t(`fin.dues.tips.${value}`)}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </div>
-      </div>
+      </TooltipProvider>
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {BUCKETS.map((value) => {
-          const active = bucket === value;
-          const count = counts?.[value];
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => {
-                setBucket(value);
-                updateParams({ page: 1 });
-              }}
-              className={cn(
-                "rounded-xl border p-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-border bg-card hover:bg-muted/40"
-              )}
-              aria-pressed={active}
-            >
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t(`fin.dues.tabs.${value}`)}
-              </p>
-              <p
-                className={cn(
-                  "mt-1 text-2xl font-bold tabular-nums",
-                  value === "overdue" && (count ?? 0) > 0
-                    ? "text-danger"
-                    : active
-                      ? "text-primary"
-                      : "text-foreground"
-                )}
-              >
-                {count ?? "—"}
-              </p>
-            </button>
-          );
-        })}
-      </div>
-
-      <Card className="shadow-none">
-        <CardContent className="p-0">
-          <DataTable
-            data={rows}
-            config={config}
-            params={params}
-            onParamsChange={updateParams}
-            pagination={pagination ?? null}
-            isLoading={isLoading}
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        data={rows}
+        config={config}
+        params={params}
+        onParamsChange={updateParams}
+        pagination={pagination ?? null}
+        isLoading={isLoading}
+      />
 
       <FinanceDetailsDrawer
         open={account != null}
