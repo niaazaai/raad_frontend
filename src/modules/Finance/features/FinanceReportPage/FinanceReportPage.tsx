@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bank,
+  CalendarArrowDown,
   Cart,
   CheckCircle,
   Clock,
@@ -10,7 +11,11 @@ import {
   Eye,
   GraphUp,
   Group,
+  HandCash,
+  List,
   MoreHoriz,
+  PageEdit,
+  PageFlip,
   Percentage,
   Undo,
   Wallet,
@@ -19,8 +24,7 @@ import {
 } from "iconoir-react";
 import {
   Button,
-  Card,
-  CardContent,
+  ButtonGroup,
   DataTable,
   DropdownMenu,
   DropdownMenuContent,
@@ -90,7 +94,7 @@ const FinanceReportPage = () => {
   const { t } = useTranslation();
   const { hasPermission, hasAnyPermission } = useAuth();
   const [module, setModule] = useState<FinanceModule>("class");
-  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("daily"));
+  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("today"));
   const [scope, setScope] = useState<FinanceReportScope>("activity");
   const [detailsRow, setDetailsRow] = useState<
     (Partial<FinanceClassRow> & { id: number }) | FinanceCourseRow | null
@@ -443,11 +447,54 @@ const FinanceReportPage = () => {
     summary.free_count ? ` · ${summary.free_count} ${t("fin.cards.freeStudents")}` : ""
   }`;
 
+  const tableToolbar = (
+    <div className="flex w-full min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end">
+      {isFetching && data ? (
+        <span className="text-xs text-primary">{t("fin.updating")}</span>
+      ) : null}
+      <ButtonGroup aria-label={t("finance.classModule")} className="w-full lg:w-auto">
+        <Button
+          type="button"
+          size="sm"
+          aria-pressed={module === "class"}
+          variant={module === "class" ? "default" : "outline"}
+          className={cn(
+            "min-w-0 flex-1 lg:flex-none",
+            module !== "class" && "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setModuleAndReset("class")}
+        >
+          <Group className="h-4 w-4" />
+          {t("finance.classModule")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          aria-pressed={module === "course"}
+          variant={module === "course" ? "default" : "outline"}
+          className={cn(
+            "min-w-0 flex-1 lg:flex-none",
+            module !== "course" && "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setModuleAndReset("course")}
+        >
+          <Cart className="h-4 w-4" />
+          {t("finance.courseModule")}
+        </Button>
+      </ButtonGroup>
+      <FinancePeriodFilter
+        className="w-full min-w-0 lg:w-auto"
+        value={periodState}
+        onChange={onPeriodChange}
+      />
+    </div>
+  );
+
   return (
     <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {t("finance.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("finance.subtitle")}</p>
@@ -460,74 +507,65 @@ const FinanceReportPage = () => {
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" asChild>
-            <Link to="/finance/transactions">{t("finance.transactions.title")}</Link>
-          </Button>
-          <Button type="button" variant="outline" asChild>
-            <Link to="/finance/upcoming-dues">
-              <Clock className="h-4 w-4" />
-              {t("fin.dues.title")}
-            </Link>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" aria-label={t("fin.more")}>
-                <MoreHoriz className="h-4 w-4" />
-                {t("fin.more")}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link to="/finance/invoices">{t("finance.invoices.title")}</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/finance/service-income">{t("finance.serviceIncome.title")}</Link>
-              </DropdownMenuItem>
-              {canReceivePayment ? (
-                <DropdownMenuItem asChild>
-                  <Link to="/finance/manual-invoice">{t("finance.manualInvoice.title")}</Link>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <ButtonGroup className="w-full min-w-0 sm:w-auto sm:shrink-0">
           {canReceivePayment ? (
-            <Button type="button" asChild>
+            <Button type="button" asChild className="min-w-0 flex-1 sm:flex-none">
               <Link to="/finance/receive-payment">
-                <Wallet className="h-4 w-4" />
+                <HandCash className="h-4 w-4" />
                 {t("finance.receivePayment.title")}
               </Link>
             </Button>
           ) : null}
-        </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant={canReceivePayment ? "outline" : "default"}
+                size={canReceivePayment ? "icon" : undefined}
+                className="shrink-0"
+                aria-label={t("fin.more")}
+              >
+                <MoreHoriz className="h-4 w-4" />
+                {canReceivePayment ? null : t("fin.more")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link to="/finance/transactions">
+                  <List className="h-4 w-4" />
+                  {t("finance.transactions.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/upcoming-dues">
+                  <CalendarArrowDown className="h-4 w-4" />
+                  {t("fin.dues.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/invoices">
+                  <PageFlip className="h-4 w-4" />
+                  {t("finance.invoices.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/service-income">
+                  <Coins className="h-4 w-4" />
+                  {t("finance.serviceIncome.title")}
+                </Link>
+              </DropdownMenuItem>
+              {canReceivePayment ? (
+                <DropdownMenuItem asChild>
+                  <Link to="/finance/manual-invoice">
+                    <PageEdit className="h-4 w-4" />
+                    {t("finance.manualInvoice.title")}
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
       </div>
-
-      <Card className="shadow-none">
-        <CardContent className="flex flex-wrap items-end gap-3 p-4">
-          <div className="inline-flex rounded-lg border border-border bg-card p-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={module === "class" ? "default" : "ghost"}
-              onClick={() => setModuleAndReset("class")}
-            >
-              {t("finance.classModule")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={module === "course" ? "default" : "ghost"}
-              onClick={() => setModuleAndReset("course")}
-            >
-              {t("finance.courseModule")}
-            </Button>
-          </div>
-          <FinancePeriodFilter value={periodState} onChange={onPeriodChange} />
-          {isFetching && data ? (
-            <span className="ms-auto text-xs text-primary">{t("fin.updating")}</span>
-          ) : null}
-        </CardContent>
-      </Card>
 
       <TooltipProvider delayDuration={150}>
         {module === "class" ? (
@@ -544,7 +582,7 @@ const FinanceReportPage = () => {
               </div>
               <div
                 className={cn(
-                  "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                   loadingCards && "opacity-60"
                 )}
               >
@@ -667,7 +705,7 @@ const FinanceReportPage = () => {
               </div>
               <div
                 className={cn(
-                  "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
                   loadingCards && "opacity-60"
                 )}
               >
@@ -740,7 +778,10 @@ const FinanceReportPage = () => {
           </div>
         ) : (
           <div
-            className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-4", loadingCards && "opacity-60")}
+            className={cn(
+              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+              loadingCards && "opacity-60"
+            )}
           >
             <SummaryCard
               label={t("finance.courseIncome")}
@@ -775,7 +816,7 @@ const FinanceReportPage = () => {
 
       {module === "class" ? (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t("fin.scope.label")}
             </span>
@@ -811,6 +852,7 @@ const FinanceReportPage = () => {
             onParamsChange={updateParams}
             pagination={pagination}
             isLoading={isLoading}
+            toolbar={tableToolbar}
           />
         </div>
       ) : (
@@ -821,6 +863,7 @@ const FinanceReportPage = () => {
           onParamsChange={updateParams}
           pagination={pagination}
           isLoading={isLoading}
+          toolbar={tableToolbar}
         />
       )}
 
