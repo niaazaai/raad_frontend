@@ -13,6 +13,7 @@ export { Calendar, CalendarDayButton } from "./calendar";
 export { DatePicker, MonthPicker, YearPicker, DateRangePicker } from "./date-picker";
 export type { IsoDateRange } from "./date-picker";
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "./tabs";
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./accordion";
 export {
   Sidebar,
   SidebarContent,
