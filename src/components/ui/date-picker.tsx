@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   CalendarSearch,
@@ -36,6 +37,22 @@ interface BasePickerProps {
 function useCalendarDir(): "ltr" | "rtl" {
   const locale = useLocaleStore((s) => s.locale);
   return isRtlLocale(locale) ? "rtl" : "ltr";
+}
+
+function useWideCalendar(): boolean {
+  const [wide, setWide] = React.useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(min-width: 768px)").matches
+  );
+
+  React.useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const apply = () => setWide(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  return wide;
 }
 
 /**
@@ -282,7 +299,7 @@ const YearPicker = ({
         size={size}
         disabled={disabled}
         className={className}
-        icon={<CalendarSearch />}
+        icon={<CalendarClock />}
         label={selectedYear ? String(selectedYear) : placeholder}
       />
       <PopoverContent align={align} className="w-64 p-3">
@@ -344,7 +361,7 @@ export interface IsoDateRange {
 interface DateRangePickerProps extends BasePickerProps {
   value: IsoDateRange;
   onChange: (value: IsoDateRange) => void;
-  /** Separator between the two dates in the trigger label. */
+  /** Separator between the two dates in the trigger label. Directionless so RTL reads correctly. */
   separator?: string;
 }
 
@@ -352,7 +369,7 @@ const DateRangePicker = ({
   value,
   onChange,
   placeholder = "Pick a date range",
-  separator = "→",
+  separator = "–",
   align = "start",
   size,
   className,
@@ -361,6 +378,7 @@ const DateRangePicker = ({
 }: DateRangePickerProps) => {
   const [open, setOpen] = React.useState(false);
   const dir = useCalendarDir();
+  const wide = useWideCalendar();
   const intlLocale = useIntlLocale();
   const from = parseIsoDate(value.from);
   const to = parseIsoDate(value.to);
@@ -387,7 +405,7 @@ const DateRangePicker = ({
           mode="range"
           dir={dir}
           autoFocus
-          numberOfMonths={2}
+          numberOfMonths={wide ? 2 : 1}
           defaultMonth={from}
           selected={from ? { from, to } : undefined}
           onSelect={(range) => {
