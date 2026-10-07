@@ -790,6 +790,19 @@ Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `us
   - Enroll existing students, remove, grade+marks, disable with reason, payment/discount fields per enrollment (pivot `class_student`).
 - **Removed:** `student-discounts` entity and routes (discount handled per enrollment on class students page).
 
+### Finance module (v2) — current behavior
+
+Accounting rules live in the backend (`EnrollmentBalanceCalculator`, see `backend/README.BACKEND.LLM.md` → Finance Module). The UI shows what the API returns and never re-derives balances, except the live preview in `ClassStudentPaymentForm`, which mirrors the same rules.
+
+- **Shared components** (`src/modules/Finance/components/`): `FinancePeriodFilter`, `SummaryCard` (a keyboard-accessible button that opens the breakdown), `FinanceBreakdownDrawer`, `FinanceStatusBadge` (incl. Free / Written off / Withdrawn / Moved), `MoneyWaterfall`, `MoveEnrollmentDrawer`, `TransactionFiltersDrawer`, `financeFormat.ts`. Use these; don't copy another `PaymentBadge`/`formatMoney`.
+- **Pages** (`features/`): report (`/finance`), transactions, invoices, dues (`UpcomingDuesPage` → "Dues & follow-up"), receive payment (`?enrollment=` prefill; modes Payment / Receive written-off debt / Settle MOF-other; Save discount), service income, manual invoice.
+- **Report rows:** `scope=activity` ("Money movement in period": transactions dated in the period) or `scope=cohort` ("Fee date in period"). Each button has a hover tooltip (`fin.scope.activityHint` / `cohortHint`). Double-clicking a row opens the details drawer.
+- **Dates:** every finance filter and sort uses the **transaction date**; the issue date is display-only.
+- **Data freshness:** `useQueryApi` no longer defaults to `keepPreviousData` (it showed the previous filter's rows, so "today" looked like last week). Paginated tables opt in explicitly. Finance hooks use `FINANCE_STALE_TIME` (15 s) + `refetchOnMount: "always"`. Every finance/student mutation invalidates `FINANCE_RELATED_QUERY_KEYS` (finance, lms-classes, lms-class-students, dashboard).
+- **Toasts:** `callApi` is the only place that shows API toasts, deduped by toast id. Pages must not add their own success/error toast for the same call.
+- **Student edit:** `serializeCourseEntityPayload` sends cleared fields as `null` on edit, so clearing phone, ID or email actually saves.
+- **i18n:** finance strings are in `src/i18n/financeV2Messages.ts` (en / ps / fa), merged into `translations.ts`, under the `fin.*` keys.
+
 ### Course categories (main / sub) — current behavior
 
 - **Images in tables + view:** the API now returns `thumbnail_url` (signed) on `main-categories` / `sub-categories`. `CategoryImageCell` (in `CourseEntityList.tsx`) and the form-drawer view image prefer `row.thumbnail_url`, then fall back to the session-authenticated `/main-categories|sub-categories/{id}/thumbnail` endpoint, then to an initials placeholder. When adding new image columns, mirror this "signed URL first, endpoint fallback, initials last" pattern.
