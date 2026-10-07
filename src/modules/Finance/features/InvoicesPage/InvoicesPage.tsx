@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Page } from "iconoir-react";
 import { Link } from "react-router-dom";
-import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
+import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -169,8 +169,14 @@ const InvoicesPage = () => {
         </Button>
       </div>
 
-      <Card className="shadow-none">
-        <CardContent className="p-4">
+      <DataTable
+        data={rows}
+        config={config}
+        params={params}
+        onParamsChange={updateParams}
+        pagination={pagination}
+        isLoading={isLoading}
+        toolbar={
           <FinancePeriodFilter
             value={periodState}
             idPrefix="invoice-period"
@@ -179,16 +185,7 @@ const InvoicesPage = () => {
               updateParams({ page: 1 });
             }}
           />
-        </CardContent>
-      </Card>
-
-      <DataTable
-        data={rows}
-        config={config}
-        params={params}
-        onParamsChange={updateParams}
-        pagination={pagination}
-        isLoading={isLoading}
+        }
       />
     </div>
   );
