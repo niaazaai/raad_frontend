@@ -45,6 +45,8 @@ export interface DataTableProps<T = unknown> {
   onParamsChange: (updates: Partial<DataTableParams>) => void;
   pagination?: DataTablePaginationMeta | null;
   isLoading?: boolean;
+  /** Rendered on the toolbar's trailing edge, beside search and export. */
+  toolbar?: React.ReactNode;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 250];
@@ -199,6 +201,7 @@ export function DataTable<T>({
   onParamsChange,
   pagination,
   isLoading = false,
+  toolbar,
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const fmt = useFormatMessage();
@@ -251,27 +254,41 @@ export function DataTable<T>({
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-4">
-      {/* Search - top left */}
-      {(searchable || exportEnabled) && (
-        <div className="flex max-w-xl items-center gap-2">
-          {searchable ? (
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={resolvedSearchPlaceholder}
-                value={params.search}
-                onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
-                className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                aria-label={t("dataTable.searchLabel")}
-              />
+      {/* Toolbar: search + export on the leading side, custom filters on the trailing side */}
+      {(searchable || exportEnabled || toolbar) && (
+        <div className="flex w-full min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {searchable || exportEnabled ? (
+            <div className="flex w-full min-w-0 items-center gap-2 lg:max-w-xl">
+              {searchable ? (
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder={resolvedSearchPlaceholder}
+                    value={params.search}
+                    onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
+                    className="h-9 w-full rounded-lg border border-input bg-background pe-4 ps-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    aria-label={t("dataTable.searchLabel")}
+                  />
+                </div>
+              ) : null}
+              {exportEnabled ? (
+                <Button
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                  aria-label={t("dataTable.exportExcel")}
+                  className="h-9 shrink-0 bg-foreground px-3 text-background hover:bg-foreground/90 sm:px-4"
+                >
+                  <ExcelSheetIcon />
+                  <span className="hidden sm:inline">{t("dataTable.exportExcel")}</span>
+                </Button>
+              ) : null}
             </div>
           ) : null}
-          {exportEnabled ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-              <ExcelSheetIcon />
-              {t("dataTable.exportExcel")}
-            </Button>
+          {toolbar ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+              {toolbar}
+            </div>
           ) : null}
         </div>
       )}
@@ -331,7 +348,8 @@ export function DataTable<T>({
                   onDoubleClick={(event) => {
                     if (!onRowDoubleClick) return;
                     const target = event.target as HTMLElement | null;
-                    if (target?.closest("button, a, input, textarea, select, [role='menuitem']")) return;
+                    if (target?.closest("button, a, input, textarea, select, [role='menuitem']"))
+                      return;
                     onRowDoubleClick(row);
                   }}
                 >
