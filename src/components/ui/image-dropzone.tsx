@@ -108,8 +108,7 @@ const ImageDropzone = ({
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors cursor-pointer",
-          previewMode === "wide" && "py-8",
+          "flex min-h-[148px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors cursor-pointer",
           dragOver
             ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/50 hover:bg-muted/30",
@@ -146,8 +145,8 @@ const ImageDropzone = ({
                 src={previewUrl}
                 alt="Voucher preview"
                 className={cn(
-                  "max-h-64 w-full max-w-md rounded-lg border border-border bg-muted/20 object-contain",
-                  previewMode === "square" && "h-24 w-24 max-h-24 max-w-24 object-cover"
+                  "h-24 rounded-lg border border-border bg-muted/20 object-cover",
+                  previewMode === "square" ? "w-24" : "w-full max-w-md"
                 )}
               />
             ) : initialPreviewUrl && !remotePreviewFailed && mediaPreview === "video" ? (
@@ -167,10 +166,17 @@ const ImageDropzone = ({
                 alt="Preview"
                 onError={() => setRemotePreviewFailed(true)}
                 className={cn(
-                  "object-cover border border-border rounded-lg",
-                  previewMode === "square" ? "h-24 w-24" : "h-20 w-full max-w-[240px]"
+                  "h-24 object-cover border border-border rounded-lg",
+                  previewMode === "square" ? "w-24" : "w-full max-w-md"
                 )}
               />
+            ) : value ? (
+              <div className="flex max-w-md flex-col items-center gap-1 px-2">
+                <Page className="h-8 w-8 text-primary" />
+                <span className="max-w-full truncate text-sm font-medium text-foreground">
+                  {value.name || initialPreviewName || "File"}
+                </span>
+              </div>
             ) : null}
             <button
               type="button"
