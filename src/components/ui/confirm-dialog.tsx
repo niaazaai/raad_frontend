@@ -3,6 +3,7 @@
 /* eslint-disable react-refresh/only-export-components -- provider, hooks, and preset maps are intentional API surface */
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { WarningTriangle, Trash, InfoCircle, CheckCircle, Xmark } from "iconoir-react";
 import { type VariantProps } from "class-variance-authority";
 import { Spinner } from "./spinner";
@@ -173,13 +174,13 @@ function ConfirmDialogComponent({
   const config = variantConfig[variant];
   const displayIcon = icon || config.icon;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-md" onClick={onCancel} />
 
-      {/* Dialog */}
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 animate-in fade-in-0 zoom-in-95">
+      {/* Dialog — above drawers (z-50) so confirms stay readable and clickable */}
+      <div className="fixed left-1/2 top-1/2 z-[100] w-full max-w-md -translate-x-1/2 -translate-y-1/2 animate-in fade-in-0 zoom-in-95">
         <div className="rounded-xl border border-border bg-card shadow-xl">
           {/* Close button */}
           <button
@@ -229,7 +230,8 @@ function ConfirmDialogComponent({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
