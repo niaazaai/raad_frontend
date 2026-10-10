@@ -22,6 +22,7 @@ import {
 } from "iconoir-react";
 import {
   Button,
+  Checkbox,
   Drawer,
   DrawerBody,
   DrawerContent,
@@ -82,6 +83,10 @@ const COURSE_DETAIL_FLAG_LABELS: Record<CourseDetailFlagField, string> = {
   is_new: "New",
   is_free: "Free",
 };
+
+function toCourseFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
 
 /** Radix Select cannot use empty string — optional numeric FKs use this sentinel */
 const SELECT_NONE_VALUE = "__none__";
@@ -700,10 +705,10 @@ const CourseWizardPage = () => {
     setValue("banner", String(detail.banner ?? ""));
     const instructorId = Number(detail.instructor_id ?? 0);
     setValue("instructor_id", instructorId > 0 ? instructorId : undefined);
-    setValue("is_featured", Boolean(detail.is_featured));
-    setValue("is_popular", Boolean(detail.is_popular));
-    setValue("is_new", Boolean(detail.is_new));
-    setValue("is_free", Boolean(detail.is_free));
+    setValue("is_featured", toCourseFlag(detail.is_featured));
+    setValue("is_popular", toCourseFlag(detail.is_popular));
+    setValue("is_new", toCourseFlag(detail.is_new));
+    setValue("is_free", toCourseFlag(detail.is_free));
     setThumbnailFile(null);
     setBannerFile(null);
     const planIdsRaw = detail.subscription_plan_ids;
@@ -764,10 +769,10 @@ const CourseWizardPage = () => {
       prerequisites: values.prerequisites,
       language: values.language,
       instructor_id: values.instructor_id,
-      is_featured: values.is_featured,
-      is_popular: values.is_popular,
-      is_new: values.is_new,
-      is_free: values.is_free,
+      is_featured: toCourseFlag(values.is_featured),
+      is_popular: toCourseFlag(values.is_popular),
+      is_new: toCourseFlag(values.is_new),
+      is_free: toCourseFlag(values.is_free),
       status: "active",
       subscription_plan_ids: selectedSubscriptionPlanIds,
     };
@@ -842,10 +847,10 @@ const CourseWizardPage = () => {
       language: values.language,
       ...(values.level ? { level: values.level } : {}),
       instructor_id: values.instructor_id,
-      is_featured: values.is_featured,
-      is_popular: values.is_popular,
-      is_new: values.is_new,
-      is_free: values.is_free,
+      is_featured: toCourseFlag(values.is_featured),
+      is_popular: toCourseFlag(values.is_popular),
+      is_new: toCourseFlag(values.is_new),
+      is_free: toCourseFlag(values.is_free),
       status: "active",
       subscription_plan_ids: selectedSubscriptionPlanIds,
     };
@@ -1457,37 +1462,36 @@ const CourseWizardPage = () => {
                   </span>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {COURSE_DETAIL_FLAG_FIELDS.map((key) => (
-                    <label
+                    <Controller
                       key={key}
-                      className={cn(
-                        "flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 transition-colors",
-                        "hover:border-primary/40 hover:bg-muted/30",
-                        "has-[:checked]:border-primary has-[:checked]:bg-primary/10",
-                        viewMode && "pointer-events-none opacity-60"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        className="peer sr-only"
-                        {...register(key)}
-                        disabled={viewMode}
-                      />
-                      <span
-                        className={cn(
-                          "flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border bg-background",
-                          "peer-checked:border-primary peer-checked:bg-primary",
-                          "peer-checked:[&_svg]:scale-100 peer-checked:[&_svg]:opacity-100"
-                        )}
-                      >
-                        <Check
-                          className="h-3 w-3 scale-50 stroke-[2.5] text-white opacity-0 transition-all duration-200"
-                          aria-hidden
-                        />
-                      </span>
-                      <span className="truncate text-sm font-medium leading-none text-foreground">
-                        {COURSE_DETAIL_FLAG_LABELS[key]}
-                      </span>
-                    </label>
+                      name={key}
+                      control={control}
+                      render={({ field }) => {
+                        const checked = toCourseFlag(field.value);
+                        return (
+                          <label
+                            htmlFor={`course-flag-${key}`}
+                            className={cn(
+                              "relative flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 transition-colors",
+                              "hover:border-primary/40 hover:bg-muted/30",
+                              checked && "border-primary bg-primary/10",
+                              viewMode && "pointer-events-none opacity-60"
+                            )}
+                          >
+                            <Checkbox
+                              id={`course-flag-${key}`}
+                              checked={checked}
+                              onCheckedChange={(next) => field.onChange(next === true)}
+                              disabled={viewMode}
+                              aria-label={COURSE_DETAIL_FLAG_LABELS[key]}
+                            />
+                            <span className="truncate text-sm font-medium leading-none text-foreground">
+                              {COURSE_DETAIL_FLAG_LABELS[key]}
+                            </span>
+                          </label>
+                        );
+                      }}
+                    />
                   ))}
                 </div>
                 </div>
@@ -2852,6 +2856,7 @@ const CourseWizardPage = () => {
         </div>
       ) : null}
 
+      {lessonDrawerOpen ? (
       <Drawer open={lessonDrawerOpen} onClose={closeLessonDrawer}>
         <DrawerOverlay />
         <DrawerContent>
@@ -2987,6 +2992,7 @@ const CourseWizardPage = () => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+      ) : null}
     </div>
   );
 };
