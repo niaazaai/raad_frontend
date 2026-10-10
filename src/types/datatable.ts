@@ -89,6 +89,8 @@ export interface DataTableConfig<T = unknown> {
   showRecordCount?: boolean;
   /** Empty state message */
   emptyMessage?: string;
+  /** Click handler for a data row (ignored when clicking actions / interactive controls) */
+  onRowClick?: (row: T) => void;
   /** Double-click handler for a data row */
   onRowDoubleClick?: (row: T) => void;
   /** Show Excel export control (default: true) */
