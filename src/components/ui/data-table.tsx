@@ -216,6 +216,7 @@ export function DataTable<T>({
     paginationEnabled = true,
     showRecordCount = true,
     emptyMessage,
+    onRowClick,
     onRowDoubleClick,
     exportEnabled = true,
   } = config;
@@ -344,7 +345,22 @@ export function DataTable<T>({
               data.map((row) => (
                 <tr
                   key={String(rowId(row))}
-                  className={cn("hover:bg-muted/30", onRowDoubleClick && "cursor-pointer")}
+                  className={cn(
+                    "hover:bg-muted/30",
+                    (onRowClick || onRowDoubleClick) && "cursor-pointer"
+                  )}
+                  onClick={(event) => {
+                    if (!onRowClick) return;
+                    const target = event.target as HTMLElement | null;
+                    if (
+                      target?.closest(
+                        "button, a, input, textarea, select, [role='menuitem'], [data-radix-collection-item]"
+                      )
+                    ) {
+                      return;
+                    }
+                    onRowClick(row);
+                  }}
                   onDoubleClick={(event) => {
                     if (!onRowDoubleClick) return;
                     const target = event.target as HTMLElement | null;
