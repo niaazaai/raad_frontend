@@ -240,7 +240,7 @@ const CourseEntityFormDrawer = ({
   entityId,
   onSuccess,
 }: CourseEntityFormDrawerProps) => {
-  const { drawerHeading } = useCourseI18n();
+  const { drawerHeading, t } = useCourseI18n();
   const def = COURSE_ENTITY_FORM_REGISTRY[slug];
   const readOnly = mode === "view";
   const formMetaKey =
@@ -951,8 +951,19 @@ const CourseEntityFormDrawer = ({
                 )}
               </div>
 
-              {(String(detail.subscription_status ?? "") === "pending" ||
-                String(detail.payment_status ?? "") === "pending") && (
+              <div className="rounded-lg border border-border bg-muted/15 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                <p className="mt-1 text-sm font-medium capitalize">
+                  {String(detail.subscription_status_label ?? detail.subscription_status ?? "—")}
+                </p>
+                {detail.cancel_reason ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Cancel reason: {String(detail.cancel_reason)}
+                  </p>
+                ) : null}
+              </div>
+
+              {String(detail.subscription_status ?? "") === "pending" ? (
                 <Button
                   type="button"
                   className="mt-4 w-full"
@@ -965,17 +976,16 @@ const CourseEntityFormDrawer = ({
                     if (rawId == null || Number.isNaN(numericId)) return;
 
                     void confirm({
-                      title: "Approve subscription?",
-                      message:
-                        "This will activate the subscription, mark payment as paid, apply any eligible student discount on the server, and notify the learner.",
+                      title: t("course.approveSubscriptionTitle"),
+                      message: t("course.approveSubscriptionMessage"),
                       variant: "success",
-                      confirmText: "Approve",
-                      cancelText: "Cancel",
+                      confirmText: t("course.approveNow"),
+                      cancelText: t("common.cancel"),
                     }).then(async (ok) => {
                       if (!ok) return;
                       try {
                         await approveStudentSubscription(numericId);
-                        onSuccess();
+                        toast.success("Subscription approved and activated.");
                       } catch (e) {
                         toast.error(
                           e instanceof Error ? e.message : "Approval failed. Please try again."
@@ -984,9 +994,9 @@ const CourseEntityFormDrawer = ({
                     });
                   }}
                 >
-                  Approve subscription and apply discount
+                  {t("course.approveNow")}
                 </Button>
-              )}
+              ) : null}
             </div>
           ) : null}
 
