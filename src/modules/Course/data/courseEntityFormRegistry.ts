@@ -228,11 +228,6 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   },
   "student-subscriptions": {
     fields: [],
-    statusToggle: {
-      field: "subscription_status",
-      activeValue: "active",
-      inactiveValue: "inactive",
-    },
   },
   instructors: {
     fields: [
