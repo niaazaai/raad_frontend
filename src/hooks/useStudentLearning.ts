@@ -1,4 +1,4 @@
-import { useQueryApi } from "./common/useQueryApi";
+import { useMutationApi, useQueryApi } from "./common/useQueryApi";
 import { RequestMethod } from "@/data/constants/methods";
 import type { ApiResponse } from "@/types/api";
 
@@ -25,6 +25,21 @@ export interface CourseLearnLesson {
   title: string;
   description: string | null;
   video_status: string | null;
+  video_duration: number | null;
+  thumbnail_url: string | null;
+  watched: boolean;
+  watch_count: number;
+}
+
+export interface CourseLearnFile {
+  id: number;
+  title: string;
+  description: string | null;
+  download_url: string | null;
+}
+
+export interface CourseLearnChapterFile extends CourseLearnFile {
+  course_module_id: number | null;
 }
 
 export interface CourseLearnQuizFile {
@@ -49,6 +64,8 @@ export interface CourseLearnPayload {
   course: CourseLearnSummary;
   modules: CourseLearnModule[];
   lessons: CourseLearnLesson[];
+  chapter_files: CourseLearnChapterFile[];
+  downloadable_resources: CourseLearnFile[];
   quiz_files: CourseLearnQuizFile[];
   mock_tests: CourseLearnMockTest[];
 }
@@ -81,11 +98,32 @@ export interface MyEnrollmentItem {
   course_id: number;
   plan_id: number;
   course_title: string | null;
+  course_short_description: string | null;
   course_thumbnail_url: string | null;
+  course_language: string | null;
+  course_level: string | null;
+  course_main_category: string | null;
+  course_sub_category: string | null;
   plan_name: string | null;
   subscription_start_date: string | null;
   subscription_end_date: string | null;
   subscription_status: string | null;
+  lessons_total: number;
+  lessons_watched: number;
+  progress_percent: number;
+}
+
+export function useRecordLessonWatch() {
+  return useMutationApi<
+    { watched: boolean; watch_count: number; lesson_id: number },
+    { lesson_id: number; session_id: string }
+  >({
+    url: "/me/lesson-watches",
+    method: RequestMethod.POST,
+    shouldPopSuccess: false,
+    shouldPopError: false,
+    invalidateKeys: [["me", "enrollments"], ["course", "learn"]],
+  });
 }
 
 export interface MyEnrollmentsPagination {
