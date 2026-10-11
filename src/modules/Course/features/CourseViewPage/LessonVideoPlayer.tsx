@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import {
-  Compress,
-  Expand,
-  HelpCircle,
-  Pause,
-  Play,
-  Settings,
-  SoundHigh,
-  SoundLow,
-  SoundOff,
-} from "iconoir-react";
+import { Minimize2 as Compress, Maximize2 as Expand, CircleQuestionMark as HelpCircle, ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight, Pause, Play, Settings, Volume2 as SoundHigh, Volume1 as SoundLow, VolumeX as SoundOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LessonVideoPlayerProps {
@@ -19,6 +9,11 @@ export interface LessonVideoPlayerProps {
   qualities?: { label: string; src: string }[] | null;
   watermarkText?: string;
   onEnded?: () => void;
+  onEngaged?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
   className?: string;
 }
 
@@ -63,6 +58,11 @@ const LessonVideoPlayer = ({
   playbackType,
   watermarkText,
   onEnded,
+  onEngaged,
+  onPrevious,
+  onNext,
+  hasPrevious = false,
+  hasNext = false,
   className,
 }: LessonVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +77,11 @@ const LessonVideoPlayer = ({
   const bufferCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onEndedRef = useRef<(() => void) | undefined>(onEnded);
   onEndedRef.current = onEnded;
+  const onEngagedRef = useRef<(() => void) | undefined>(onEngaged);
+  onEngagedRef.current = onEngaged;
+  const engagedRef = useRef(false);
+  const playedSecondsRef = useRef(0);
+  const lastMediaTimeRef = useRef<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -113,6 +118,9 @@ const LessonVideoPlayer = ({
     setDuration(0);
     setBuffered(0);
     setPlaying(false);
+    engagedRef.current = false;
+    playedSecondsRef.current = 0;
+    lastMediaTimeRef.current = null;
 
     const isHls =
       playbackType === "hls" ||
@@ -211,10 +219,29 @@ const LessonVideoPlayer = ({
 
     const onPlay = () => setPlaying(true);
     const onPause = () => { setPlaying(false); setIsBuffering(false); };
-    const onEndedHandler = () => { setPlaying(false); setIsBuffering(false); onEndedRef.current?.(); };
+    const markEngaged = () => {
+      if (engagedRef.current) return;
+      engagedRef.current = true;
+      onEngagedRef.current?.();
+    };
+    const onEndedHandler = () => {
+      setPlaying(false);
+      setIsBuffering(false);
+      markEngaged();
+      onEndedRef.current?.();
+    };
     const onTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-      lastTimeRef.current = video.currentTime;
+      const now = video.currentTime;
+      if (!video.paused && lastMediaTimeRef.current != null) {
+        const delta = now - lastMediaTimeRef.current;
+        if (delta > 0 && delta < 2) {
+          playedSecondsRef.current += delta;
+          if (playedSecondsRef.current >= 10) markEngaged();
+        }
+      }
+      lastMediaTimeRef.current = now;
+      setCurrentTime(now);
+      lastTimeRef.current = now;
       if (video.buffered.length > 0) {
         const end = video.buffered.end(video.buffered.length - 1);
         setBuffered(video.duration > 0 ? end / video.duration : 0);
@@ -601,7 +628,7 @@ const LessonVideoPlayer = ({
         {/* Progress / seek bar */}
         <div
           ref={progressBarRef}
-          className="group/bar relative mb-3 h-1 cursor-pointer rounded-full bg-white/25 transition-all duration-100 hover:h-[5px]"
+          className="group/bar relative mb-3 h-[4.4px] cursor-pointer rounded-full bg-white/25 transition-all duration-100 hover:h-[5.5px]"
           onMouseDown={onProgressMouseDown}
           onMouseMove={onProgressMouseMove}
           onMouseLeave={() => setHoverTime(null)}
@@ -618,7 +645,7 @@ const LessonVideoPlayer = ({
           />
           {/* Played */}
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-75"
+            className="absolute inset-y-0 left-0 rounded-full bg-red-600 transition-[width] duration-75"
             style={{ width: `${playedPct}%` }}
           >
             {/* Thumb */}
@@ -638,6 +665,25 @@ const LessonVideoPlayer = ({
 
         {/* Button row */}
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white hover:bg-white/15 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            aria-label="Previous lesson"
+          >
+            <NavArrowLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white hover:bg-white/15 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Next lesson"
+          >
+            <NavArrowRight className="h-4 w-4" />
+          </button>
+
           {/* Play/Pause */}
           <button
             type="button"
