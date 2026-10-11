@@ -6,22 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
-import {
-  Bold,
-  Italic,
-  Strikethrough,
-  List,
-  NumberedListLeft,
-  Quote,
-  Number1Square,
-  Number2Square,
-  Number3Square,
-  Link as LinkIcon,
-  MediaImagePlus,
-  Minus,
-  Undo,
-  Redo,
-} from "iconoir-react";
+import { Bold, Italic, Strikethrough, List, ListOrdered as NumberedListLeft, Quote, Heading1 as Number1Square, Heading2 as Number2Square, Heading3 as Number3Square, Link as LinkIcon, ImagePlus as MediaImagePlus, Minus, Undo2 as Undo, Redo2 as Redo } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const linkExtension = TiptapLink.configure({
