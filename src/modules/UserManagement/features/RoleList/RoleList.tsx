@@ -1,18 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Plus,
-  Search,
-  EditPencil,
-  Trash,
-  Shield,
-  Group,
-  Key,
-  ViewGrid,
-  List,
-  MoreVert,
-} from "iconoir-react";
+import { Plus, Search, Pencil as EditPencil, Trash2 as Trash, Shield, Users as Group, Key, LayoutGrid as ViewGrid, List, EllipsisVertical as MoreVert } from "lucide-react";
 import { useRoles, useDeleteRole, useDeleteRoleMutation } from "../../hooks";
 import { Role } from "../../data/models";
 import { useConfirmPresets } from "@/i18n/useConfirmPresets";
