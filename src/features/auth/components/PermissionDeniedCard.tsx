@@ -12,7 +12,7 @@ export interface PermissionDeniedCardProps {
 /**
  * Single, consistent “no permission” state for protected pages and features.
  */
-const PermissionDeniedCard = memo(({ title, description, homeHref = "/dashboard" }: PermissionDeniedCardProps) => {
+const PermissionDeniedCard = memo(({ title, description, homeHref = "/course" }: PermissionDeniedCardProps) => {
   const { t } = useTranslation();
   const resolvedTitle = title ?? t("permissionDenied.title");
   const resolvedDescription = description ?? t("permissionDenied.description");
