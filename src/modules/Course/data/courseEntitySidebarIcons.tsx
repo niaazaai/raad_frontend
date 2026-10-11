@@ -1,21 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import {
-  Label,
-  ListSelect,
-  NumberedListLeft,
-  OpenBook,
-  MediaVideo,
-  TaskList,
-  DownloadCircle,
-  ChatBubbleQuestion,
-  Timer,
-  CreditCard,
-  UserCart,
-  UserBadgeCheck,
-  Presentation,
-  GraduationCap,
-  ViewGrid,
-} from "iconoir-react";
+import { Tag as Label, ListChecks as ListSelect, ListOrdered as NumberedListLeft, BookOpen as OpenBook, Clapperboard as MediaVideo, ListTodo as TaskList, CircleArrowDown as DownloadCircle, MessageCircleQuestionMark as ChatBubbleQuestion, Timer, CreditCard, ShoppingCart as UserCart, UserCheck as UserBadgeCheck, Presentation, GraduationCap, LayoutGrid as ViewGrid } from "lucide-react";
 import type { CourseEntitySlug } from "./courseRegistry";
 
 type Ico = ComponentType<SVGProps<SVGSVGElement>>;
