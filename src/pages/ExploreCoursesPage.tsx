@@ -9,7 +9,7 @@ import {
   getPublicCoursesPagination,
   usePublicCourses,
 } from "@/hooks";
-import { NavArrowLeft, NavArrowRight } from "iconoir-react";
+import { ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight } from "lucide-react";
 import { useTranslation } from "@/i18n/useTranslation";
 import { sectionInnerClass, sectionShellClass, sectionSubtitleClass, sectionTitleClass } from "@/components/website/websiteData";
 
