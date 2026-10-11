@@ -4,22 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  BookStack,
-  CheckCircle,
-  Clock,
-  Coins,
-  GraduationCap,
-  Hashtag,
-  InfoCircle,
-  Language,
-  Medal,
-  Phone,
-  Play,
-  ShoppingBag,
-  User,
-  ViewGrid,
-} from "iconoir-react";
+import { Library as BookStack, CircleCheck as CheckCircle, Clock, Coins, GraduationCap, Hash as Hashtag, Info as InfoCircle, Languages as Language, Medal, Phone, Play, ShoppingBag, User, LayoutGrid as ViewGrid } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
