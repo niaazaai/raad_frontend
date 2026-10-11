@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mail, NavArrowRight } from "iconoir-react";
+import { Mail, ChevronRight as NavArrowRight } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { callApi, fetchCsrfCookie } from "@/services";
 import { API_ENDPOINTS } from "@/data/constants/endpoints";
