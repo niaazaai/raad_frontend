@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
-import { Menu, Xmark, NavArrowDown } from "iconoir-react";
+import { Menu, X as Xmark, ChevronDown as NavArrowDown } from "lucide-react";
 import LanguageSwitcher from "@/components/website/LanguageSwitcher";
 import ThemeToggle from "@/components/website/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
