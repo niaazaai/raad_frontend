@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { WarningCircle } from "iconoir-react";
+import { CircleAlert as WarningCircle } from "lucide-react";
 
 const VerifyEmailExpiredPage = () => {
   return (
