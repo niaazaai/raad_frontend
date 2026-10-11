@@ -1,16 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  Book,
-  Calendar,
-  CoinsSwap,
-  Hat,
-  Page,
-  Repeat,
-  User,
-  Wallet,
-} from "iconoir-react";
+import { ArrowRight, Book, Calendar, ArrowLeftRight as CoinsSwap, HardHat as Hat, File as Page, Repeat, User, Wallet } from "lucide-react";
 import {
   Button,
   Card,
