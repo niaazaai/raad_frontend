@@ -3,7 +3,7 @@ import { useLocaleStore } from "@/store";
 import { useIsDarkMode } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n/useTranslation";
-import { Check, Globe, NavArrowDown } from "iconoir-react";
+import { Check, Globe, ChevronDown as NavArrowDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
