@@ -1,29 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  DashboardDots,
-  Settings,
-  UserCircle,
-  UserCrown,
-  Lock,
-  OpenBook,
-  NavArrowDown,
-  ClipboardCheck,
-  Activity,
-  UserBadgeCheck,
-  Learning,
-  GraduationCap,
-  Presentation,
-  Post,
-  DollarCircle,
-  StatsReport,
-  PageFlip,
-  CalendarArrowDown,
-  Coins,
-  PageEdit,
-  HandCash,
-  List,
-} from "iconoir-react";
+import { Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
+import { BookOpen as Learning } from "lucide-react";
 import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
@@ -171,11 +149,6 @@ const iconSm = "h-4 w-4 shrink-0 stroke-2";
 
 const baseNavItems: NavItem[] = [
   {
-    title: "Dashboard",
-    path: "/dashboard",
-    icon: <DashboardDots className={iconLg} />,
-  },
-  {
     title: "User Management",
     icon: <ShieldUserIcon className={iconLg} />,
     children: [
@@ -231,7 +204,6 @@ const Sidebar = () => {
 
   const navItems: NavItem[] = useMemo(
     () => [
-      baseNavItems[0],
       ...(user?.type === "student"
         ? [
             {
@@ -335,7 +307,7 @@ const Sidebar = () => {
         icon: <Post className={iconLg} />,
         permission: "blogs.read",
       },
-      ...baseNavItems.slice(1),
+      ...baseNavItems,
     ],
     [courseNavChildren, user?.type]
   );
@@ -471,7 +443,7 @@ const Sidebar = () => {
     <SidebarRoot side={side} collapsible="icon" variant="inset">
       <SidebarHeader className="">
         <NavLink
-          to="/dashboard"
+          to={user?.type === "student" ? "/student" : "/course"}
           onClick={closeMobile}
           title={t("sidebar.productName")}
           className="flex items-center justify-center rounded-md px-1 py-1.5 outline-none ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 group-data-[collapsible=icon]:p-0"
