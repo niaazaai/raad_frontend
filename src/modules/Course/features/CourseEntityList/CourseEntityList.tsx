@@ -1,22 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import {
-  Prohibition,
-  CheckCircle,
-  Eye,
-  EditPencil,
-  Plus,
-  Trash,
-  AlbumList,
-  Archive,
-  Community as CommunityIcon,
-  RefreshDouble,
-  Calendar,
-  Star,
-  Clock,
-  XmarkCircle,
-  Timer,
-} from "iconoir-react";
+import { Ban as Prohibition, CircleCheck as CheckCircle, Eye, Pencil as EditPencil, Plus, Trash2 as Trash, Images as AlbumList, Archive, Users as CommunityIcon, RefreshCcw as RefreshDouble, Calendar, Star, Clock, CircleX as XmarkCircle, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
