@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, EditPencil, Shield, Prohibition, CheckCircle, Mail, Trash } from "iconoir-react";
+import { Plus, Pencil as EditPencil, Shield, Ban as Prohibition, CircleCheck as CheckCircle, Mail, Trash2 as Trash } from "lucide-react";
 import { useUsers, useUpdateUserMutation, useDeleteUserMutation } from "../../hooks";
 import {
   UserManagement,
