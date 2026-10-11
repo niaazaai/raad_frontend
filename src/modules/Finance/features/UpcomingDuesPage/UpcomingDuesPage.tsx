@@ -1,6 +1,6 @@
 import { useMemo, useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
-import { Page, Phone, Wallet } from "iconoir-react";
+import { File as Page, Phone, Wallet } from "lucide-react";
 import { AlertTriangle, CalendarClock, CalendarDays, CalendarOff, ListFilter } from "lucide-react";
 import {
   DataTable,
