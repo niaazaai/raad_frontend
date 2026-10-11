@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight as NavArrowRight } from "lucide-react";
 import ScrollReveal from "@/components/website/ScrollReveal";
 import { Spinner } from "@/components/ui/spinner";
 import { usePublicBlogs, getPublicListFromResponse } from "@/hooks";
