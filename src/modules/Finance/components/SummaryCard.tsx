@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight as NavArrowRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
