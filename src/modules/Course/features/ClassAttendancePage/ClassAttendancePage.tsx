@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 import { Button, PageBreadcrumb, Skeleton } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
