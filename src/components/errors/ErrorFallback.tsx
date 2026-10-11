@@ -1,5 +1,5 @@
 import { FallbackProps } from "react-error-boundary";
-import { WarningTriangle, Refresh } from "iconoir-react";
+import { TriangleAlert as WarningTriangle, RefreshCw as Refresh } from "lucide-react";
 
 /**
  * Error Fallback Component
