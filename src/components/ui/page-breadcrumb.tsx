@@ -1,4 +1,4 @@
-import { HomeSimple, NavArrowRight } from "iconoir-react";
+import { House as HomeSimple, ChevronRight as NavArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface BreadcrumbItem {
@@ -18,9 +18,9 @@ const PageBreadcrumb = ({ items }: PageBreadcrumbProps) => {
       <ol className="flex min-w-max items-center gap-1.5 text-sm">
         <li>
           <Link
-            to="/dashboard"
+            to="/course"
             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Dashboard"
+            aria-label="Home"
           >
             <HomeSimple className="h-4 w-4" />
           </Link>
