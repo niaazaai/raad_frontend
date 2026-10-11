@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CoinsSwap, Wallet } from "iconoir-react";
+import { ArrowLeftRight as CoinsSwap, Wallet } from "lucide-react";
 import {
   Button,
   Card,
