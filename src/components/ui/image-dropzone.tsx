@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { Label } from "@/components/ui";
-import { MediaImage, Page, Play, Xmark } from "iconoir-react";
+import { Image as MediaImage, File as Page, Play, X as Xmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ImageDropzoneMediaPreview = "image" | "video" | "file";
