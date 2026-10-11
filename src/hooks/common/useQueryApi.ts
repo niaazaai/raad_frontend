@@ -27,6 +27,8 @@ interface QueryApiConfig<TData> extends Partial<ApisauceConfig> {
 interface MutationApiConfig<TData, TVariables> extends Partial<ApisauceConfig> {
   mutationKey?: QueryKey;
   hasFiles?: boolean;
+  shouldPopSuccess?: boolean;
+  shouldPopError?: boolean;
   invalidateKeys?: QueryKey[];
   options?: Omit<UseMutationOptions<ApiResponse<TData>, Error, TVariables>, "mutationFn">;
 }
@@ -96,6 +98,8 @@ export function useMutationApi<TData = ObjectAny, TVariables = ObjectAny>({
   mutationKey,
   options = {},
   hasFiles = false,
+  shouldPopSuccess = true,
+  shouldPopError = true,
   invalidateKeys = [],
   ...apiConfig
 }: MutationApiConfig<TData, TVariables>) {
@@ -108,6 +112,8 @@ export function useMutationApi<TData = ObjectAny, TVariables = ObjectAny>({
         ...apiConfig,
         data: variables,
         hasFiles,
+        shouldPopSuccess,
+        shouldPopError,
       });
 
       if (!response.ok) {
