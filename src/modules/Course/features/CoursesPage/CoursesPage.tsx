@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Plus, ViewGrid, List, Eye, EditPencil } from "iconoir-react";
+import { Plus, LayoutGrid as ViewGrid, List, Eye, Pencil as EditPencil } from "lucide-react";
 import {
   Button,
   DataTable,
