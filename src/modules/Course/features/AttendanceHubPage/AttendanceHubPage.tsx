@@ -1,4 +1,4 @@
-import { CheckCircle } from "iconoir-react";
+import { CircleCheck as CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
