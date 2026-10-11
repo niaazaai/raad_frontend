@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Page } from "iconoir-react";
+import { File as Page } from "lucide-react";
 import { DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
