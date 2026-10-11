@@ -1,5 +1,5 @@
 import { Link, useParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Shield, Key, Group } from "iconoir-react";
+import { ArrowLeft, Shield, Key, Users as Group } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useRole } from "../../hooks";
 import { Button } from "@/components/ui";
