@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
-import { Xmark } from "iconoir-react";
+import { X as Xmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type SwipeDirection = NonNullable<
