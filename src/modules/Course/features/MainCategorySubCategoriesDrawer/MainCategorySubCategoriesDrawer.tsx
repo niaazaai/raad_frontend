@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EditPencil, NavArrowLeft, Plus, Trash } from "iconoir-react";
+import { Pencil as EditPencil, ChevronLeft as NavArrowLeft, Plus, Trash2 as Trash } from "lucide-react";
 import { toast } from "sonner";
 import {
   useCourseEntityList,
