@@ -1,29 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import {
-  Archive,
-  BookStack,
-  CheckCircle,
-  Clock,
-  CreditCard,
-  Dollar,
-  Flash,
-  Gift,
-  GraduationCap,
-  Label,
-  ListSelect,
-  MediaVideo,
-  NavArrowRight,
-  NumberedListLeft,
-  OpenBook,
-  Prohibition,
-  Sparks,
-  Star,
-  TaskList,
-  Timer,
-  UserBadgeCheck,
-  UserCart,
-} from "iconoir-react";
+import { Archive, Library as BookStack, CircleCheck as CheckCircle, Clock, CreditCard, DollarSign as Dollar, Zap as Flash, Gift, GraduationCap, Tag as Label, ListChecks as ListSelect, Clapperboard as MediaVideo, ChevronRight as NavArrowRight, ListOrdered as NumberedListLeft, BookOpen as OpenBook, Ban as Prohibition, Sparkles as Sparks, Star, ListTodo as TaskList, Timer, UserCheck as UserBadgeCheck, ShoppingCart as UserCart } from "lucide-react";
 import { Button, PageBreadcrumb, Skeleton } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useFormatMessage } from "@/i18n/useConfirmPresets";
