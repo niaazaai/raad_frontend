@@ -6,20 +6,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Attachment,
-  Check,
-  CreditCard,
-  EditPencil,
-  Folder,
-  Page,
-  PageEdit,
-  Play,
-  Plus,
-  Search,
-  Timer,
-  Trash,
-} from "iconoir-react";
+import { Paperclip as Attachment, Check, CreditCard, Pencil as EditPencil, Folder, File as Page, FilePen as PageEdit, Play, Plus, Search, Timer, Trash2 as Trash } from "lucide-react";
 import {
   Button,
   Checkbox,
