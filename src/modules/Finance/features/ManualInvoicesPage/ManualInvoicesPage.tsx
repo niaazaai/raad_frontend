@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Coins, Page, Plus, Wallet } from "iconoir-react";
+import { Coins, File as Page, Plus, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
