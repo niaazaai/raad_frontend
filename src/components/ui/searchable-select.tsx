@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NavArrowDown } from "iconoir-react";
+import { ChevronDown as NavArrowDown } from "lucide-react";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
