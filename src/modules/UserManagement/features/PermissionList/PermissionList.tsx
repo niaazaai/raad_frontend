@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Key, Shield, ViewGrid, List } from "iconoir-react";
+import { Search, Key, Shield, LayoutGrid as ViewGrid, List } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { usePermissions } from "../../hooks";
 import { Permission } from "../../data/models";
