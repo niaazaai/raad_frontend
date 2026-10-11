@@ -4,7 +4,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { WarningTriangle, Trash, InfoCircle, CheckCircle, Xmark } from "iconoir-react";
+import { TriangleAlert as WarningTriangle, Trash2 as Trash, Info as InfoCircle, CircleCheck as CheckCircle, X as Xmark } from "lucide-react";
 import { type VariantProps } from "class-variance-authority";
 import { Spinner } from "./spinner";
 import { cn } from "@/lib/utils";
