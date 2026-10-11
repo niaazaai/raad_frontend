@@ -155,7 +155,7 @@ The design is intentionally **low elevation**. Prefer borders over shadows.
 <Button variant="default">Save</Button>
 <Button variant="destructive">Delete</Button>
 <Button variant="outline">Cancel</Button>
-<Button variant="ghost" size="icon"><EditPencil className="h-4 w-4" /></Button>
+<Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
 
 {/* Loading state — use Button's loading prop, not a custom spinner */}
 <Button loading={isPending}>Saving…</Button>
