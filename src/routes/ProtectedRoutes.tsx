@@ -7,7 +7,7 @@ import { FinanceRoutes } from "@/modules/Finance/routes";
 import { ActivityLogRoutes } from "@/modules/ActivityLog";
 import { BlogRoutes } from "@/modules/Blog/routes";
 
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const HomeRedirect = lazy(() => import("@/pages/HomeRedirect"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const StudentDashboard = lazy(() => import("@/pages/StudentDashboard"));
 const CoursePlayerPage = lazy(() => import("@/modules/Course/features/CoursePlayerPage/CoursePlayerPage"));
@@ -15,7 +15,7 @@ const CoursePlayerPage = lazy(() => import("@/modules/Course/features/CoursePlay
 const ProtectedRoutes: ProtectedRouteType[] = [
   {
     path: "/dashboard",
-    component: <Dashboard />,
+    component: <HomeRedirect />,
     permission: "",
   },
   {
