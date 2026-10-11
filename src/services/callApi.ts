@@ -7,6 +7,7 @@ import { toast } from "sonner";
 type CallApiProps<R> = {
   params?: ObjectAny;
   shouldPopError?: boolean;
+  shouldPopSuccess?: boolean;
   hasFiles?: boolean;
   skipCsrf?: boolean;
   retryOn419?: boolean;
@@ -72,6 +73,7 @@ const callApi = async <R = ObjectAny>({
   params = {},
   headers = {},
   shouldPopError = true,
+  shouldPopSuccess = true,
   hasFiles = false,
   skipCsrf = false,
   retryOn419 = true,
@@ -111,6 +113,7 @@ const callApi = async <R = ObjectAny>({
         params,
         headers,
         shouldPopError,
+        shouldPopSuccess,
         hasFiles,
         skipCsrf: true,
         retryOn419: false,
@@ -125,6 +128,7 @@ const callApi = async <R = ObjectAny>({
   handleResponse<R>({
     response,
     shouldPopError,
+    shouldPopSuccess,
   });
 
   return response;
@@ -136,12 +140,13 @@ const callApi = async <R = ObjectAny>({
 type HandleResponseProps<T> = {
   response: ApisauceResponse<ApiResponse<T>, ApiResponse<T>>;
   shouldPopError?: boolean;
+  shouldPopSuccess?: boolean;
 };
 
-const handleResponse = <T>({ response, shouldPopError }: HandleResponseProps<T>) => {
+const handleResponse = <T>({ response, shouldPopError, shouldPopSuccess = true }: HandleResponseProps<T>) => {
   if (response.ok) {
     // Show success message if provided
-    if (response.data?.message && response.config?.method !== "get") {
+    if (shouldPopSuccess && response.data?.message && response.config?.method !== "get") {
       // Same id = same toast: a message fired twice (e.g. double submit, retry) is shown once.
       toast.success(response.data.message, { id: `api-success:${response.data.message}` });
     }
