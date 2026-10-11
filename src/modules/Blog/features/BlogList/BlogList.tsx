@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Plus, EditPencil, Trash, Upload, Undo } from "iconoir-react";
+import { Plus, Pencil as EditPencil, Trash2 as Trash, Upload, Undo2 as Undo } from "lucide-react";
 import { Button, DataTable, Drawer, DrawerOverlay, DrawerContent, useConfirmDialog } from "@/components/ui";
 import { Can } from "@/features/auth";
 import { useConfirmPresets } from "@/i18n/useConfirmPresets";
