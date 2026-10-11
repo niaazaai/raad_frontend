@@ -1,16 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  NavArrowDown,
-  NavArrowLeft,
-  NavArrowRight,
-  Filter,
-  MoreHoriz,
-  Search,
-  ArrowSeparateVertical,
-  NavArrowUp,
-} from "iconoir-react";
+import { ChevronDown as NavArrowDown, ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight, Funnel as Filter, Ellipsis as MoreHoriz, Search, ArrowUpDown as ArrowSeparateVertical, ChevronUp as NavArrowUp } from "lucide-react";
 import { Skeleton } from "./skeleton";
 import {
   DropdownMenu,
