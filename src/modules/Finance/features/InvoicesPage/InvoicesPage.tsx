@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Page } from "iconoir-react";
+import { File as Page } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
