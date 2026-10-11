@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui";
 import { courseLevelLabel } from "@/data/enums/courseWizard";
-import { BookStack } from "iconoir-react";
+import { Library as BookStack } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicCourseListItem } from "@/hooks/usePublicCourses";
 import { cn } from "@/lib/utils";
