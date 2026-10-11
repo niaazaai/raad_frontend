@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, FloppyDisk, Shield, Check } from "iconoir-react";
+import { ArrowLeft, Save as FloppyDisk, Shield, Check } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useRole, useCreateRole, useUpdateRole, usePermissions } from "../../hooks";
 import { CreateRoleSchema, type Permission } from "../../data/models";
