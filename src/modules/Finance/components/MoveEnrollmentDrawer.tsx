@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight } from "iconoir-react";
+import { ArrowRight } from "lucide-react";
 import {
   Button,
   Drawer,
