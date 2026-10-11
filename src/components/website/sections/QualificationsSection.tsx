@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight as NavArrowRight } from "lucide-react";
 import ScrollReveal from "@/components/website/ScrollReveal";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
