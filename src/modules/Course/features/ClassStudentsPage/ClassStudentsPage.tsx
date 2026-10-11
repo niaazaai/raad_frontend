@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  EditPencil,
-  Minus,
-  Page,
-  Plus,
-  Prohibition,
-  Repeat,
-  Trash,
-  Undo,
-  Wallet,
-} from "iconoir-react";
+import { ArrowLeft, Pencil as EditPencil, Minus, File as Page, Plus, Ban as Prohibition, Repeat, Trash2 as Trash, Undo2 as Undo, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
