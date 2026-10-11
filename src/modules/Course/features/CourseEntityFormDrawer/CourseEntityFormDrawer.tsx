@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
-import { Calendar, Cash, Clock, FloppyDisk, Hashtag, Page, User } from "iconoir-react";
+import { Calendar, Banknote as Cash, Clock, Save as FloppyDisk, Hash as Hashtag, File as Page, User } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useQueryApi } from "@/hooks";
