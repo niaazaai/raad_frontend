@@ -15,6 +15,9 @@ export function useLessonPlayback(lessonId: number | null, enabled: boolean) {
     url: lessonId != null ? `/lessons/${lessonId}/playback` : `/lessons/0/playback`,
     options: {
       enabled: enabled && lessonId != null,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 }
