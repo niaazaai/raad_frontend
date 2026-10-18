@@ -55,6 +55,9 @@ import {
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useConfirmPresets } from "@/i18n/useConfirmPresets";
 import { useCourseI18n } from "../../hooks/useCourseI18n";
+import { useCourseOverviewStats } from "../../hooks/useCourseOverviewStats";
+import { parseCourseOverviewStats } from "../../data/models";
+import { PendingCountBadge } from "../../components/PendingCountBadge";
 import { useDataTableParams } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { API_V1_BASE } from "@/services/apiClient";
@@ -306,6 +309,9 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   );
 
   const resolvedSlug = isSlug(slug) && !HIDDEN_INDEPENDENT_SLUGS.includes(slug) ? slug : null;
+  const { data: overviewStats } = useCourseOverviewStats(resolvedSlug === "student-subscriptions");
+  const pendingSubscriptionCount =
+    parseCourseOverviewStats(overviewStats?.data).pending_subscriptions_count ?? 0;
   const cfg = resolvedSlug ? COURSE_ENTITY_REGISTRY[resolvedSlug] : null;
   const formDef = resolvedSlug ? COURSE_ENTITY_FORM_REGISTRY[resolvedSlug] : null;
   const canReadEntity = Boolean(cfg && hasPermission(cfg.permission));
@@ -1131,7 +1137,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           resolvedSlug === "student-subscriptions" ? (
             <ButtonGroup
               aria-label={t("course.subscriptionStatus")}
-              className="w-full flex-wrap lg:w-auto"
+              className="w-full flex-wrap overflow-visible pt-2 lg:w-auto"
             >
               {subscriptionStatusQuickFilters.map((tab) => (
                 <Button
@@ -1141,7 +1147,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                   aria-pressed={filterSubscriptionStatus === tab.value}
                   variant={filterSubscriptionStatus === tab.value ? "default" : "outline"}
                   className={cn(
-                    "min-w-0 flex-1 gap-1.5 lg:flex-none",
+                    "relative min-w-0 flex-1 gap-1.5 overflow-visible lg:flex-none",
                     filterSubscriptionStatus !== tab.value &&
                       "text-muted-foreground hover:text-foreground"
                   )}
@@ -1152,6 +1158,12 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 >
                   {tab.icon}
                   <span className="truncate">{tab.label}</span>
+                  {tab.value === "pending" ? (
+                    <PendingCountBadge
+                      count={pendingSubscriptionCount}
+                      className="absolute -top-2.5 end-1 z-10 shadow-sm"
+                    />
+                  ) : null}
                 </Button>
               ))}
             </ButtonGroup>
