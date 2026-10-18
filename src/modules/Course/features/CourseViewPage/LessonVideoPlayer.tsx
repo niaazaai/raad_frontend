@@ -614,7 +614,7 @@ const LessonVideoPlayer = ({
           style={{ opacity: 0.2, ...wmPos }}
         >
           <span
-            className="select-none whitespace-nowrap text-[11px] font-medium text-white"
+            className="block select-none whitespace-pre text-[11px] font-medium leading-relaxed text-white"
             style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
           >
             {watermarkText}

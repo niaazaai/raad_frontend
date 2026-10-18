@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
   getCourseLearnFromResponse,
@@ -34,8 +35,6 @@ import { cn } from "@/lib/utils";
 import UnitOrderModal from "./UnitOrderModal";
 
 const AUTO_ADVANCE_DELAY = 5;
-const WATERMARK_TEXT = "Raad - dedicated home of ACCA and CIA in Afghanistan";
-
 const BLOCKED_SHIFT_KEYS = ["KeyI", "KeyJ", "KeyC", "KeyK"];
 const BLOCKED_MOD_KEYS = ["KeyU", "KeyS", "KeyP"];
 
@@ -214,6 +213,7 @@ function PlaylistLesson({
 
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const { courseId } = useParams<{ courseId: string }>();
   const id = courseId ? Number(courseId) : NaN;
@@ -548,7 +548,9 @@ const CoursePlayerPage = () => {
                 src={src}
                 playbackType={pType}
                 playerToken={playbackPayload?.session ?? undefined}
-                watermarkText={WATERMARK_TEXT}
+                watermarkText={
+                  user ? ` ${user.name} · ${user.email} · ID ${user.id}` : "Raad - dedicated home of ACCA and CIA in Afghanistan"
+                }
                 onEnded={handleLessonEnded}
                 onEngaged={handleEngaged}
                 onPrevious={() => prevLesson && goToLesson(prevLesson.id)}
