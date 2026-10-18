@@ -8,6 +8,8 @@ export interface LessonVideoPlayerProps {
   playbackType?: "hls" | "progressive";
   qualities?: { label: string; src: string }[] | null;
   watermarkText?: string;
+  /** Protected playback session id; sent as a header so only this player can fetch the stream. */
+  playerToken?: string;
   onEnded?: () => void;
   onEngaged?: () => void;
   onPrevious?: () => void;
@@ -30,6 +32,8 @@ const WM_POSITIONS: WatermarkPos[] = [
   { top: "50%", left: "5%" },
   { top: "50%", right: "5%" },
 ];
+
+const PLAYER_HEADER = "X-Raad-Player";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 type SpeedOption = (typeof SPEED_OPTIONS)[number];
@@ -57,6 +61,7 @@ const LessonVideoPlayer = ({
   src,
   playbackType,
   watermarkText,
+  playerToken,
   onEnded,
   onEngaged,
   onPrevious,
@@ -149,7 +154,7 @@ const LessonVideoPlayer = ({
       video.canPlayType("application/vnd.apple.mpegurl") !== "" ||
       video.canPlayType("application/x-mpegURL") !== "";
 
-    if (canNative) {
+    if (canNative && !(playerToken && Hls.isSupported())) {
       destroyHls();
       video.src = src;
       video.load();
@@ -177,6 +182,11 @@ const LessonVideoPlayer = ({
       fragLoadingMaxRetry: 3,
       manifestLoadingMaxRetry: 3,
       manifestLoadingRetryDelay: 1000,
+      xhrSetup: playerToken
+        ? (xhr: XMLHttpRequest) => {
+            xhr.setRequestHeader(PLAYER_HEADER, playerToken);
+          }
+        : undefined,
     });
     hlsRef.current = hls;
 
@@ -210,7 +220,7 @@ const LessonVideoPlayer = ({
       video.removeAttribute("src");
       video.load();
     };
-  }, [src, playbackType]);
+  }, [src, playbackType, playerToken]);
 
   // Video event listeners
   useEffect(() => {
@@ -312,16 +322,30 @@ const LessonVideoPlayer = ({
 
   // Anti-piracy: DevTools detection
   useEffect(() => {
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    // Docked devtools shrink only one axis; browser zoom shrinks both, so it is not flagged.
     const check = () => {
-      const open =
-        window.outerWidth - window.innerWidth > 200 ||
-        window.outerHeight - window.innerHeight > 200;
-      setDevToolsOpen(open);
+      const wideGap = window.outerWidth - window.innerWidth > 200;
+      const tallGap = window.outerHeight - window.innerHeight > 240;
+      setDevToolsOpen(wideGap !== tallGap);
     };
     check();
+    const interval = setInterval(check, 1500);
     window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", check);
+    };
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !devToolsOpen) return;
+    video.pause();
+    const blockPlay = () => video.pause();
+    video.addEventListener("play", blockPlay);
+    return () => video.removeEventListener("play", blockPlay);
+  }, [devToolsOpen]);
 
   // Anti-piracy: block dangerous keyboard shortcuts globally while player is focused
   useEffect(() => {
@@ -362,14 +386,14 @@ const LessonVideoPlayer = ({
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || devToolsOpen) return;
     const willPlay = video.paused;
     if (willPlay) void video.play();
     else video.pause();
     setCenterIcon(willPlay ? "play" : "pause");
     if (centerTimerRef.current) clearTimeout(centerTimerRef.current);
     centerTimerRef.current = setTimeout(() => setCenterIcon(null), 700);
-  }, []);
+  }, [devToolsOpen]);
 
   const toggleMute = useCallback(() => {
     const video = videoRef.current;

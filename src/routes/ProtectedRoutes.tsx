@@ -10,6 +10,7 @@ import { BlogRoutes } from "@/modules/Blog/routes";
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const StudentDashboard = lazy(() => import("@/pages/StudentDashboard"));
+const StudentHelpPage = lazy(() => import("@/pages/StudentHelpPage"));
 const CoursePlayerPage = lazy(() => import("@/modules/Course/features/CoursePlayerPage/CoursePlayerPage"));
 
 const ProtectedRoutes: ProtectedRouteType[] = [
@@ -21,6 +22,12 @@ const ProtectedRoutes: ProtectedRouteType[] = [
   {
     path: "/student",
     component: <StudentDashboard />,
+    permission: "",
+    anyRole: ["student"],
+  },
+  {
+    path: "/student/help",
+    component: <StudentHelpPage />,
     permission: "",
     anyRole: ["student"],
   },

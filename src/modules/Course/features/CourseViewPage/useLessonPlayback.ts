@@ -4,6 +4,8 @@ export type LessonPlaybackPayload = {
   type: "hls" | "progressive";
   src: string;
   qualities?: { label: string; src: string }[] | null;
+  /** Protected playback session; must be sent as the player header on every HLS request. */
+  session?: string | null;
 };
 
 /**

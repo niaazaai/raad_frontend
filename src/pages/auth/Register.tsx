@@ -76,7 +76,7 @@ const RegisterPage = () => {
       <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-8 sm:px-6">
         <div className={cn("w-full rounded-2xl border border-border bg-card p-6 shadow-sm md:p-7", authFormLightScope)}>
           <div className="mb-5 flex justify-center">
-            <img src="/logo.png" alt="Raad LMS" className="h-12 w-auto object-contain md:h-14" />
+            <img src="/logo.svg" alt="Raad LMS" className="h-12 w-auto object-contain md:h-14" />
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

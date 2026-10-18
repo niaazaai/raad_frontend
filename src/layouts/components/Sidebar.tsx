@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
 import { BookOpen as Learning } from "lucide-react";
 import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
@@ -80,6 +80,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Attendance: "sidebar.attendance",
   Blogs: "sidebar.blogs",
   "My learning": "sidebar.myLearning",
+  Help: "sidebar.help",
   "Main categories": "sidebar.mainCategories",
   "Sub categories": "sidebar.subCategories",
   "Student discounts": "sidebar.studentDiscounts",
@@ -94,11 +95,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
 
 function linkIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/student") {
-    return (
-      pathname === "/student" ||
-      pathname.startsWith("/student/") ||
-      pathname.startsWith("/learn/course")
-    );
+    return pathname === "/student" || pathname.startsWith("/learn/course");
   }
   if (itemPath === "/course") {
     return pathname === "/course";
@@ -231,6 +228,11 @@ const Sidebar = () => {
               title: "My learning",
               path: "/student",
               icon: <Learning className={iconLg} />,
+            },
+            {
+              title: "Help",
+              path: "/student/help",
+              icon: <LifeBuoy className={iconLg} />,
             },
           ]
         : []),
@@ -487,7 +489,7 @@ const Sidebar = () => {
           className="flex items-center justify-center rounded-md px-1 py-1.5 outline-none ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 group-data-[collapsible=icon]:p-0"
         >
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt={t("sidebar.productName")}
             className="h-10 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:hidden"
           />
