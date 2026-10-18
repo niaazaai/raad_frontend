@@ -611,11 +611,11 @@ const LessonVideoPlayer = ({
       {watermarkText ? (
         <div
           className="pointer-events-none absolute z-20 transition-all duration-1000"
-          style={{ opacity: 0.2, ...wmPos }}
+          style={{ opacity: 0.16, ...wmPos }}
         >
           <span
-            className="block select-none whitespace-pre text-[11px] font-medium leading-relaxed text-white"
-            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+            className="block select-none whitespace-pre text-[11px] font-medium leading-relaxed text-neutral-300"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
           >
             {watermarkText}
           </span>
