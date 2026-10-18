@@ -33,7 +33,7 @@ const WebsiteFooter = () => {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4 sm:col-span-2 lg:col-span-1">
             <a href="/" aria-label="Raad LMS – Home">
-              <img src="/logo.png" alt="Raad Professional Development Institute" className="h-10 w-auto object-contain" />
+              <img src="/logo.svg" alt="Raad Professional Development Institute" className="h-10 w-auto object-contain" />
             </a>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
             <div className="flex flex-wrap gap-2.5">
