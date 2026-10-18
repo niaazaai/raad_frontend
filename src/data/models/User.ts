@@ -10,7 +10,7 @@ export function getDashboardPath(type: UserTypeValue | undefined): string {
     case "admin":
     case "instructor":
     default:
-      return "/course";
+      return "/dashboard";
   }
 }
 
