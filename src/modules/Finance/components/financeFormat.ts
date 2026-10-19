@@ -1,4 +1,5 @@
 import { endOfIsoMonth, localIsoDate } from "@/lib/date";
+import type { DataTableExportQuery } from "@/lib/exportSpreadsheet";
 import type {
   FinancePeriod,
   FinancialTransactionFilter,
@@ -95,6 +96,13 @@ export function periodParams(state: PeriodState): PeriodQuery {
     default:
       return { period: "monthly", month: state.month };
   }
+}
+
+/** Report/breakdown period params for the date range chosen in the Excel export drawer. */
+export function exportPeriodParams(query: DataTableExportQuery): PeriodQuery {
+  return query.allTime || !query.from || !query.to
+    ? { period: "all" }
+    : { period: "range", from: query.from, to: query.to };
 }
 
 /** from/to (inclusive) for endpoints that take a plain date range; null means all time. */

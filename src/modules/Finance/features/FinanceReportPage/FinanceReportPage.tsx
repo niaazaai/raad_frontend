@@ -29,6 +29,7 @@ import FinanceStatusBadge from "../../components/FinanceStatusBadge";
 import SummaryCard from "../../components/SummaryCard";
 import {
   defaultPeriodState,
+  exportPeriodParams,
   formatMoney,
   periodParams,
   periodRange,
@@ -288,14 +289,9 @@ const FinanceReportPage = () => {
       },
       {
         key: "fee_date",
-        header: t("fin.columns.feeDate"),
+        header: t("finance.columns.enrollmentDate"),
         sortable: true,
         render: (row) => row.fee_date || "—",
-      },
-      {
-        key: "invoice_number",
-        header: t("finance.columns.invoice"),
-        render: (row) => <span className="font-mono text-xs">{row.invoice_number || "—"}</span>,
       },
       {
         key: "teacher_name",
@@ -332,9 +328,7 @@ const FinanceReportPage = () => {
           search: debouncedSearch || undefined,
           sort_by: params.sort_by,
           sort_dir: params.sort_dir,
-          ...(query.allTime
-            ? { period: "all" }
-            : { period: "range", from: query.from, to: query.to }),
+          ...exportPeriodParams(query),
         },
         extractRows: (res) => extractFinanceRows(res) as FinanceClassRow[],
         extractPagination: extractFinancePagination,
@@ -412,9 +406,7 @@ const FinanceReportPage = () => {
           search: debouncedSearch || undefined,
           sort_by: params.sort_by,
           sort_dir: params.sort_dir,
-          ...(query.allTime
-            ? { period: "all" }
-            : { period: "range", from: query.from, to: query.to }),
+          ...exportPeriodParams(query),
         },
         extractRows: (res) => extractFinanceRows(res) as FinanceCourseRow[],
         extractPagination: extractFinancePagination,

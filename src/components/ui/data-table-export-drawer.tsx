@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "./button";
 import { Checkbox } from "./checkbox";
@@ -60,12 +60,18 @@ const DataTableExportDrawer = <T,>({ open, onClose, data, config }: DataTableExp
   const [to, setTo] = useState(todayIsoDate());
   const [exporting, setExporting] = useState(false);
 
+  const wasOpenRef = useRef(false);
+
+  // Reset only when the drawer opens: parent re-renders (e.g. a refetch after the native date
+  // picker steals focus) rebuild `columns` and must not wipe the chosen date range.
   useEffect(() => {
-    if (!open) return;
-    setSelectedKeys(columns.map((column) => column.key));
-    setAllTime(true);
-    setFrom(monthStartIsoDate());
-    setTo(todayIsoDate());
+    if (open && !wasOpenRef.current) {
+      setSelectedKeys(columns.map((column) => column.key));
+      setAllTime(true);
+      setFrom(monthStartIsoDate());
+      setTo(todayIsoDate());
+    }
+    wasOpenRef.current = open;
   }, [open, columns]);
 
   const dateKey = detectDateKey(config.columns, config.exportDateKey);

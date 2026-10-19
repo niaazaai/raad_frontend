@@ -25,7 +25,7 @@ import {
   useFinanceBreakdown,
 } from "../hooks/useFinanceBreakdown";
 import FinanceStatusBadge from "./FinanceStatusBadge";
-import { formatMoney, openPdf, type PeriodQuery } from "./financeFormat";
+import { exportPeriodParams, formatMoney, openPdf, type PeriodQuery } from "./financeFormat";
 
 export interface BreakdownRequest {
   metric: FinanceBreakdownMetric;
@@ -154,12 +154,12 @@ const FinanceBreakdownDrawer = ({
       emptyMessage: t("fin.breakdown.empty"),
       onRowDoubleClick: onOpenEnrollment,
       exportFilename: `finance-breakdown-${request?.metric ?? ""}`,
-      fetchExportRows: () =>
+      fetchExportRows: (query) =>
         fetchAllListPages({
           url: FINANCE_ENDPOINTS.REPORT_BREAKDOWN,
           params: {
             metric: request?.metric,
-            ...periodParams,
+            ...exportPeriodParams(query),
             search: debouncedSearch || undefined,
           },
           extractRows: (res) => extractBreakdownRows(res) as FinanceBreakdownEnrollmentRow[],
@@ -244,12 +244,12 @@ const FinanceBreakdownDrawer = ({
       emptyMessage: t("fin.breakdown.empty"),
       onRowDoubleClick: (row) => openPdf(row.pdf_url),
       exportFilename: `finance-breakdown-${request?.metric ?? ""}`,
-      fetchExportRows: () =>
+      fetchExportRows: (query) =>
         fetchAllListPages({
           url: FINANCE_ENDPOINTS.REPORT_BREAKDOWN,
           params: {
             metric: request?.metric,
-            ...periodParams,
+            ...exportPeriodParams(query),
             search: debouncedSearch || undefined,
           },
           extractRows: (res) => extractBreakdownRows(res) as FinancialTransactionRow[],
