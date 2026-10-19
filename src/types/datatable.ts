@@ -48,6 +48,8 @@ export interface DataTableColumnConfig<T = unknown> {
   align?: "left" | "center" | "right";
   /** Include this column in Excel export (default: true, except key "actions") */
   exportable?: boolean;
+  /** Only include this column in Excel export; never render it in the table */
+  exportOnly?: boolean;
   /** Plain value used for Excel export */
   exportValue?: (row: T) => string | number | null | undefined;
 }

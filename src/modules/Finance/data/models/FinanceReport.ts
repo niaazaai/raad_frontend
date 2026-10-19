@@ -365,6 +365,7 @@ export interface FinancialTransactionRow {
   father_name?: string | null;
   class_name?: string | null;
   class_code?: string | null;
+  teacher_name?: string | null;
   payment_status?: string | null;
   payment_status_label?: string | null;
   mof_receivable_amount?: number | string | null;

@@ -136,6 +136,12 @@ const TransactionsPage = () => {
           exportValue: (row) => row.student_name?.trim() || row.service_name,
         },
         {
+          key: "student_code",
+          header: t("finance.columns.studentId"),
+          render: (row) => row.student_code || "—",
+          exportOnly: true,
+        },
+        {
           key: "class_name",
           header: t("finance.columns.class"),
           render: (row) => (
@@ -147,6 +153,25 @@ const TransactionsPage = () => {
             </div>
           ),
           exportValue: (row) => row.class_code ?? row.class_name,
+        },
+        {
+          key: "class_full_name",
+          header: t("finance.columns.className"),
+          render: (row) => row.class_name || "—",
+          exportValue: (row) => row.class_name,
+          exportOnly: true,
+        },
+        {
+          key: "teacher_name",
+          header: t("finance.columns.teacher"),
+          render: (row) => row.teacher_name || "—",
+          exportOnly: true,
+        },
+        {
+          key: "next_installment_date",
+          header: t("finance.columns.nextInstallment"),
+          render: (row) => row.next_installment_date || "—",
+          exportOnly: true,
         },
         {
           key: "type",

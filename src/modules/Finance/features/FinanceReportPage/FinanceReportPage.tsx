@@ -153,6 +153,12 @@ const FinanceReportPage = () => {
         exportValue: (row) => row.student_name,
       },
       {
+        key: "student_code",
+        header: t("finance.columns.studentId"),
+        render: (row) => row.student_code || "—",
+        exportOnly: true,
+      },
+      {
         key: "father_name",
         header: t("finance.columns.fatherName"),
         render: (row) => row.father_name || "—",
@@ -171,11 +177,18 @@ const FinanceReportPage = () => {
         exportValue: (row) => row.class_code ?? row.class_name,
       },
       {
-        key: "payment_date",
-        header: t("fin.columns.lastPayment"),
-        sortable: true,
+        key: "class_full_name",
+        header: t("finance.columns.className"),
+        render: (row) => row.class_name || "—",
+        exportValue: (row) => row.class_name,
+        exportOnly: true,
+      },
+      {
+        key: "starting_date",
+        header: t("finance.columns.classStartDate"),
+        sortable: false,
         render: (row) => (
-          <span className="whitespace-nowrap tabular-nums">{row.payment_date || "—"}</span>
+          <span className="whitespace-nowrap tabular-nums">{row.starting_date || "—"}</span>
         ),
       },
       {
@@ -272,11 +285,6 @@ const FinanceReportPage = () => {
           <FinanceStatusBadge value={row.payment_status} fallbackLabel={row.payment_status_label} />
         ),
         exportValue: (row) => row.payment_status_label ?? row.payment_status,
-      },
-      {
-        key: "next_installment_date",
-        header: t("finance.columns.nextInstallment"),
-        render: (row) => row.next_installment_date || "—",
       },
       {
         key: "fee_date",

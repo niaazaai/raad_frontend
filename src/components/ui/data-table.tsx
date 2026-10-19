@@ -197,7 +197,7 @@ export function DataTable<T>({
   const { t } = useTranslation();
   const fmt = useFormatMessage();
   const {
-    columns,
+    columns: allColumns,
     rowId,
     actions,
     searchable = true,
@@ -212,6 +212,7 @@ export function DataTable<T>({
     exportEnabled = true,
   } = config;
 
+  const columns = React.useMemo(() => allColumns.filter((column) => !column.exportOnly), [allColumns]);
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("dataTable.search");
   const resolvedEmptyMessage = emptyMessage ?? t("dataTable.noRecords");
   const [exportOpen, setExportOpen] = React.useState(false);
