@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail, MessageCircle, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
 import { CONTACT_INFO } from "@/components/website/websiteData";
@@ -10,8 +10,10 @@ type HelpPerson = {
   name: string;
   roleKey?: TranslationKey;
   role?: string | null;
+  bio?: string | null;
   email?: string | null;
   phone?: string | null;
+  whatsapp?: string | null;
   image?: string | null;
 };
 
@@ -39,14 +41,17 @@ function initials(name: string): string {
 
 function PersonCard({ person }: { person: HelpPerson }) {
   const { t } = useTranslation();
-  const role = person.roleKey ? t(person.roleKey) : person.role || t("studentHelp.instructorFallback");
+  const role = person.roleKey ? t(person.roleKey) : person.role || "";
+  const bio = person.bio?.trim() || "";
   const email = person.email?.trim() || "";
   const phone = person.phone?.trim() || "";
+  const whatsapp = person.whatsapp?.trim() || "";
   const phoneHref = phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : null;
+  const whatsappHref = whatsapp ? `https://wa.me/${whatsapp.replace(/\D/g, "")}` : null;
 
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-4">
+      <CardContent className="flex items-start gap-4 p-4">
         {person.image ? (
           <img src={person.image} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
         ) : (
@@ -54,9 +59,10 @@ function PersonCard({ person }: { person: HelpPerson }) {
             {initials(person.name)}
           </div>
         )}
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col">
           <p className="truncate text-sm font-semibold text-foreground">{person.name}</p>
-          <p className="text-xs text-muted-foreground">{role}</p>
+          {role ? <p className="text-xs text-muted-foreground">{role}</p> : null}
+          {bio ? <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{bio}</p> : null}
           {phone && phoneHref ? (
             <a
               href={phoneHref}
@@ -64,6 +70,17 @@ function PersonCard({ person }: { person: HelpPerson }) {
             >
               <Phone className="h-3.5 w-3.5 shrink-0" />
               {phone}
+            </a>
+          ) : null}
+          {whatsapp && whatsappHref ? (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+              {whatsapp}
             </a>
           ) : null}
           {email ? (

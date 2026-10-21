@@ -1,9 +1,12 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
+import { callApi } from "@/services";
 import type { DataTablePaginationMeta } from "@/types/datatable";
 import {
   FINANCE_ENDPOINTS,
   FINANCE_QUERY_KEYS,
+  FINANCE_RELATED_QUERY_KEYS,
   FINANCE_STALE_TIME,
 } from "../data/constants/endpoints";
 import type {
@@ -33,6 +36,29 @@ export function useFinancialTransactions(params: FinancialTransactionListParams)
     method: RequestMethod.GET,
     params,
     options: { staleTime: FINANCE_STALE_TIME, refetchOnMount: "always" },
+  });
+}
+
+export function useDeleteFinancialTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await callApi({
+        url: `${FINANCE_ENDPOINTS.TRANSACTIONS}/${id}`,
+        method: RequestMethod.DELETE,
+        shouldPopError: false,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Delete failed");
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      FINANCE_RELATED_QUERY_KEYS.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [...key] });
+      });
+    },
   });
 }
 

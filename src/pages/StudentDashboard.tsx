@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Library } from "lucide-react";
+import { Library, Play } from "lucide-react";
+import { useTranslation } from "@/i18n/useTranslation";
 import { courseLevelLabel } from "@/data/enums/courseWizard";
 import { Button, Card, CardContent } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
@@ -56,11 +57,19 @@ function CourseCard({
   row: MyEnrollmentItem;
   onRenew: (courseId: number, title: string) => void;
 }) {
+  const { t } = useTranslation();
   const courseId = Number(row.course_id);
-  const learnPath = Number.isFinite(courseId) ? `/learn/course/${courseId}` : "/student";
   const title = row.course_title ?? "Course";
   const description = String(row.course_short_description ?? "").trim();
   const expired = isSubscriptionExpired(row.subscription_end_date);
+  const learnPath = Number.isFinite(courseId) ? `/learn/course/${courseId}` : "/student";
+  const resumeLessonId = Number(row.resume_lesson_id);
+  const resumeAt = Math.max(0, Math.floor(Number(row.resume_position_seconds) || 0));
+  const hasResume = Number.isFinite(resumeLessonId) && resumeLessonId > 0;
+  const resumePath = hasResume
+    ? `/learn/course/${courseId}?lesson=${resumeLessonId}${resumeAt > 0 ? `&t=${resumeAt}` : ""}`
+    : learnPath;
+  const canLearn = !expired && row.subscription_status !== "pending";
   const access = accessLabel(row.subscription_end_date);
   const level = String(row.course_level ?? "").trim();
   const category = [row.course_main_category, row.course_sub_category].filter(Boolean).join(" - ");
@@ -77,6 +86,12 @@ function CourseCard({
           : "border-border/80 transition-shadow group-hover:border-primary/30 group-hover:shadow-md",
       )}
     >
+      {canLearn ? (
+      <Link
+        to={learnPath}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Open course: ${title}`}
+      >
       <div className="relative aspect-video w-full bg-muted">
         {row.course_thumbnail_url ? (
           <img src={row.course_thumbnail_url} alt="" className="h-full w-full object-cover" />
@@ -91,10 +106,33 @@ function CourseCard({
           </span>
         ) : null}
       </div>
+      </Link>
+      ) : (
+      <div className="relative aspect-video w-full bg-muted">
+        {row.course_thumbnail_url ? (
+          <img src={row.course_thumbnail_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <Library className="h-12 w-12 opacity-40" />
+          </div>
+        )}
+        {category ? (
+          <span className="absolute end-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-medium text-white">
+            {category}
+          </span>
+        ) : null}
+      </div>
+      )}
       <CardContent className="flex flex-1 flex-col gap-3 p-4">
         <div className="space-y-1.5">
           <h2 className="line-clamp-2 text-base font-semibold leading-snug text-foreground group-hover:text-primary">
-            {title}
+            {canLearn ? (
+              <Link to={learnPath} className="hover:text-primary">
+                {title}
+              </Link>
+            ) : (
+              title
+            )}
           </h2>
           {description ? (
             <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
@@ -134,6 +172,14 @@ function CourseCard({
               </span>
             ) : null}
           </div>
+          {canLearn ? (
+            <Button asChild size="sm" className="h-9 w-full">
+              <Link to={resumePath}>
+                <Play className="h-3.5 w-3.5" />
+                {hasResume ? t("studentLearning.resumeLesson") : t("studentLearning.startLesson")}
+              </Link>
+            </Button>
+          ) : null}
           {expired ? (
             <Button
               type="button"
@@ -150,22 +196,10 @@ function CourseCard({
     </Card>
   );
 
-  if (expired) {
-    return (
-      <div className="h-full" aria-label={`${title} subscription expired`}>
-        {card}
-      </div>
-    );
-  }
-
   return (
-    <Link
-      to={learnPath}
-      className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      aria-label={`Open course: ${title}`}
-    >
+    <div className="group h-full">
       {card}
-    </Link>
+    </div>
   );
 }
 
