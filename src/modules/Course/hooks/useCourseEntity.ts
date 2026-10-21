@@ -14,6 +14,22 @@ import { FINANCE_RELATED_QUERY_KEYS } from "@/modules/Finance/data/constants/end
 
 export type CourseRow = Record<string, unknown>;
 
+export type CourseEntityFieldError = Error & { fieldErrors?: Record<string, string> };
+
+function courseEntityRequestError(data: unknown, fallback: string): CourseEntityFieldError {
+  const body = data && typeof data === "object" ? (data as { message?: string; errors?: Record<string, string[] | string> }) : undefined;
+  const fieldErrors: Record<string, string> = {};
+  if (body?.errors) {
+    for (const [key, messages] of Object.entries(body.errors)) {
+      const first = Array.isArray(messages) ? messages[0] : messages;
+      if (typeof first === "string" && first.trim() !== "") fieldErrors[key] = first;
+    }
+  }
+  const error = new Error(body?.message || fallback) as CourseEntityFieldError;
+  if (Object.keys(fieldErrors).length > 0) error.fieldErrors = fieldErrors;
+  return error;
+}
+
 function getRowsFromResponse(response: unknown): CourseRow[] {
   if (!response || typeof response !== "object") return [];
   const data = (response as { data?: CourseRow[] | { data?: CourseRow[] } }).data;
@@ -113,7 +129,7 @@ export function useCreateCourseEntity(slug: CourseEntitySlug) {
         hasFiles,
       });
       if (!response.ok) {
-        throw new Error(response.data?.message || "Create failed");
+        throw courseEntityRequestError(response.data, "Create failed");
       }
       return response.data;
     },
@@ -142,7 +158,7 @@ export function useUpdateCourseEntity(slug: CourseEntitySlug) {
         hasFiles,
       });
       if (!response.ok) {
-        throw new Error(response.data?.message || "Update failed");
+        throw courseEntityRequestError(response.data, "Update failed");
       }
       return response.data;
     },

@@ -65,6 +65,7 @@ const COLUMN_KEYS = new Set([
   "first_name",
   "father_name",
   "phone_number",
+  "whatsapp_number",
   "email",
   "specialization",
   "bio",

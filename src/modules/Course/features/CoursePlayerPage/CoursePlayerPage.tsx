@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Check,
   ClipboardCheck,
@@ -218,6 +218,9 @@ const CoursePlayerPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const id = courseId ? Number(courseId) : NaN;
   const validId = !Number.isNaN(id) ? id : null;
+  const [searchParams] = useSearchParams();
+  const requestedLessonId = Number(searchParams.get("lesson"));
+  const requestedTime = Math.max(0, Math.floor(Number(searchParams.get("t")) || 0));
 
   const learnQuery = useCourseLearn(validId, { enabled: validId != null });
   const payload = useMemo(() => getCourseLearnFromResponse(learnQuery.data), [learnQuery.data]);
@@ -239,10 +242,12 @@ const CoursePlayerPage = () => {
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef(0);
   const didInitModule = useRef(false);
+  const didApplyResume = useRef(false);
   const reportedSessions = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     didInitModule.current = false;
+    didApplyResume.current = false;
     setOpenModuleId(null);
     setSelectedId(null);
     setUnitPrompt(null);
@@ -253,15 +258,24 @@ const CoursePlayerPage = () => {
     if (lessons.length === 0) return;
     setSelectedId((prev) => {
       if (prev != null && lessons.some((lesson) => lesson.id === prev)) return prev;
+      if (!didApplyResume.current && Number.isFinite(requestedLessonId)) {
+        const match = lessons.find((lesson) => lesson.id === requestedLessonId);
+        if (match) {
+          didApplyResume.current = true;
+          return match.id;
+        }
+      }
+      didApplyResume.current = true;
       return lessons[0]?.id ?? null;
     });
-  }, [lessons]);
+  }, [lessons, requestedLessonId]);
 
   useEffect(() => {
-    if (didInitModule.current || modules.length === 0) return;
-    setOpenModuleId(modules[0]?.id ?? null);
+    if (didInitModule.current || modules.length === 0 || selectedId == null) return;
+    const lesson = lessons.find((item) => item.id === selectedId);
+    setOpenModuleId(lesson?.course_module_id ?? modules[0]?.id ?? null);
     didInitModule.current = true;
-  }, [modules]);
+  }, [modules, lessons, selectedId]);
 
   useEffect(() => {
     if (selectedId == null) return;
@@ -392,6 +406,15 @@ const CoursePlayerPage = () => {
     if (reportedSessions.current.has(key)) return;
     reportedSessions.current.add(key);
     recordWatch.mutate({ lesson_id: selectedId, session_id: watchSession });
+  }, [recordWatch, selectedId, watchSession]);
+
+  const handleProgress = useCallback((seconds: number) => {
+    if (selectedId == null || watchSession === "") return;
+    recordWatch.mutate({
+      lesson_id: selectedId,
+      session_id: watchSession,
+      position_seconds: Math.max(0, Math.floor(seconds)),
+    });
   }, [recordWatch, selectedId, watchSession]);
 
   useEffect(() => {
@@ -553,6 +576,8 @@ const CoursePlayerPage = () => {
                 }
                 onEnded={handleLessonEnded}
                 onEngaged={handleEngaged}
+                onProgress={handleProgress}
+                startAt={selectedId === requestedLessonId ? requestedTime : 0}
                 onPrevious={() => prevLesson && goToLesson(prevLesson.id)}
                 onNext={() => nextLesson && goToLesson(nextLesson.id)}
                 hasPrevious={prevLesson != null}

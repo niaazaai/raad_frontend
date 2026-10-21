@@ -6,7 +6,8 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Paperclip as Attachment, Check, CreditCard, Pencil as EditPencil, Folder, File as Page, FilePen as PageEdit, Play, Plus, Search, Timer, Trash2 as Trash } from "lucide-react";
+import { Paperclip as Attachment, Check, CreditCard, Download, Pencil as EditPencil, ExternalLink, Folder, File as Page, FilePen as PageEdit, Play, Plus, Search, Timer, Trash2 as Trash } from "lucide-react";
+import { downloadMedia, openMediaInNewTab } from "@/lib/openMedia";
 import {
   Button,
   Checkbox,
@@ -211,11 +212,48 @@ function mediaUrlForPreview(path: unknown): string | undefined {
   return undefined;
 }
 
+function AttachmentFileActions({ url, label }: { url: string; label: string }) {
+  if (!url) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => openMediaInNewTab(url)}
+        aria-label={`Open ${label}`}
+        title="Open"
+      >
+        <ExternalLink className="h-4 w-4" strokeWidth={1.5} />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => void downloadMedia(url, fileLabelFromUrl(url) || label)}
+        aria-label={`Download ${label}`}
+        title="Download"
+      >
+        <Download className="h-4 w-4" strokeWidth={1.5} />
+      </Button>
+    </span>
+  );
+}
+
 function fileLabelFromUrl(path: unknown): string {
   const u = String(path ?? "").trim();
   if (!u) return "";
-  const seg = u.split(/[/\\]/).pop();
-  return seg && seg.length > 0 ? seg : u;
+  try {
+    const pathname = new URL(u, window.location.origin).pathname;
+    const seg = pathname.split("/").pop();
+    return seg && seg.length > 0 ? decodeURIComponent(seg) : u;
+  } catch {
+    const withoutQuery = u.split("?")[0] ?? u;
+    const seg = withoutQuery.split(/[/\\]/).pop();
+    return seg && seg.length > 0 ? seg : u;
+  }
 }
 
 function truncateDescription(raw: unknown, max = DESC_MAX_LEN): string {
@@ -1919,44 +1957,47 @@ const CourseWizardPage = () => {
                                                 </p>
                                               </div>
                                             </div>
-                                            {!viewMode ? (
-                                              <span className="flex shrink-0 items-center gap-1">
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-8 px-2"
-                                                  onClick={() => {
-                                                    setAssignmentDraft({
-                                                      moduleId: mid,
-                                                      id: aid,
-                                                      title: atitle,
-                                                      description: String(fileRow.description ?? ""),
-                                                      file: null,
-                                                      existingFileUrl: aurl || null,
-                                                    });
-                                                    setAssignmentDrawerOpen(true);
-                                                  }}
-                                                  aria-label="Edit chapter file"
-                                                >
-                                                  <EditPencil className="h-4 w-4" strokeWidth={1.5} />
-                                                </Button>
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-8 px-2 text-danger hover:text-danger"
-                                                  onClick={() =>
-                                                    deleteAssignmentMutation.mutate(aid, {
-                                                      onSuccess: () => invalidateCourseLists(),
-                                                    })
-                                                  }
-                                                  aria-label="Delete chapter file"
-                                                >
-                                                  <Trash className="h-4 w-4" strokeWidth={1.5} />
-                                                </Button>
-                                              </span>
-                                            ) : null}
+                                            <span className="flex shrink-0 items-center gap-1">
+                                              <AttachmentFileActions url={aurl} label={atitle || "chapter file"} />
+                                              {!viewMode ? (
+                                                <>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-2"
+                                                    onClick={() => {
+                                                      setAssignmentDraft({
+                                                        moduleId: mid,
+                                                        id: aid,
+                                                        title: atitle,
+                                                        description: String(fileRow.description ?? ""),
+                                                        file: null,
+                                                        existingFileUrl: aurl || null,
+                                                      });
+                                                      setAssignmentDrawerOpen(true);
+                                                    }}
+                                                    aria-label="Edit chapter file"
+                                                  >
+                                                    <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                                                  </Button>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-2 text-danger hover:text-danger"
+                                                    onClick={() =>
+                                                      deleteAssignmentMutation.mutate(aid, {
+                                                        onSuccess: () => invalidateCourseLists(),
+                                                      })
+                                                    }
+                                                    aria-label="Delete chapter file"
+                                                  >
+                                                    <Trash className="h-4 w-4" strokeWidth={1.5} />
+                                                  </Button>
+                                                </>
+                                              ) : null}
+                                            </span>
                                           </div>
                                         </div>
                                       );
@@ -2157,42 +2198,45 @@ const CourseWizardPage = () => {
                         key={rid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2"
-                              onClick={() => {
-                                setResourceDraft({
-                                  id: rid,
-                                  title: rtitle,
-                                  file: null,
-                                  existingFileUrl: rurl || null,
-                                });
-                                setResourceDrawerOpen(true);
-                              }}
-                              aria-label="Edit resource"
-                            >
-                              <EditPencil className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-danger hover:text-danger"
-                              onClick={() =>
-                                deleteResourceMutation.mutate(rid, {
-                                  onSuccess: () => invalidateCourseLists(),
-                                })
-                              }
-                              aria-label="Delete resource"
-                            >
-                              <Trash className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                          </div>
-                        ) : null}
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={rurl} label={rtitle || "resource"} />
+                          {!viewMode ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => {
+                                  setResourceDraft({
+                                    id: rid,
+                                    title: rtitle,
+                                    file: null,
+                                    existingFileUrl: rurl || null,
+                                  });
+                                  setResourceDrawerOpen(true);
+                                }}
+                                aria-label="Edit resource"
+                              >
+                                <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-danger hover:text-danger"
+                                onClick={() =>
+                                  deleteResourceMutation.mutate(rid, {
+                                    onSuccess: () => invalidateCourseLists(),
+                                  })
+                                }
+                                aria-label="Delete resource"
+                              >
+                                <Trash className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Attachment className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
@@ -2415,8 +2459,9 @@ const CourseWizardPage = () => {
                         key={mid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={murl} label={mtitle || "mock test"} />
+                          {!viewMode ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -2431,8 +2476,8 @@ const CourseWizardPage = () => {
                             >
                               <Trash className="h-4 w-4" strokeWidth={1.5} />
                             </Button>
-                          </div>
-                        ) : null}
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Timer className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
@@ -2497,42 +2542,45 @@ const CourseWizardPage = () => {
                         key={qid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2"
-                              onClick={() => {
-                                setQuizDraft({
-                                  id: qid,
-                                  title: qtitle,
-                                  file: null,
-                                  existingFileUrl: qurl || null,
-                                });
-                                setQuizDrawerOpen(true);
-                              }}
-                              aria-label="Edit quiz file"
-                            >
-                              <EditPencil className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-danger hover:text-danger"
-                              onClick={() =>
-                                deleteQuizMutation.mutate(qid, {
-                                  onSuccess: () => invalidateCourseLists(),
-                                })
-                              }
-                              aria-label="Delete quiz file"
-                            >
-                              <Trash className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                          </div>
-                        ) : null}
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={qurl} label={qtitle || "quiz file"} />
+                          {!viewMode ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => {
+                                  setQuizDraft({
+                                    id: qid,
+                                    title: qtitle,
+                                    file: null,
+                                    existingFileUrl: qurl || null,
+                                  });
+                                  setQuizDrawerOpen(true);
+                                }}
+                                aria-label="Edit quiz file"
+                              >
+                                <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-danger hover:text-danger"
+                                onClick={() =>
+                                  deleteQuizMutation.mutate(qid, {
+                                    onSuccess: () => invalidateCourseLists(),
+                                  })
+                                }
+                                aria-label="Delete quiz file"
+                              >
+                                <Trash className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Page className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />

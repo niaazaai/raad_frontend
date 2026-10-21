@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMutationApi, useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
@@ -78,25 +79,36 @@ export interface AttendanceOverviewClass {
   status?: string;
 }
 
-type MarkAttendanceVars = {
+export type MarkAttendanceVars = {
   student_id: number;
   date: string;
   status: AttendanceMarkStatus;
 };
 
-type AttendanceCacheSnapshot = Array<[unknown, unknown]>;
+type MarkAttendanceRecord = {
+  student_id?: number;
+  attendance_date?: string;
+  status?: AttendanceMarkStatus | string;
+};
 
 export const classAttendanceQueryKey = (classId: number) =>
   ["lms-classes", classId, "attendance"] as const;
 
 export const attendanceOverviewQueryKey = ["lms-classes", "attendance-overview"] as const;
 
+export function attendanceCellKey(studentId: number, date: string): string {
+  return `${studentId}|${date}`;
+}
+
 export function useClassAttendance(classId: number) {
   return useQueryApi<AttendanceGrid>({
     queryKey: classAttendanceQueryKey(classId),
     url: `/lms-classes/${classId}/attendance`,
     method: RequestMethod.GET,
-    options: { enabled: classId > 0 },
+    options: {
+      enabled: classId > 0,
+      refetchOnWindowFocus: true,
+    },
   });
 }
 
@@ -109,24 +121,36 @@ export function useAttendanceOverview(params?: Record<string, unknown>) {
   });
 }
 
-function letterFor(status: AttendanceMarkStatus): string {
+function letterFor(status: AttendanceMarkStatus | null): string {
   if (status === "present") return "P";
   if (status === "leave") return "L";
-  return "A";
+  if (status === "absent") return "A";
+  return "";
 }
 
-function applyOptimisticMark(
+function normalizeStatus(status: string | null | undefined): AttendanceMarkStatus | null {
+  if (status === "present" || status === "absent" || status === "leave") return status;
+  return null;
+}
+
+/**
+ * Set one cell's status (including null) and recompute that student's P/A/L totals.
+ * Does not touch other students — safe for concurrent mark races.
+ */
+function applyCellStatus(
   response: ApiResponse<AttendanceGrid> | undefined,
-  vars: MarkAttendanceVars
+  studentId: number,
+  date: string,
+  nextStatus: AttendanceMarkStatus | null
 ): ApiResponse<AttendanceGrid> | undefined {
   if (!response?.data?.students) return response;
 
   const students = response.data.students.map((student) => {
-    if (student.student_id !== vars.student_id) return student;
+    if (student.student_id !== studentId) return student;
 
-    const prev = student.attendance[vars.date];
-    const prevStatus = prev?.status ?? null;
-    if (prevStatus === vars.status) return student;
+    const prev = student.attendance[date];
+    const prevStatus = normalizeStatus(prev?.status);
+    if (prevStatus === nextStatus) return student;
 
     let total_present = student.total_present;
     let total_absent = student.total_absent;
@@ -135,9 +159,9 @@ function applyOptimisticMark(
     if (prevStatus === "present") total_present = Math.max(0, total_present - 1);
     if (prevStatus === "absent") total_absent = Math.max(0, total_absent - 1);
     if (prevStatus === "leave") total_leave = Math.max(0, total_leave - 1);
-    if (vars.status === "present") total_present += 1;
-    if (vars.status === "absent") total_absent += 1;
-    if (vars.status === "leave") total_leave += 1;
+    if (nextStatus === "present") total_present += 1;
+    if (nextStatus === "absent") total_absent += 1;
+    if (nextStatus === "leave") total_leave += 1;
 
     return {
       ...student,
@@ -146,9 +170,9 @@ function applyOptimisticMark(
       total_leave,
       attendance: {
         ...student.attendance,
-        [vars.date]: {
-          status: vars.status,
-          display: letterFor(vars.status),
+        [date]: {
+          status: nextStatus,
+          display: letterFor(nextStatus),
           editable: prev?.editable ?? true,
         },
       },
@@ -164,40 +188,88 @@ function applyOptimisticMark(
   };
 }
 
+function readCellStatus(
+  response: ApiResponse<AttendanceGrid> | undefined,
+  studentId: number,
+  date: string
+): AttendanceMarkStatus | null {
+  const student = response?.data?.students?.find((s) => s.student_id === studentId);
+  return normalizeStatus(student?.attendance?.[date]?.status);
+}
+
 /**
  * Instant cell UX: optimistic cache update, no full-grid refetch on every click.
+ * Per-cell pending lock + cell-level rollback keep concurrent marks consistent.
  */
 export function useMarkClassAttendance(classId: number) {
   const queryClient = useQueryClient();
   const queryKey = classAttendanceQueryKey(classId);
+  const [pendingCells, setPendingCells] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingRef = useRef<Set<string>>(new Set());
 
-  return useMutationApi<unknown, MarkAttendanceVars>({
+  const mutation = useMutationApi<MarkAttendanceRecord, MarkAttendanceVars>({
     url: `/lms-classes/${classId}/attendance`,
     method: RequestMethod.POST,
     invalidateKeys: [],
+    shouldPopSuccess: false,
     options: {
       onMutate: async (vars) => {
         await queryClient.cancelQueries({ queryKey });
 
-        const previous = queryClient.getQueriesData<ApiResponse<AttendanceGrid>>({
-          queryKey,
-        }) as AttendanceCacheSnapshot;
+        const snapshots = queryClient.getQueriesData<ApiResponse<AttendanceGrid>>({ queryKey });
+        const prevStatus = readCellStatus(snapshots[0]?.[1], vars.student_id, vars.date);
 
         queryClient.setQueriesData<ApiResponse<AttendanceGrid>>({ queryKey }, (old) =>
-          applyOptimisticMark(old, vars)
+          applyCellStatus(old, vars.student_id, vars.date, vars.status)
         );
 
-        return { previous };
+        return { prevStatus };
       },
-      onError: (_err, _vars, context) => {
-        const snapshot = (context as { previous?: AttendanceCacheSnapshot } | undefined)
-          ?.previous;
-        snapshot?.forEach(([key, data]) => {
-          queryClient.setQueryData(key as ReturnType<typeof classAttendanceQueryKey>, data);
-        });
+      onSuccess: (response, vars) => {
+        const confirmed = normalizeStatus(response?.data?.status) ?? vars.status;
+        queryClient.setQueriesData<ApiResponse<AttendanceGrid>>({ queryKey }, (old) =>
+          applyCellStatus(old, vars.student_id, vars.date, confirmed)
+        );
+      },
+      onError: (_err, vars, context) => {
+        const prevStatus =
+          (context as { prevStatus?: AttendanceMarkStatus | null } | undefined)?.prevStatus ?? null;
+        queryClient.setQueriesData<ApiResponse<AttendanceGrid>>({ queryKey }, (old) =>
+          applyCellStatus(old, vars.student_id, vars.date, prevStatus)
+        );
       },
     },
   });
+
+  const isCellPending = useCallback(
+    (studentId: number, date: string) => pendingCells.has(attendanceCellKey(studentId, date)),
+    [pendingCells]
+  );
+
+  const markCell = useCallback(
+    (vars: MarkAttendanceVars) => {
+      const key = attendanceCellKey(vars.student_id, vars.date);
+      if (pendingRef.current.has(key)) return;
+
+      pendingRef.current.add(key);
+      setPendingCells(new Set(pendingRef.current));
+
+      mutation.mutate(vars, {
+        onSettled: () => {
+          pendingRef.current.delete(key);
+          setPendingCells(new Set(pendingRef.current));
+        },
+      });
+    },
+    [mutation]
+  );
+
+  return {
+    ...mutation,
+    markCell,
+    isCellPending,
+    pendingCells,
+  };
 }
 
 export function extractAttendanceGrid(response: unknown): AttendanceGrid | null {

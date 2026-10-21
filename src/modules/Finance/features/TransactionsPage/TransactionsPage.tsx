@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { File as Page } from "lucide-react";
-import { DataTable, PageBreadcrumb } from "@/components/ui";
+import { Printer, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { DataTable, PageBreadcrumb, useConfirmDialog } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -27,6 +28,7 @@ import {
   extractFinancialTransactions,
   extractFinancialTransactionsPagination,
   extractFinancialTransactionTotals,
+  useDeleteFinancialTransaction,
   useFinancialTransactions,
 } from "../../hooks/useFinancialTransactions";
 import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
@@ -34,6 +36,8 @@ import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
 const TransactionsPage = () => {
   const { t } = useTranslation();
   const { hasPermission } = useAuth();
+  const { confirm } = useConfirmDialog();
+  const { mutate: deleteTransaction, isPending: deleting } = useDeleteFinancialTransaction();
   const [filters, setFilters] = useState<TransactionFilterState>(defaultTransactionFilters);
   const { filter, payer, period: periodState } = filters;
   const [account, setAccount] = useState<(Partial<FinanceClassRow> & { id: number }) | null>(null);
@@ -275,13 +279,37 @@ const TransactionsPage = () => {
         {
           key: "print",
           label: t("fin.transactions.printInvoice"),
-          icon: <Page className="h-4 w-4" />,
+          icon: <Printer className="h-4 w-4" />,
           onClick: (row) => openPdf(row.pdf_url),
           hidden: (row) => !row.pdf_url,
         },
+        {
+          key: "delete",
+          label: t("fin.transactions.delete"),
+          icon: <Trash2 className="h-4 w-4" />,
+          variant: "danger",
+          permission: "finance.transactions.delete",
+          onClick: (row) => {
+            if (deleting) return;
+            void confirm({
+              title: t("fin.transactions.deleteTitle"),
+              message: t("fin.transactions.deleteMessage"),
+              variant: "danger",
+              confirmText: t("fin.transactions.delete"),
+              cancelText: t("common.cancel"),
+            }).then((ok) => {
+              if (!ok) return;
+              deleteTransaction(row.id, {
+                onSuccess: () => toast.success(t("fin.transactions.deleteDone")),
+                onError: (error: unknown) =>
+                  toast.error(error instanceof Error ? error.message : t("fin.transactions.deleteFailed")),
+              });
+            });
+          },
+        },
       ],
     }),
-    [t, debouncedSearch, params.sort_by, params.sort_dir, filter, payer, openRow]
+    [t, debouncedSearch, params.sort_by, params.sort_dir, filter, payer, openRow, confirm, deleteTransaction, deleting]
   );
 
   if (!hasPermission("finance.read")) {

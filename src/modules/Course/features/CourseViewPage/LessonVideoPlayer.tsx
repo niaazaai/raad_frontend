@@ -12,6 +12,10 @@ export interface LessonVideoPlayerProps {
   playerToken?: string;
   onEnded?: () => void;
   onEngaged?: () => void;
+  /** Seconds to seek to once, after the media can play. */
+  startAt?: number;
+  /** Fired about every 10 seconds of playback and when the video pauses. */
+  onProgress?: (seconds: number) => void;
   onPrevious?: () => void;
   onNext?: () => void;
   hasPrevious?: boolean;
@@ -64,6 +68,8 @@ const LessonVideoPlayer = ({
   playerToken,
   onEnded,
   onEngaged,
+  startAt = 0,
+  onProgress,
   onPrevious,
   onNext,
   hasPrevious = false,
@@ -84,8 +90,14 @@ const LessonVideoPlayer = ({
   onEndedRef.current = onEnded;
   const onEngagedRef = useRef<(() => void) | undefined>(onEngaged);
   onEngagedRef.current = onEngaged;
+  const onProgressRef = useRef<((seconds: number) => void) | undefined>(onProgress);
+  onProgressRef.current = onProgress;
+  const startAtRef = useRef(startAt);
+  startAtRef.current = startAt;
   const engagedRef = useRef(false);
   const playedSecondsRef = useRef(0);
+  const didSeekRef = useRef(false);
+  const lastReportedRef = useRef(0);
   const lastMediaTimeRef = useRef<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +137,8 @@ const LessonVideoPlayer = ({
     setPlaying(false);
     engagedRef.current = false;
     playedSecondsRef.current = 0;
+    didSeekRef.current = false;
+    lastReportedRef.current = 0;
     lastMediaTimeRef.current = null;
 
     const isHls =
@@ -228,7 +242,26 @@ const LessonVideoPlayer = ({
     if (!video) return;
 
     const onPlay = () => setPlaying(true);
-    const onPause = () => { setPlaying(false); setIsBuffering(false); };
+    const reportProgress = (seconds: number, force = false) => {
+      const floored = Math.floor(seconds);
+      if (floored < 0) return;
+      if (!force && floored - lastReportedRef.current < 10) return;
+      lastReportedRef.current = floored;
+      onProgressRef.current?.(floored);
+    };
+    const seekToStart = () => {
+      const start = startAtRef.current;
+      if (didSeekRef.current || start <= 1) return;
+      if (!Number.isFinite(video.duration) || video.duration <= start + 1) return;
+      didSeekRef.current = true;
+      lastReportedRef.current = Math.floor(start);
+      video.currentTime = start;
+    };
+    const onPause = () => {
+      setPlaying(false);
+      setIsBuffering(false);
+      if (video.currentTime > 1 && !video.ended) reportProgress(video.currentTime, true);
+    };
     const markEngaged = () => {
       if (engagedRef.current) return;
       engagedRef.current = true;
@@ -252,6 +285,7 @@ const LessonVideoPlayer = ({
       lastMediaTimeRef.current = now;
       setCurrentTime(now);
       lastTimeRef.current = now;
+      if (!video.paused && !video.ended) reportProgress(now);
       if (video.buffered.length > 0) {
         const end = video.buffered.end(video.buffered.length - 1);
         setBuffered(video.duration > 0 ? end / video.duration : 0);
@@ -263,8 +297,17 @@ const LessonVideoPlayer = ({
       setVolume(video.volume);
     };
     const onWaiting = () => setIsBuffering(true);
-    const onCanPlay = () => setIsBuffering(false);
+    const onCanPlay = () => {
+      setIsBuffering(false);
+      seekToStart();
+    };
     const onPlaying = () => setIsBuffering(false);
+
+    const onHide = () => {
+      if (document.visibilityState === "hidden" && video.currentTime > 1 && !video.ended) {
+        reportProgress(video.currentTime, true);
+      }
+    };
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
@@ -275,8 +318,11 @@ const LessonVideoPlayer = ({
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("playing", onPlaying);
+    document.addEventListener("visibilitychange", onHide);
 
     return () => {
+      if (video.currentTime > 1 && !video.ended) reportProgress(video.currentTime, true);
+      document.removeEventListener("visibilitychange", onHide);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEndedHandler);

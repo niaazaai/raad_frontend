@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Plus, LayoutGrid as ViewGrid, List, Eye, Pencil as EditPencil } from "lucide-react";
+import { Plus, LayoutGrid as ViewGrid, List, Eye, Pencil as EditPencil, Ban, CircleCheck, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Button,
   DataTable,
@@ -8,21 +9,46 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  useConfirmDialog,
 } from "@/components/ui";
 import { useDataTableParams } from "@/hooks";
+import { useTranslation } from "@/i18n/useTranslation";
 import { Can, useAuth } from "@/features/auth";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
 import { courseLevelLabel } from "@/data/enums/courseWizard";
+import { cn } from "@/lib/utils";
 import { COURSE_ENTITY_REGISTRY } from "../../data/courseRegistry";
 import {
   getCourseListFromResponse,
   type CourseRow,
   useCourseEntityList,
+  useDeleteCourseEntity,
+  useUpdateCourseEntity,
 } from "../../hooks/useCourseEntity";
+
+function CourseStatusBadge({ value }: { value: unknown }) {
+  const { t } = useTranslation();
+  const status = String(value ?? "").toLowerCase();
+  const active = status === "active";
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+        active ? "bg-success/15 text-success" : "bg-danger/10 text-danger",
+      )}
+    >
+      {active ? t("common.active") : status === "inactive" ? t("common.inactive") : status || "—"}
+    </span>
+  );
+}
 
 const CoursesPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { hasPermission } = useAuth();
+  const { confirm } = useConfirmDialog();
+  const { mutate: patchCourse, isPending: patching } = useUpdateCourseEntity("courses");
+  const { mutate: deleteCourse, isPending: deleting } = useDeleteCourseEntity("courses");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 10,
@@ -69,7 +95,7 @@ const CoursesPage = () => {
           key: "status",
           header: "Status",
           sortable: true,
-          render: (row) => String(row.status ?? "—"),
+          render: (row) => <CourseStatusBadge value={row.status} />,
         },
       ],
       rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
@@ -97,9 +123,62 @@ const CoursesPage = () => {
             if (!Number.isNaN(id)) navigate(`/course/courses/${id}/edit`);
           },
         },
+        {
+          key: "toggle",
+          label: (row) =>
+            String(row.status ?? "") === "active" ? t("common.deactivate") : t("common.activate"),
+          icon: (row) =>
+            String(row.status ?? "") === "active" ? (
+              <Ban className="h-4 w-4" />
+            ) : (
+              <CircleCheck className="h-4 w-4" />
+            ),
+          variant: (row) => (String(row.status ?? "") === "active" ? "danger" : "default"),
+          permission: "course.courses.update",
+          onClick: (row) => {
+            const id = Number(row.id);
+            if (Number.isNaN(id) || patching) return;
+            const next = String(row.status ?? "") === "active" ? "inactive" : "active";
+            patchCourse(
+              { id, body: { status: next } },
+              {
+                onSuccess: () =>
+                  toast.success(next === "active" ? t("common.activate") : t("common.deactivate")),
+                onError: (error: unknown) =>
+                  toast.error(error instanceof Error ? error.message : "Could not update the course"),
+              },
+            );
+          },
+        },
+        {
+          key: "delete",
+          label: t("common.delete"),
+          icon: <Trash2 className="h-4 w-4" />,
+          variant: "danger",
+          permission: "course.courses.delete",
+          onClick: (row) => {
+            const id = Number(row.id);
+            if (Number.isNaN(id) || deleting) return;
+            void confirm({
+              title: "Delete this course?",
+              message:
+                "The course is removed from this list and from the public website. Classes and finance records are kept.",
+              variant: "danger",
+              confirmText: t("common.delete"),
+              cancelText: t("common.cancel"),
+            }).then((ok) => {
+              if (!ok) return;
+              deleteCourse(id, {
+                onSuccess: () => toast.success("Course deleted"),
+                onError: (error: unknown) =>
+                  toast.error(error instanceof Error ? error.message : "Could not delete the course"),
+              });
+            });
+          },
+        },
       ],
     }),
-    [navigate]
+    [navigate, t, confirm, patchCourse, patching, deleteCourse, deleting]
   );
 
   return (
@@ -187,6 +266,53 @@ const CoursesPage = () => {
                           }
                         >
                           <EditPencil className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                      )}
+                      {hasPermission("course.courses.update") && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (Number.isNaN(id) || patching) return;
+                            const next = String(row.status ?? "") === "active" ? "inactive" : "active";
+                            patchCourse(
+                              { id, body: { status: next } },
+                              {
+                                onError: (error: unknown) =>
+                                  toast.error(error instanceof Error ? error.message : "Could not update the course"),
+                              },
+                            );
+                          }}
+                        >
+                          {String(row.status ?? "") === "active" ? (
+                            <Ban className="mr-2 h-4 w-4" />
+                          ) : (
+                            <CircleCheck className="mr-2 h-4 w-4" />
+                          )}
+                          {String(row.status ?? "") === "active" ? t("common.deactivate") : t("common.activate")}
+                        </DropdownMenuItem>
+                      )}
+                      {hasPermission("course.courses.delete") && (
+                        <DropdownMenuItem
+                          variant="danger"
+                          onClick={() => {
+                            if (Number.isNaN(id) || deleting) return;
+                            void confirm({
+                              title: "Delete this course?",
+                              message:
+                                "The course is removed from this list and from the public website. Classes and finance records are kept.",
+                              variant: "danger",
+                              confirmText: t("common.delete"),
+                              cancelText: t("common.cancel"),
+                            }).then((ok) => {
+                              if (!ok) return;
+                              deleteCourse(id, {
+                                onSuccess: () => toast.success("Course deleted"),
+                                onError: (error: unknown) =>
+                                  toast.error(error instanceof Error ? error.message : "Could not delete the course"),
+                              });
+                            });
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
