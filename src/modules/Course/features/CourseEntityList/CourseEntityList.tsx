@@ -731,6 +731,15 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               openViewDrawer(typeof id === "number" ? id : idNum);
             }
           : undefined,
+      onRowDoubleClick:
+        resolvedSlug === "lms-class-students"
+          ? (row: CourseRow) => {
+              const id = row.id;
+              const idNum = typeof id === "number" ? id : Number(id);
+              if (typeof id !== "number" && Number.isNaN(idNum)) return;
+              openViewDrawer(typeof id === "number" ? id : idNum);
+            }
+          : undefined,
       actions: [
         ...(resolvedSlug === "instructors"
           ? []
