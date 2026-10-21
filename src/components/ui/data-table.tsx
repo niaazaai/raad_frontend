@@ -149,7 +149,7 @@ function ActionsCell<T>({
     typeof action.variant === "function" ? action.variant(row) : action.variant;
 
   return (
-    <td className="whitespace-nowrap px-4 py-3 text-right">
+    <td className="sticky end-0 z-10 whitespace-nowrap bg-card px-4 py-3 text-right group-hover:bg-[color-mix(in_oklab,var(--muted)_30%,var(--card))]">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm" aria-label={t("dataTable.actions")}>
@@ -302,7 +302,7 @@ export function DataTable<T>({
                 />
               ))}
               {hasActions && (
-                <th className="w-14 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <th className="sticky end-0 z-20 w-14 bg-muted px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {t("dataTable.actions")}
                 </th>
               )}
@@ -318,7 +318,7 @@ export function DataTable<T>({
                     </td>
                   ))}
                   {hasActions ? (
-                    <td className="px-4 py-3">
+                    <td className="sticky end-0 z-10 bg-card px-4 py-3">
                       <Skeleton className="ms-auto h-8 w-8 rounded-md" />
                     </td>
                   ) : null}
@@ -338,7 +338,7 @@ export function DataTable<T>({
                 <tr
                   key={String(rowId(row))}
                   className={cn(
-                    "hover:bg-muted/30",
+                    "group hover:bg-muted/30",
                     (onRowClick || onRowDoubleClick) && "cursor-pointer"
                   )}
                   onClick={(event) => {
