@@ -343,7 +343,12 @@ const en = {
     studentSuccess: "Student success",
     phone: "Phone",
     email: "Email",
+    whatsapp: "WhatsApp",
     location: "Campus",
+  },
+  studentLearning: {
+    resumeLesson: "Resume lesson",
+    startLesson: "Start lesson",
   },
   coursePlayer: {
     unitLabel: "Unit {n}",
@@ -694,7 +699,12 @@ const ps = {
     studentSuccess: "د زده کوونکو بریا",
     phone: "تلیفون",
     email: "برېښنالیک",
+    whatsapp: "واټساپ",
     location: "کمپس",
+  },
+  studentLearning: {
+    resumeLesson: "درس بیا پیل کړئ",
+    startLesson: "درس پیل کړئ",
   },
   coursePlayer: {
     unitLabel: "واحد {n}",
@@ -1044,7 +1054,12 @@ const fa = {
     studentSuccess: "موفقیت دانشجویان",
     phone: "تلفن",
     email: "ایمیل",
+    whatsapp: "واتساپ",
     location: "کمپس",
+  },
+  studentLearning: {
+    resumeLesson: "ادامه درس",
+    startLesson: "شروع درس",
   },
   coursePlayer: {
     unitLabel: "بخش {n}",

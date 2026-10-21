@@ -221,7 +221,7 @@ const Sidebar = () => {
 
   const navItems: NavItem[] = useMemo(
     () => [
-      baseNavItems[0],
+      ...(user?.type === "student" ? [] : [baseNavItems[0]]),
       ...(user?.type === "student"
         ? [
             {
