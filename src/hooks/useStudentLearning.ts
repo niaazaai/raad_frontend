@@ -111,12 +111,15 @@ export interface MyEnrollmentItem {
   lessons_total: number;
   lessons_watched: number;
   progress_percent: number;
+  resume_lesson_id?: number | null;
+  resume_lesson_title?: string | null;
+  resume_position_seconds?: number | null;
 }
 
 export function useRecordLessonWatch() {
   return useMutationApi<
     { watched: boolean; watch_count: number; lesson_id: number },
-    { lesson_id: number; session_id: string }
+    { lesson_id: number; session_id: string; position_seconds?: number }
   >({
     url: "/me/lesson-watches",
     method: RequestMethod.POST,
