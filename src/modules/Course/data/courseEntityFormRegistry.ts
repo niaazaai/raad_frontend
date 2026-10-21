@@ -232,9 +232,12 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   instructors: {
     fields: [
       { name: "user_id", label: "User", type: "number", required: true },
-      { name: "bio", label: "Bio", type: "textarea" },
-      { name: "specialization", label: "Specialization", type: "text" },
-      { name: "status", label: "Status", type: "select", options: ACTIVE_INACTIVE },
+      { name: "bio", label: "Bio", type: "textarea", placeholder: "Teaching background, subjects, and experience" },
+      { name: "specialization", label: "Specialization", type: "text", placeholder: "e.g. ACCA, audit, tax" },
+      { name: "phone_number", label: "Phone number", type: "text", placeholder: "+93701234567" },
+      { name: "whatsapp_number", label: "WhatsApp number", type: "text", placeholder: "+93701234567" },
+      { name: "email", label: "Email", type: "text", placeholder: "name@raad.af" },
+      { name: "address", label: "Address", type: "textarea", placeholder: "Street, district, city" },
     ],
     statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
   },

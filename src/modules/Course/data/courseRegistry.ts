@@ -147,7 +147,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Link ACCA tutors to user profiles—bios, specializations, and availability for class assignments.",
     apiPath: "/instructors",
     permission: "course.instructors.read",
-    columns: ["id", "user_name", "specialization", "bio", "status", "created_at"],
+    columns: ["id", "user_name", "specialization", "phone_number", "whatsapp_number", "email", "status", "created_at"],
   },
   "lms-classes": {
     slug: "lms-classes",

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Calendar, Banknote as Cash, Clock, Save as FloppyDisk, Hash as Hashtag, File as Page, User } from "lucide-react";
+import { isPdfUrl, openMediaInNewTab } from "@/lib/openMedia";
+import MediaPreview from "./MediaPreview";
+import StudentViewPanel from "./StudentViewPanel";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useQueryApi } from "@/hooks";
@@ -95,12 +98,7 @@ function formatTimeHms(value: unknown): string {
 function voucherIsPdf(detail: Record<string, unknown> | null | undefined): boolean {
   if (!detail) return false;
   if (detail.voucher_is_pdf === true) return true;
-  const path = String(detail.voucher_file_url ?? detail.voucher_url ?? "");
-  return /\.pdf(\?|$)/i.test(path);
-}
-
-function openVoucherInNewTab(url: string): void {
-  window.open(url, "_blank", "noopener,noreferrer");
+  return isPdfUrl(String(detail.voucher_file_url ?? detail.voucher_url ?? ""));
 }
 
 function validateRequired(values: FormValues, slug: CourseEntitySlug): string | null {
@@ -117,20 +115,49 @@ function validateRequired(values: FormValues, slug: CourseEntitySlug): string | 
   return null;
 }
 
+const INSTRUCTOR_PHONE = /^\+?[0-9]{7,15}$/;
+const INSTRUCTOR_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function instructorFieldErrors(values: FormValues): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!String(values.user_id ?? "").trim()) errors.user_id = "Select a user.";
+  const phone = String(values.phone_number ?? "").trim();
+  if (phone && !INSTRUCTOR_PHONE.test(phone)) {
+    errors.phone_number = "Use 7–15 digits, with an optional +.";
+  }
+  const whatsapp = String(values.whatsapp_number ?? "").trim();
+  if (whatsapp && !INSTRUCTOR_PHONE.test(whatsapp)) {
+    errors.whatsapp_number = "Use 7–15 digits, with an optional +.";
+  }
+  const email = String(values.email ?? "").trim();
+  if (email && !INSTRUCTOR_EMAIL.test(email)) errors.email = "Enter a valid email address.";
+  if (String(values.bio ?? "").length > 1024) errors.bio = "Bio must be 1024 characters or fewer.";
+  if (String(values.specialization ?? "").length > 256) {
+    errors.specialization = "Specialization must be 256 characters or fewer.";
+  }
+  if (String(values.address ?? "").length > 512) errors.address = "Address must be 512 characters or fewer.";
+  return errors;
+}
+
 function renderFieldControl(
   f: CourseEntityFormField,
   readOnly: boolean,
-  register: ReturnType<typeof useForm<FormValues>>["register"]
+  register: ReturnType<typeof useForm<FormValues>>["register"],
+  invalid = false,
+  clearFieldError?: (name: string) => void
 ) {
   const id = `cef-${f.name}`;
+  const fieldRegister = (name: string) =>
+    register(name, { onChange: () => clearFieldError?.(name) });
   if (f.type === "textarea") {
     return (
       <textarea
         id={id}
-        className={cn(inputClass, "min-h-[88px]")}
+        className={cn(inputClass, "min-h-[88px]", invalid && "border-destructive")}
+        aria-invalid={invalid || undefined}
         disabled={readOnly}
         placeholder={f.placeholder}
-        {...register(f.name)}
+        {...fieldRegister(f.name)}
       />
     );
   }
@@ -138,10 +165,11 @@ function renderFieldControl(
     return (
       <textarea
         id={id}
-        className={cn(inputClass, "min-h-[120px] font-mono text-xs")}
+        className={cn(inputClass, "min-h-[120px] font-mono text-xs", invalid && "border-destructive")}
+        aria-invalid={invalid || undefined}
         disabled={readOnly}
         placeholder={f.placeholder}
-        {...register(f.name)}
+        {...fieldRegister(f.name)}
       />
     );
   }
@@ -149,12 +177,21 @@ function renderFieldControl(
     return (
       <input
         id={id}
-        type={f.type === "number" ? "number" : "text"}
+        type={
+          f.name === "email"
+            ? "email"
+            : f.name === "phone_number" || f.name === "whatsapp_number"
+              ? "tel"
+              : f.type === "number"
+                ? "number"
+                : "text"
+        }
         step={f.type === "number" ? "any" : undefined}
-        className={inputClass}
+        className={cn(inputClass, invalid && "border-destructive")}
         disabled={readOnly}
         placeholder={f.placeholder}
-        {...register(f.name)}
+        aria-invalid={invalid || undefined}
+        {...fieldRegister(f.name)}
       />
     );
   }
@@ -165,13 +202,13 @@ function renderFieldControl(
         type={f.type === "time" ? "time" : "date"}
         className={inputClass}
         disabled={readOnly}
-        {...register(f.name)}
+        {...fieldRegister(f.name)}
       />
     );
   }
   if (f.type === "select") {
     return (
-      <select id={id} className={inputClass} disabled={readOnly} {...register(f.name)}>
+      <select id={id} className={cn(inputClass, invalid && "border-destructive")} disabled={readOnly} aria-invalid={invalid || undefined} {...fieldRegister(f.name)}>
         <option value="">—</option>
         {(f.options ?? []).map((o) => (
           <option key={o.value} value={o.value}>
@@ -188,7 +225,7 @@ function renderFieldControl(
         type="checkbox"
         disabled={readOnly}
         className="border-input h-4 w-4 rounded"
-        {...register(f.name)}
+        {...fieldRegister(f.name)}
       />
     );
   }
@@ -287,7 +324,7 @@ const CourseEntityFormDrawer = ({
     }));
   }, [studentUsersRes]);
 
-  const { register, handleSubmit, reset, control, setValue, getValues, formState } =
+  const { register, handleSubmit, reset, control, setValue, getValues, setError, clearErrors, formState } =
     useForm<FormValues>({
       defaultValues: getCreateDefaultsForEntity(slug),
       mode: "onSubmit",
@@ -545,7 +582,7 @@ const CourseEntityFormDrawer = ({
     if (!readOnly || slug !== "student-subscriptions" || !detail) return;
     const voucherUrl = typeof detail.voucher_url === "string" ? detail.voucher_url : "";
     if (!voucherUrl || !voucherIsPdf(detail)) return;
-    openVoucherInNewTab(voucherUrl);
+    openMediaInNewTab(voucherUrl);
   }, [readOnly, slug, detail]);
 
   const onSubmit = (values: FormValues) => {
@@ -668,6 +705,18 @@ const CourseEntityFormDrawer = ({
       return;
     }
 
+    if (slug === "instructors") {
+      const nextErrors = instructorFieldErrors(normalizedValues);
+      if (Object.keys(nextErrors).length > 0) {
+        clearErrors();
+        for (const [name, message] of Object.entries(nextErrors)) {
+          setError(name, { type: "manual", message });
+        }
+        return;
+      }
+      clearErrors();
+    }
+
     const err = validateRequired(normalizedValues, slug);
     if (err) {
       toast.error(err);
@@ -677,6 +726,9 @@ const CourseEntityFormDrawer = ({
     const payload = serializeCourseEntityPayload(normalizedValues, fields, {
       clearEmptyFields: slug === "lms-class-students" && mode !== "create",
     });
+    if (slug === "instructors" && mode === "create") {
+      payload.status = "active";
+    }
     if (THUMB_SLUGS.includes(slug) && thumbnailFile) {
       payload.thumbnail_file = thumbnailFile;
     }
@@ -687,10 +739,25 @@ const CourseEntityFormDrawer = ({
       payload.national_id_attachment_file = studentNationalIdAttachment;
     }
 
+    const onSaveError = (e: unknown) => {
+      const fieldErrors =
+        slug === "instructors" && e instanceof Error && "fieldErrors" in e
+          ? (e as { fieldErrors?: Record<string, string> }).fieldErrors
+          : undefined;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        clearErrors();
+        for (const [name, message] of Object.entries(fieldErrors)) {
+          setError(name, { type: "server", message });
+        }
+        return;
+      }
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    };
+
     if (mode === "create") {
       createEntity(payload, {
         onSuccess: () => onSuccess(),
-        onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Create failed"),
+        onError: onSaveError,
       });
       return;
     }
@@ -700,7 +767,7 @@ const CourseEntityFormDrawer = ({
       { id: entityId, body: payload },
       {
         onSuccess: () => onSuccess(),
-        onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Update failed"),
+        onError: onSaveError,
       }
     );
   };
@@ -736,13 +803,20 @@ const CourseEntityFormDrawer = ({
   const renderStandardFields = (fields: CourseEntityFormField[]) =>
     fields.map((f) => {
       const id = `cef-${f.name}`;
+      const message = formState.errors[f.name]?.message;
+      const errorText = typeof message === "string" ? message : "";
       return (
         <div key={f.name} className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor={id}>
             {f.label}
             {f.required ? <span className="text-destructive"> *</span> : null}
           </label>
-          {renderFieldControl(f, readOnly, register)}
+          {renderFieldControl(f, readOnly, register, errorText !== "", (name) => clearErrors(name))}
+          {errorText ? (
+            <p className="text-xs text-destructive" role="alert">
+              {errorText}
+            </p>
+          ) : null}
         </div>
       );
     });
@@ -803,7 +877,7 @@ const CourseEntityFormDrawer = ({
         <DrawerDescription>{drawerDescription}</DrawerDescription>
       </DrawerHeader>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+      <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
         <DrawerBody className="min-h-0 flex-1 space-y-4 overflow-y-auto scroll-smooth pb-4">
           {readOnly && (slug === "main-categories" || slug === "sub-categories")
             ? renderCategoryReadOnly()
@@ -923,29 +997,13 @@ const CourseEntityFormDrawer = ({
                   Voucher
                 </p>
                 {typeof detail.voucher_url === "string" && detail.voucher_url.length > 0 ? (
-                  voucherIsPdf(detail) ? (
-                    <div className="rounded-xl border border-border bg-muted/10 p-4">
-                      <p className="text-sm text-muted-foreground">
-                        This voucher is a PDF. It opens in a new browser tab for viewing.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-3"
-                        onClick={() => openVoucherInNewTab(String(detail.voucher_url))}
-                      >
-                        View PDF voucher
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                      <img
-                        src={String(detail.voucher_url)}
-                        alt="Voucher"
-                        className="max-h-[420px] w-full object-contain"
-                      />
-                    </div>
-                  )
+                  <MediaPreview
+                    url={String(detail.voucher_url)}
+                    alt="Voucher"
+                    filename="voucher"
+                    preferPdfCard={voucherIsPdf(detail)}
+                    imageClassName="max-h-[420px] w-full object-contain"
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">No voucher on file.</p>
                 )}
@@ -1144,154 +1202,7 @@ const CourseEntityFormDrawer = ({
           ) : null}
 
           {readOnly && slug === "lms-class-students" && detail ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                  {typeof detail.profile_image_url === "string" && detail.profile_image_url ? (
-                    <img
-                      src={detail.profile_image_url}
-                      alt="Student profile"
-                      className="mx-auto h-36 w-36 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
-                      No profile photo
-                    </div>
-                  )}
-                </div>
-                <div className="overflow-hidden rounded-xl border border-border bg-muted/10 p-2">
-                  {typeof detail.national_id_attachment_url === "string" &&
-                  detail.national_id_attachment_url ? (
-                    detail.national_id_attachment_url.toLowerCase().includes(".pdf") ? (
-                      <a
-                        href={detail.national_id_attachment_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex h-36 flex-col items-center justify-center gap-2 text-sm text-primary hover:underline"
-                      >
-                        <Page className="h-10 w-10" />
-                        View national ID attachment
-                      </a>
-                    ) : (
-                      <img
-                        src={detail.national_id_attachment_url}
-                        alt="National ID"
-                        className="mx-auto h-36 w-full rounded-lg object-contain"
-                      />
-                    )
-                  ) : (
-                    <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
-                      No national ID attachment
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="rounded-lg border border-border bg-card p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Student</p>
-                <p className="mt-1 text-base font-semibold">
-                  {String(
-                    detail.full_name ??
-                      detail.user_name ??
-                      (`${String(detail.first_name ?? "")} ${String(detail.last_name ?? "")}`.trim() ||
-                        "—")
-                  )}
-                </p>
-                {detail.student_code ? (
-                  <p className="mt-1 font-mono text-sm text-primary">
-                    {String(detail.student_code)}
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Date of birth</p>
-                  <p className="text-sm font-medium">{String(detail.date_of_birth ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Gender</p>
-                  <p className="text-sm font-medium capitalize">{String(detail.gender ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">ACCA ID</p>
-                  <p className="text-sm font-medium">{String(detail.acca_id ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Academic background</p>
-                  <p className="text-sm font-medium">
-                    {String(detail.academic_background ?? "—").replace(/_/g, " ")}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/15 p-4">
-                <p className="text-xs text-muted-foreground">Address</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{String(detail.address ?? "—")}</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium">{String(detail.email ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">National ID</p>
-                  <p className="text-sm font-medium">{String(detail.national_id ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Phone</p>
-                  <p className="text-sm font-medium">{String(detail.phone_number ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">WhatsApp</p>
-                  <p className="text-sm font-medium">{String(detail.whatsapp_number ?? "—")}</p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Emergency phone</p>
-                  <p className="text-sm font-medium">
-                    {String(detail.emergency_phone_number ?? "—")}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Father name</p>
-                  <p className="text-sm font-medium">{String(detail.father_name ?? "—")}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="text-sm font-medium capitalize">
-                    {String(detail.status ?? "active")}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/15 p-3">
-                  <p className="text-xs text-muted-foreground">Linked user</p>
-                  <p className="text-sm font-medium">
-                    {detail.user_id ? String(detail.user_name ?? detail.user_id) : "None"}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/15 p-4">
-                <p className="text-xs text-muted-foreground">Note</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{String(detail.notes ?? "—")}</p>
-              </div>
-              {Array.isArray(detail.classes_taken) && detail.classes_taken.length > 0 ? (
-                <div className="rounded-lg border border-border bg-muted/10 p-4">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Classes taken
-                  </p>
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {detail.classes_taken.map((cls: Record<string, unknown>) => (
-                      <li key={String(cls.id)} className="flex items-center justify-between">
-                        <span>
-                          {String(cls.class_name ?? `Class #${String(cls.class_id ?? "")}`)}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {String(cls.grade ?? "PENDING")} · {String(cls.status ?? "active")}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
+            <StudentViewPanel detail={detail} />
           ) : null}
 
           {readOnly &&
@@ -1531,19 +1442,35 @@ const CourseEntityFormDrawer = ({
                   <Controller
                     name="user_id"
                     control={control}
-                    render={({ field }) => (
-                      <SearchableSelect
-                        id="cef-instructor-user"
-                        label="User"
-                        required
-                        options={instructorUserOptions}
-                        value={String(field.value ?? "")}
-                        onChange={field.onChange}
-                        placeholder="Search and select…"
-                        disabled={metaLoading || mode === "edit"}
-                        searchPlaceholder="Search by name or email…"
-                      />
-                    )}
+                    render={({ field }) => {
+                      const userError = formState.errors.user_id?.message;
+                      const userErrorText = typeof userError === "string" ? userError : "";
+                      return (
+                        <div className="space-y-1.5">
+                          <SearchableSelect
+                            id="cef-instructor-user"
+                            label="User"
+                            required
+                            options={instructorUserOptions}
+                            value={String(field.value ?? "")}
+                            onChange={(next) => {
+                              field.onChange(next);
+                              clearErrors("user_id");
+                            }}
+                            placeholder="Select a user account"
+                            clearable={mode === "create"}
+                            invalid={userErrorText !== ""}
+                            disabled={metaLoading || mode === "edit"}
+                            searchPlaceholder="Search by name or email…"
+                          />
+                          {userErrorText ? (
+                            <p className="text-xs text-destructive" role="alert">
+                              {userErrorText}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    }}
                   />
                   {renderStandardFields(def.fields.filter((f) => f.name !== "user_id"))}
                 </>
