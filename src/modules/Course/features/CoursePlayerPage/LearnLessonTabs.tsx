@@ -79,23 +79,57 @@ function fileVisual(file: {
   return { kind, ...FILE_VISUALS[kind] };
 }
 
-function formatFileSize(bytes: number | null | undefined): string | null {
-  if (bytes == null || !Number.isFinite(Number(bytes)) || Number(bytes) < 0) return null;
+function formatFileSize(bytes: number | string | null | undefined): string | null {
+  if (bytes == null || bytes === "") return null;
   const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) return null;
   if (value < 1024) return `${Math.round(value)} B`;
   const kb = value / 1024;
   if (kb < 1024) {
-    const rounded = kb < 10 ? Number(kb.toFixed(1)) : Math.round(kb);
+    const rounded = kb < 10 ? kb.toFixed(1) : String(Math.round(kb));
     return `${rounded} KB`;
   }
   const mb = kb / 1024;
   if (mb < 1024) {
-    const rounded = mb < 10 ? Number(mb.toFixed(1)) : Math.round(mb);
+    const rounded = mb < 10 ? mb.toFixed(1) : String(Math.round(mb));
     return `${rounded} MB`;
   }
   const gb = mb / 1024;
-  const rounded = gb < 10 ? Number(gb.toFixed(1)) : Math.round(gb);
+  const rounded = gb < 10 ? gb.toFixed(1) : String(Math.round(gb));
   return `${rounded} GB`;
+}
+
+function fileTypeLabel(file: {
+  title?: string | null;
+  download_url?: string | null;
+  file_extension?: string | null;
+}): string {
+  switch (fileVisual(file).kind) {
+    case "pdf":
+      return "PDF";
+    case "excel":
+      return "Excel";
+    case "word":
+      return "Word";
+    case "powerpoint":
+      return "PowerPoint";
+    case "archive":
+      return "Archive";
+    case "image":
+      return "Image";
+    case "code":
+      return "Code";
+    default: {
+      const ext = extensionOf(file);
+      return ext ? ext.toUpperCase() : "File";
+    }
+  }
+}
+
+function fileSubtitle(file: CourseLearnFile | CourseLearnQuizFile | CourseLearnMockTest): string {
+  const size = formatFileSize(file.file_size);
+  const type = fileTypeLabel(file);
+  return size ? `${size} ${type}` : type;
 }
 
 function plainText(value: string | null | undefined): string {
@@ -107,7 +141,7 @@ function plainText(value: string | null | undefined): string {
 
 function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile | CourseLearnMockTest }) {
   const visual = fileVisual(file);
-  const sizeLabel = formatFileSize(file.file_size);
+  const subtitle = fileSubtitle(file);
   const Icon = visual.Icon;
   const body = (
     <>
@@ -118,9 +152,7 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
         <span className="block truncate text-xs font-medium leading-snug text-foreground" title={file.title}>
           {file.title}
         </span>
-        <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
-          {sizeLabel ?? "—"}
-        </span>
+        <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">{subtitle}</span>
       </span>
       <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
     </>

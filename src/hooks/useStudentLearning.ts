@@ -37,7 +37,8 @@ export interface CourseLearnFile {
   description: string | null;
   download_url: string | null;
   file_extension?: string | null;
-  file_size?: number | null;
+  /** Bytes from storage; may arrive as a numeric string from JSON. */
+  file_size?: number | string | null;
 }
 
 export interface CourseLearnChapterFile extends CourseLearnFile {
@@ -51,7 +52,7 @@ export interface CourseLearnQuizFile {
   description: string | null;
   download_url: string | null;
   file_extension?: string | null;
-  file_size?: number | null;
+  file_size?: number | string | null;
   uploaded_at: string | null;
 }
 
@@ -62,7 +63,7 @@ export interface CourseLearnMockTest {
   description: string | null;
   download_url: string | null;
   file_extension?: string | null;
-  file_size?: number | null;
+  file_size?: number | string | null;
   uploaded_at: string | null;
 }
 
