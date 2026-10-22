@@ -80,14 +80,22 @@ function fileVisual(file: {
 }
 
 function formatFileSize(bytes: number | null | undefined): string | null {
-  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return null;
-  if (bytes < 1024) return `${Math.round(bytes)} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
+  if (bytes == null || !Number.isFinite(Number(bytes)) || Number(bytes) < 0) return null;
+  const value = Number(bytes);
+  if (value < 1024) return `${Math.round(value)} B`;
+  const kb = value / 1024;
+  if (kb < 1024) {
+    const rounded = kb < 10 ? Number(kb.toFixed(1)) : Math.round(kb);
+    return `${rounded} KB`;
+  }
   const mb = kb / 1024;
-  if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+  if (mb < 1024) {
+    const rounded = mb < 10 ? Number(mb.toFixed(1)) : Math.round(mb);
+    return `${rounded} MB`;
+  }
   const gb = mb / 1024;
-  return `${gb < 10 ? gb.toFixed(1) : Math.round(gb)} GB`;
+  const rounded = gb < 10 ? Number(gb.toFixed(1)) : Math.round(gb);
+  return `${rounded} GB`;
 }
 
 function plainText(value: string | null | undefined): string {
@@ -100,7 +108,6 @@ function plainText(value: string | null | undefined): string {
 function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile | CourseLearnMockTest }) {
   const visual = fileVisual(file);
   const sizeLabel = formatFileSize(file.file_size);
-  const ext = extensionOf(file);
   const Icon = visual.Icon;
   const body = (
     <>
@@ -112,7 +119,7 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
           {file.title}
         </span>
         <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
-          {sizeLabel ?? (ext ? ext.toUpperCase() : "—")}
+          {sizeLabel ?? "—"}
         </span>
       </span>
       <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
