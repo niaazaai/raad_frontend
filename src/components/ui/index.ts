@@ -66,7 +66,16 @@ export {
   SelectValue,
 } from "./select";
 export { Avatar } from "./avatar";
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card";
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+} from "./card";
+export { Badge, badgeVariants } from "./badge";
 export {
   Drawer,
   DrawerOverlay,
