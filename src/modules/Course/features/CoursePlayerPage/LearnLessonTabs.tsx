@@ -13,7 +13,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
-import { Card, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
 import type {
@@ -176,79 +176,93 @@ const LearnLessonTabs = ({
   const description = plainText(lesson?.description);
   const chapterTabLabel = t("coursePlayer.chapterFilesTab").replace("{name}", chapterTitle);
 
+  const tabTriggerClass =
+    "h-7 flex-none gap-1 rounded-full px-2.5 py-0 text-xs";
+
   return (
-    <Tabs defaultValue="overview" className="flex w-full flex-col gap-4">
+    <Tabs defaultValue="overview" className="flex w-full flex-col gap-1">
       <TabsList
         variant="default"
-        className="h-auto w-fit max-w-full flex-none flex-wrap justify-start gap-0.5 rounded-lg border border-border bg-muted p-0.5 my-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="my-0 h-auto w-fit max-w-full flex-none flex-wrap justify-start gap-0.5 rounded-full border border-border bg-muted p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <TabsTrigger
           value="overview"
-          className="h-7 flex-none gap-1 rounded-md px-2.5 py-0 text-xs data-active:text-primary [&_svg]:text-primary"
+          className={cn(tabTriggerClass, "data-active:text-primary [&_svg]:text-primary")}
         >
           <LayoutDashboard className="size-3.5 text-primary" />
           {t("coursePlayer.overviewTab")}
         </TabsTrigger>
         <TabsTrigger
           value="chapter"
-          className="h-7 flex-none gap-1 rounded-md px-2.5 py-0 text-xs data-active:text-warning [&_svg]:text-warning"
+          className={cn(tabTriggerClass, "data-active:text-warning [&_svg]:text-warning")}
         >
           <FolderOpen className="size-3.5 text-warning" />
           {chapterTabLabel}
         </TabsTrigger>
         <TabsTrigger
           value="resources"
-          className="h-7 flex-none gap-1 rounded-md px-2.5 py-0 text-xs data-active:text-success [&_svg]:text-success"
+          className={cn(tabTriggerClass, "data-active:text-success [&_svg]:text-success")}
         >
           <FileDown className="size-3.5 text-success" />
           {t("coursePlayer.resourcesTab")}
         </TabsTrigger>
         <TabsTrigger
           value="mock"
-          className="h-7 flex-none gap-1 rounded-md px-2.5 py-0 text-xs data-active:text-auxiliary [&_svg]:text-auxiliary"
+          className={cn(tabTriggerClass, "data-active:text-auxiliary [&_svg]:text-auxiliary")}
         >
           <ClipboardCheck className="size-3.5 text-auxiliary" />
           {t("coursePlayer.mockTestsTab")}
         </TabsTrigger>
         <TabsTrigger
           value="quiz"
-          className="h-7 flex-none gap-1 rounded-md px-2.5 py-0 text-xs data-active:text-danger [&_svg]:text-danger"
+          className={cn(tabTriggerClass, "data-active:text-danger [&_svg]:text-danger")}
         >
           <FileQuestionMark className="size-3.5 text-danger" />
           {t("coursePlayer.quizFilesTab")}
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview" className="w-full pt-0">
-        <Card className="border-border/80 shadow-none">
-          <CardHeader className="gap-1 p-2 sm:p-4">
-            <CardTitle className="text-md font-semibold tracking-tight sm:text-2xl">
-              {lesson?.title ?? t("coursePlayer.lessonFallback")}
-            </CardTitle>
-            {description ? (
-              <CardDescription className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {description}
-              </CardDescription>
-            ) : (
-              <CardDescription className="text-sm text-muted-foreground">{t("coursePlayer.noDescription")}</CardDescription>
-            )}
-          </CardHeader>
-        </Card>
+      <TabsContent
+        value="overview"
+        className="mt-0 w-full rounded-xl border border-border/60 bg-muted/50 p-3 sm:p-4"
+      >
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            {lesson?.title ?? t("coursePlayer.lessonFallback")}
+          </h3>
+          {description ? (
+            <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("coursePlayer.noDescription")}</p>
+          )}
+        </div>
       </TabsContent>
 
-      <TabsContent value="chapter" className="w-full pt-0">
+      <TabsContent
+        value="chapter"
+        className="mt-0 w-full rounded-xl border border-border/60 bg-muted/50 p-3 sm:p-4"
+      >
         <LearnFileGrid files={chapterFiles} empty={t("coursePlayer.chapterFilesEmpty")} />
       </TabsContent>
 
-      <TabsContent value="resources" className="w-full pt-0">
+      <TabsContent
+        value="resources"
+        className="mt-0 w-full rounded-xl border border-border/60 bg-muted/50 p-3 sm:p-4"
+      >
         <LearnFileGrid files={resources} empty={t("coursePlayer.resourcesEmpty")} />
       </TabsContent>
 
-      <TabsContent value="mock" className="w-full pt-0">
+      <TabsContent
+        value="mock"
+        className="mt-0 w-full rounded-xl border border-border/60 bg-muted/50 p-3 sm:p-4"
+      >
         <LearnFileGrid files={mockTests} empty={t("coursePlayer.mockTestsEmpty")} />
       </TabsContent>
 
-      <TabsContent value="quiz" className="w-full pt-0">
+      <TabsContent
+        value="quiz"
+        className="mt-0 w-full rounded-xl border border-border/60 bg-muted/50 p-3 sm:p-4"
+      >
         <LearnFileGrid files={quizFiles} empty={t("coursePlayer.quizFilesEmpty")} />
       </TabsContent>
     </Tabs>
