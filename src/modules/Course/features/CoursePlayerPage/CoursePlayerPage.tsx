@@ -2,15 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Check,
-  ClipboardCheck,
-  Download,
   ChevronsRight as FastArrowRight,
-  FileDown,
-  FileQuestionMark,
-  FolderOpen,
   ExternalLink as OpenNewWindow,
   Video as VideoCamera,
-  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -21,7 +15,6 @@ import {
   getCourseLearnFromResponse,
   useCourseLearn,
   useRecordLessonWatch,
-  type CourseLearnFile,
   type CourseLearnLesson,
   type CourseLearnModule,
 } from "@/hooks/useStudentLearning";
@@ -32,6 +25,7 @@ import {
   type LessonPlaybackPayload,
 } from "@/modules/Course/features/CourseViewPage/useLessonPlayback";
 import { cn } from "@/lib/utils";
+import LearnLessonTabs from "./LearnLessonTabs";
 import UnitOrderModal from "./UnitOrderModal";
 
 const AUTO_ADVANCE_DELAY = 5;
@@ -52,93 +46,6 @@ function formatDuration(seconds: number | null | undefined): string | null {
   const minutes = Math.floor(total / 60);
   const secs = total % 60;
   return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-}
-
-function FileList({
-  title,
-  empty,
-  files,
-  icon: Icon,
-  layout = "list",
-}: {
-  title: string;
-  empty: string;
-  files: CourseLearnFile[];
-  icon: LucideIcon;
-  layout?: "list" | "cards";
-}) {
-  return (
-    <section className="space-y-2">
-      <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground">
-        <Icon className="h-4 w-4 shrink-0 text-primary" />
-        <span className="min-w-0 truncate">{title}</span>
-        {files.length > 0 ? (
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium tabular-nums text-primary">
-            {files.length}
-          </span>
-        ) : null}
-      </h3>
-      {files.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">{empty}</p>
-      ) : layout === "cards" ? (
-        <ul className="flex flex-wrap gap-3">
-          {files.map((file) => (
-            <li
-              key={file.id}
-              className="group flex h-[150px] w-[150px] flex-col rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
-              </span>
-              <p className="mt-2 line-clamp-3 min-h-0 flex-1 text-xs font-medium leading-snug text-foreground" title={file.title}>
-                {file.title}
-              </p>
-              {file.download_url ? (
-                <a
-                  href={file.download_url}
-                  className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md text-xs font-medium text-primary transition-colors hover:text-primary-active"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Download ${file.title}`}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </a>
-              ) : (
-                <span className="mt-1 text-xs text-muted-foreground">Unavailable</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {files.map((file) => (
-            <li key={file.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <p className="min-w-0 truncate text-sm font-medium text-foreground">{file.title}</p>
-              </span>
-              {file.download_url ? (
-                <a
-                  href={file.download_url}
-                  className="inline-flex shrink-0 items-center justify-center text-foreground transition-colors hover:text-primary"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Download ${file.title}`}
-                >
-                  <Download className="h-4 w-4" />
-                </a>
-              ) : (
-                <span className="shrink-0 text-xs text-muted-foreground">Unavailable</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
 }
 
 function plainText(value: string | null | undefined): string {
@@ -516,7 +423,7 @@ const CoursePlayerPage = () => {
   const resources = payload.downloadable_resources ?? [];
   const mockTests = payload.mock_tests ?? [];
   const quizFiles = payload.quiz_files ?? [];
-  const lessonDescription = plainText(selectedLesson?.description);
+  const chapterTitle = openModule?.title?.trim() || t("coursePlayer.chapterFallback");
   const startBlockingUnit = () => {
     if (!unitPrompt) return;
     const blockingLessons = unitLessons(unitPrompt.blockingId);
@@ -614,36 +521,14 @@ const CoursePlayerPage = () => {
             </div>
           ) : null}
 
-          <section className="space-y-2">
-            <h2 className="text-lg font-semibold tracking-tight">
-              {selectedLesson?.title ?? "Lesson"}
-            </h2>
-            {lessonDescription ? (
-              <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{lessonDescription}</p>
-            ) : null}
-          </section>
-
-          <FileList
-            title={openModule ? `${openModule.title} files` : "Chapter files"}
-            empty="No files for this chapter."
-            files={chapterFiles}
-            icon={FolderOpen}
-            layout="cards"
+          <LearnLessonTabs
+            lesson={selectedLesson}
+            chapterTitle={chapterTitle}
+            chapterFiles={chapterFiles}
+            resources={resources}
+            mockTests={mockTests}
+            quizFiles={quizFiles}
           />
-          <div className="grid gap-5 md:grid-cols-2">
-            <FileList
-              title="Downloadable resources"
-              empty="No downloadable resources for this course."
-              files={resources}
-              icon={FileDown}
-            />
-            <FileList
-              title="Mock test files"
-              empty="No mock tests for this course."
-              files={mockTests}
-              icon={ClipboardCheck}
-            />
-          </div>
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
@@ -695,8 +580,6 @@ const CoursePlayerPage = () => {
                 ))}
             </Accordion>
           </div>
-
-          <FileList title="Quiz files" empty="No quiz files for this course." files={quizFiles} icon={FileQuestionMark} />
         </aside>
       </div>
     </div>
