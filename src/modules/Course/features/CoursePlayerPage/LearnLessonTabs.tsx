@@ -104,18 +104,18 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
   const Icon = visual.Icon;
   const body = (
     <>
-      <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", visual.wrapClass)}>
-        <Icon className={cn("h-7 w-7", visual.iconClass)} />
+      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md", visual.wrapClass)}>
+        <Icon className={cn("h-4 w-4", visual.iconClass)} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground" title={file.title}>
+        <span className="block truncate text-xs font-medium leading-snug text-foreground" title={file.title}>
           {file.title}
         </span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">
+        <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
           {sizeLabel ?? (ext ? ext.toUpperCase() : "—")}
         </span>
       </span>
-      <Download className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+      <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
     </>
   );
 
@@ -125,7 +125,7 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
         href={file.download_url}
         target="_blank"
         rel="noreferrer"
-        className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/5"
+        className="group flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2 transition-colors hover:border-primary/40 hover:bg-primary/5"
       >
         {body}
       </a>
@@ -133,7 +133,7 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
   }
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-dashed border-border bg-card/60 p-4 opacity-70">
+    <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border bg-card/60 px-2.5 py-2 opacity-70">
       {body}
     </div>
   );
@@ -141,11 +141,11 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
 
 function LearnFileGrid({ files, empty }: { files: Array<CourseLearnFile | CourseLearnQuizFile | CourseLearnMockTest>; empty: string }) {
   if (files.length === 0) {
-    return <p className="rounded-xl border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">{empty}</p>;
+    return <p className="rounded-lg border border-dashed border-border px-3 py-5 text-sm text-muted-foreground">{empty}</p>;
   }
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid gap-2 sm:grid-cols-2">
       {files.map((file) => (
         <li key={file.id}>
           <LearnFileCard file={file} />
