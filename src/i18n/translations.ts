@@ -188,6 +188,9 @@ const en = {
     email: "Email address",
     password: "Password",
     confirmPassword: "Confirm password",
+    invalidCredentials: "Invalid email or password.",
+    signInBlocked: "This account cannot sign in.",
+    verificationIfExists: "If an account exists, we've sent a verification link.",
   },
   theme: {
     light: "Light mode",
@@ -239,6 +242,9 @@ const en = {
     reason: "Reason",
     all: "All",
     loading: "Loading...",
+    tooManyAttempts: "Too many attempts. Try again in a minute.",
+    unexpectedError: "An unexpected error occurred.",
+    lessonVideoType: "Use a video file ending in mp4, m4v, webm, mov, avi, 3gp, or mkv.",
   },
   sidebar: {
     dashboard: "Dashboard",
@@ -556,6 +562,9 @@ const ps = {
     email: "برېښنالیک",
     password: "پټنوم",
     confirmPassword: "پټنوم تایید",
+    invalidCredentials: "برېښنالیک یا پټنوم ناسم دی.",
+    signInBlocked: "دا حساب نشي ننوتلی.",
+    verificationIfExists: "که حساب موجود وي، د تایید لینک مو لیږلی دی.",
   },
   theme: {
     light: "روښانه حالت",
@@ -607,6 +616,9 @@ const ps = {
     reason: "دلیل",
     all: "ټول",
     loading: "پورته کیږي...",
+    tooManyAttempts: "ډېرې هڅې. یوه دقیقه وروسته بیا هڅه وکړئ.",
+    unexpectedError: "ناڅاپي تېروتنه وشوه.",
+    lessonVideoType: "د ویډیو فایل باید په mp4، m4v، webm، mov، avi، 3gp یا mkv پای ته ورسیږي.",
   },
   sidebar: {
     dashboard: "ډشبورډ",
@@ -923,6 +935,9 @@ const fa = {
     email: "آدرس ایمیل",
     password: "رمز عبور",
     confirmPassword: "تأیید رمز عبور",
+    invalidCredentials: "ایمیل یا رمز عبور نادرست است.",
+    signInBlocked: "ورود با این حساب ممکن نیست.",
+    verificationIfExists: "اگر حسابی وجود داشته باشد، لینک تأیید را فرستاده‌ایم.",
   },
   theme: {
     light: "حالت روشن",
@@ -974,6 +989,9 @@ const fa = {
     reason: "دلیل",
     all: "همه",
     loading: "در حال بارگذاری...",
+    tooManyAttempts: "تلاش‌ها زیاد است. یک دقیقه دیگر دوباره امتحان کنید.",
+    unexpectedError: "خطای غیرمنتظره رخ داد.",
+    lessonVideoType: "فایل ویدیو باید با mp4، m4v، webm، mov، avi، 3gp یا mkv تمام شود.",
   },
   sidebar: {
     dashboard: "داشبورد",
