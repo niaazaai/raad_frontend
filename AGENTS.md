@@ -23,7 +23,7 @@ Every change must stay consistent with: **module-scoped features → React Query
 | Routing | React Router v7 (lazy routes) |
 | HTTP | Apisauce via `callApi` (never raw `fetch` / `axios`) |
 | Toasts | Sonner |
-| Icons | `iconoir-react` **only** (no Lucide) |
+| Icons | `lucide-react` **only** |
 | Loading | `Spinner` from `@/components/ui/spinner` |
 
 ---
@@ -84,7 +84,7 @@ MyFeature/
 
 ```tsx
 import { useState } from "react";
-import { SomeIcon } from "iconoir-react";
+import { SomeIcon } from "lucide-react";
 import { Button, Card, CardContent } from "@/components/ui";
 import { useAuth } from "@/features/auth";
 
@@ -255,7 +255,7 @@ const MyItemForm = ({ onSuccess }: MyItemFormProps) => {
 ### List Page with DataTable
 
 ```tsx
-import { Plus } from "iconoir-react";
+import { Plus } from "lucide-react";
 import { DataTable, Button, useConfirmDialog, confirmPresets } from "@/components/ui";
 import { Can } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
@@ -376,28 +376,28 @@ Always guard both the route (`ProtectedRoute permission=`) and action UI (`<Can>
 
 ---
 
-## Icons Quick Reference (Iconoir)
+## Icons Quick Reference (Lucide)
 
 | Use Case | Icon name |
 |---|---|
 | Add / Create | `Plus` |
-| Edit | `EditPencil` |
-| Delete | `Trash` |
+| Edit | `Pencil` |
+| Delete | `Trash2` |
 | View / Eye | `Eye`, `EyeOff` |
-| Save | `FloppyDisk` |
-| Close / Cancel | `Xmark` |
+| Save | `Save` |
+| Close / Cancel | `X` |
 | Search | `Search` |
-| Chevron right/left | `NavArrowRight`, `NavArrowLeft` |
-| Users / Group | `Community`, `Group` |
+| Chevron right/left | `ChevronRight`, `ChevronLeft` |
+| Users / Group | `Users` |
 | Roles | `Shield` |
 | Permissions | `Key` |
-| Overflow menu | `MoreVert` |
-| Grid layout | `ViewGrid` |
-| Mark all read | `DoubleCheck` |
-| Courses | `BookStack` |
-| Instructor | `Hat` |
+| Overflow menu | `EllipsisVertical` |
+| Grid layout | `LayoutGrid` |
+| Mark all read | `CheckCheck` |
+| Courses | `Library` |
+| Instructor | `GraduationCap` |
 
-Always look up the exact Iconoir name at [iconoir.com](https://iconoir.com) — they differ from Lucide.
+Use `lucide-react` icon names.
 
 ---
 
@@ -506,7 +506,7 @@ Use the `extractList` / `extractPagination` helper pattern (see List Page exampl
 - Add `console.log` / `console.warn` / `console.error` in committed code
 - Use `any` type — use `unknown` or proper types
 - Create duplicate loading spinners inside buttons — use `loading` prop on `<Button>`
-- Import from `lucide-react` or any icon library other than `iconoir-react`
+- Import icons from any library other than `lucide-react`
 - Hardcode user-facing strings — use `t(...)` and add the key to `en` first
 - Use physical layout utilities (`ml`/`left`/`text-left`) or hardcoded fonts in shared UI — breaks RTL; use logical utilities instead
 

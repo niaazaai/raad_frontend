@@ -1,5 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
-import { HomeSimple, NavArrowLeft } from "iconoir-react";
+import { House as HomeSimple, ChevronLeft as NavArrowLeft } from "lucide-react";
 
 /**
  * 404 Not Found Page

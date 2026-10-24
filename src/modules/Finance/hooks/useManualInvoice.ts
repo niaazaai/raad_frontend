@@ -1,6 +1,10 @@
 import { useMutationApi, useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
-import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../data/constants/endpoints";
+import {
+  FINANCE_ENDPOINTS,
+  FINANCE_QUERY_KEYS,
+  FINANCE_RELATED_QUERY_KEYS,
+} from "../data/constants/endpoints";
 import type { FinanceInvoiceRow } from "../data/models/FinanceReport";
 
 export interface ManualInvoicePayload {
@@ -38,7 +42,9 @@ export function useNextManualInvoiceNumber(enabled = true) {
     method: RequestMethod.GET,
     params: { preview_next_number: 1 },
     options: {
-      enabled: enabled && (primary.isError || (primary.isSuccess && !extractInvoiceNumberPayload(primary.data))),
+      enabled:
+        enabled &&
+        (primary.isError || (primary.isSuccess && !extractInvoiceNumberPayload(primary.data))),
       retry: 1,
     },
   });
@@ -67,14 +73,7 @@ export function useCreateManualInvoice() {
   return useMutationApi<FinanceInvoiceRow, ManualInvoicePayload>({
     url: FINANCE_ENDPOINTS.MANUAL_INVOICES,
     method: RequestMethod.POST,
-    invalidateKeys: [
-      FINANCE_QUERY_KEYS.report,
-      FINANCE_QUERY_KEYS.invoices,
-      FINANCE_QUERY_KEYS.manualInvoices,
-      FINANCE_QUERY_KEYS.studentEnrollments,
-      [...FINANCE_QUERY_KEYS.invoices, "next-number", "primary"],
-      [...FINANCE_QUERY_KEYS.invoices, "next-number", "fallback"],
-    ],
+    invalidateKeys: FINANCE_RELATED_QUERY_KEYS.map((key) => [...key]),
   });
 }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeClosed } from "iconoir-react";
+import { Eye, EyeOff as EyeClosed } from "lucide-react";
 import { Button, Input, Label } from "@/components/ui";
 import { RegisterSchema, type RegisterFormData } from "@/data/models/User";
 import { callApi, fetchCsrfCookie } from "@/services";
@@ -76,7 +76,7 @@ const RegisterPage = () => {
       <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-4 py-8 sm:px-6">
         <div className={cn("w-full rounded-2xl border border-border bg-card p-6 shadow-sm md:p-7", authFormLightScope)}>
           <div className="mb-5 flex justify-center">
-            <img src="/logo.png" alt="Raad LMS" className="h-12 w-auto object-contain md:h-14" />
+            <img src="/logo.svg" alt="Raad LMS" className="h-12 w-auto object-contain md:h-14" />
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

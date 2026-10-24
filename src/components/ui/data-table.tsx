@@ -1,16 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  NavArrowDown,
-  NavArrowLeft,
-  NavArrowRight,
-  Filter,
-  MoreHoriz,
-  Search,
-  ArrowSeparateVertical,
-  NavArrowUp,
-} from "iconoir-react";
+import { ChevronDown as NavArrowDown, ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight, Funnel as Filter, Ellipsis as MoreHoriz, Search, ArrowUpDown as ArrowSeparateVertical, ChevronUp as NavArrowUp } from "lucide-react";
 import { Skeleton } from "./skeleton";
 import {
   DropdownMenu,
@@ -45,6 +36,8 @@ export interface DataTableProps<T = unknown> {
   onParamsChange: (updates: Partial<DataTableParams>) => void;
   pagination?: DataTablePaginationMeta | null;
   isLoading?: boolean;
+  /** Rendered on the toolbar's trailing edge, beside search and export. */
+  toolbar?: React.ReactNode;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 250];
@@ -156,7 +149,7 @@ function ActionsCell<T>({
     typeof action.variant === "function" ? action.variant(row) : action.variant;
 
   return (
-    <td className="whitespace-nowrap px-4 py-3 text-right">
+    <td className="sticky end-0 z-10 whitespace-nowrap bg-card px-4 py-3 text-right group-hover:bg-[color-mix(in_oklab,var(--muted)_30%,var(--card))]">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm" aria-label={t("dataTable.actions")}>
@@ -199,11 +192,12 @@ export function DataTable<T>({
   onParamsChange,
   pagination,
   isLoading = false,
+  toolbar,
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const fmt = useFormatMessage();
   const {
-    columns,
+    columns: allColumns,
     rowId,
     actions,
     searchable = true,
@@ -213,10 +207,12 @@ export function DataTable<T>({
     paginationEnabled = true,
     showRecordCount = true,
     emptyMessage,
+    onRowClick,
     onRowDoubleClick,
     exportEnabled = true,
   } = config;
 
+  const columns = React.useMemo(() => allColumns.filter((column) => !column.exportOnly), [allColumns]);
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("dataTable.search");
   const resolvedEmptyMessage = emptyMessage ?? t("dataTable.noRecords");
   const [exportOpen, setExportOpen] = React.useState(false);
@@ -251,27 +247,41 @@ export function DataTable<T>({
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-4">
-      {/* Search - top left */}
-      {(searchable || exportEnabled) && (
-        <div className="flex max-w-xl items-center gap-2">
-          {searchable ? (
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={resolvedSearchPlaceholder}
-                value={params.search}
-                onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
-                className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                aria-label={t("dataTable.searchLabel")}
-              />
+      {/* Toolbar: search + export on the leading side, custom filters on the trailing side */}
+      {(searchable || exportEnabled || toolbar) && (
+        <div className="flex w-full min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {searchable || exportEnabled ? (
+            <div className="flex w-full min-w-0 items-center gap-2 lg:max-w-xl">
+              {searchable ? (
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder={resolvedSearchPlaceholder}
+                    value={params.search}
+                    onChange={(e) => onParamsChange({ search: e.target.value, page: 1 })}
+                    className="h-9 w-full rounded-lg border border-input bg-background pe-4 ps-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    aria-label={t("dataTable.searchLabel")}
+                  />
+                </div>
+              ) : null}
+              {exportEnabled ? (
+                <Button
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                  aria-label={t("dataTable.exportExcel")}
+                  className="h-9 shrink-0 bg-foreground px-3 text-background hover:bg-foreground/90 sm:px-4"
+                >
+                  <ExcelSheetIcon />
+                  <span className="hidden sm:inline">{t("dataTable.exportExcel")}</span>
+                </Button>
+              ) : null}
             </div>
           ) : null}
-          {exportEnabled ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => setExportOpen(true)}>
-              <ExcelSheetIcon />
-              {t("dataTable.exportExcel")}
-            </Button>
+          {toolbar ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+              {toolbar}
+            </div>
           ) : null}
         </div>
       )}
@@ -292,7 +302,7 @@ export function DataTable<T>({
                 />
               ))}
               {hasActions && (
-                <th className="w-14 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <th className="sticky end-0 z-20 w-14 bg-muted px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {t("dataTable.actions")}
                 </th>
               )}
@@ -308,7 +318,7 @@ export function DataTable<T>({
                     </td>
                   ))}
                   {hasActions ? (
-                    <td className="px-4 py-3">
+                    <td className="sticky end-0 z-10 bg-card px-4 py-3">
                       <Skeleton className="ms-auto h-8 w-8 rounded-md" />
                     </td>
                   ) : null}
@@ -327,11 +337,27 @@ export function DataTable<T>({
               data.map((row) => (
                 <tr
                   key={String(rowId(row))}
-                  className={cn("hover:bg-muted/30", onRowDoubleClick && "cursor-pointer")}
+                  className={cn(
+                    "group hover:bg-muted/30",
+                    (onRowClick || onRowDoubleClick) && "cursor-pointer"
+                  )}
+                  onClick={(event) => {
+                    if (!onRowClick) return;
+                    const target = event.target as HTMLElement | null;
+                    if (
+                      target?.closest(
+                        "button, a, input, textarea, select, [role='menuitem'], [data-radix-collection-item]"
+                      )
+                    ) {
+                      return;
+                    }
+                    onRowClick(row);
+                  }}
                   onDoubleClick={(event) => {
                     if (!onRowDoubleClick) return;
                     const target = event.target as HTMLElement | null;
-                    if (target?.closest("button, a, input, textarea, select, [role='menuitem']")) return;
+                    if (target?.closest("button, a, input, textarea, select, [role='menuitem']"))
+                      return;
                     onRowDoubleClick(row);
                   }}
                 >

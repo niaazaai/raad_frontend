@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 import { Button, PageBreadcrumb, Skeleton } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
@@ -38,7 +38,7 @@ const ClassAttendancePage = () => {
 
   const { data, isLoading, error } = useClassAttendance(classId);
   const grid = extractAttendanceGrid(data);
-  const markAttendance = useMarkClassAttendance(classId);
+  const { markCell, isCellPending } = useMarkClassAttendance(classId);
 
   const monthGroups = useMemo(() => {
     if (!grid?.dates?.length) return [];
@@ -282,8 +282,9 @@ const ClassAttendancePage = () => {
                           dates={grid.dates}
                           width={datesWidth}
                           canEdit={canEdit}
+                          isCellPending={isCellPending}
                           onToggle={(date, next) => {
-                            markAttendance.mutate({
+                            markCell({
                               student_id: student.student_id,
                               date,
                               status: next,
@@ -367,16 +368,25 @@ interface AttendanceDateRowProps {
   dates: AttendanceDateCol[];
   width: number;
   canEdit: boolean;
+  isCellPending: (studentId: number, date: string) => boolean;
   onToggle: (date: string, status: AttendanceMarkStatus) => void;
 }
 
-function AttendanceDateRow({ student, dates, width, canEdit, onToggle }: AttendanceDateRowProps) {
+function AttendanceDateRow({
+  student,
+  dates,
+  width,
+  canEdit,
+  isCellPending,
+  onToggle,
+}: AttendanceDateRowProps) {
   return (
     <div className={cn(ROW_H, "flex hover:bg-muted/20")} style={{ width }}>
       {dates.map((d) => {
         const cell = student.attendance[d.date];
         const status = (cell?.status ?? null) as AttendanceMarkStatus | null;
-        const editable = Boolean(canEdit && cell?.editable !== false && d.editable);
+        const pending = isCellPending(student.student_id, d.date);
+        const editable = Boolean(canEdit && cell?.editable !== false && d.editable && !pending);
 
         return (
           <div
@@ -393,6 +403,7 @@ function AttendanceDateRow({ student, dates, width, canEdit, onToggle }: Attenda
               date={d.date}
               studentLabel={student.full_name ?? student.student_code ?? String(student.student_id)}
               editable={editable}
+              pending={pending}
               onToggle={() => onToggle(d.date, nextAttendanceStatus(status))}
             />
           </div>
@@ -407,6 +418,7 @@ interface AttendanceMarkButtonProps {
   date: string;
   studentLabel: string;
   editable: boolean;
+  pending: boolean;
   onToggle: () => void;
 }
 
@@ -415,6 +427,7 @@ function AttendanceMarkButton({
   date,
   studentLabel,
   editable,
+  pending,
   onToggle,
 }: AttendanceMarkButtonProps) {
   const letter = status === "present" ? "P" : status === "absent" ? "A" : status === "leave" ? "L" : "";
@@ -425,6 +438,7 @@ function AttendanceMarkButton({
       title={date}
       aria-label={`${studentLabel} ${date}`}
       disabled={!editable}
+      aria-busy={pending || undefined}
       onClick={() => {
         if (!editable) return;
         onToggle();
@@ -436,7 +450,9 @@ function AttendanceMarkButton({
         status === "leave" && "border-info/40 bg-info/15 text-info",
         !status && "border-border bg-background text-muted-foreground",
         editable && "cursor-pointer hover:ring-2 hover:ring-primary/30",
-        !editable && "cursor-default opacity-80"
+        (!editable || pending) && "cursor-default",
+        pending && "opacity-50",
+        !editable && !pending && "opacity-80"
       )}
     >
       {letter}

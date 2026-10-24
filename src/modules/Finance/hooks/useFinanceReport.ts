@@ -1,7 +1,11 @@
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import type { DataTablePaginationMeta } from "@/types/datatable";
-import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../data/constants/endpoints";
+import {
+  FINANCE_ENDPOINTS,
+  FINANCE_QUERY_KEYS,
+  FINANCE_STALE_TIME,
+} from "../data/constants/endpoints";
 import type {
   FinanceClassRow,
   FinanceCourseRow,
@@ -16,13 +20,15 @@ export function useFinanceReport(params: FinanceReportParams) {
     url: FINANCE_ENDPOINTS.REPORT,
     method: RequestMethod.GET,
     params,
+    options: { staleTime: FINANCE_STALE_TIME, refetchOnMount: "always" },
   });
 }
 
 export function extractFinanceRows(response: unknown): Array<FinanceClassRow | FinanceCourseRow> {
   if (!response || typeof response !== "object") return [];
   const envelope = response as { data?: unknown };
-  if (Array.isArray(envelope.data)) return envelope.data as Array<FinanceClassRow | FinanceCourseRow>;
+  if (Array.isArray(envelope.data))
+    return envelope.data as Array<FinanceClassRow | FinanceCourseRow>;
   return [];
 }
 

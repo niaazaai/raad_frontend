@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, UserCircle } from "iconoir-react";
+import { Bell, CircleUser as UserCircle } from "lucide-react";
 import { ChevronsUpDownIcon, LogOutIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";

@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import {
-  Compress,
-  Expand,
-  HelpCircle,
-  Pause,
-  Play,
-  Settings,
-  SoundHigh,
-  SoundLow,
-  SoundOff,
-} from "iconoir-react";
+import { Minimize2 as Compress, Maximize2 as Expand, CircleQuestionMark as HelpCircle, ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight, Pause, Play, Settings, Volume2 as SoundHigh, Volume1 as SoundLow, VolumeX as SoundOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LessonVideoPlayerProps {
@@ -18,7 +8,18 @@ export interface LessonVideoPlayerProps {
   playbackType?: "hls" | "progressive";
   qualities?: { label: string; src: string }[] | null;
   watermarkText?: string;
+  /** Protected playback session id; sent as a header so only this player can fetch the stream. */
+  playerToken?: string;
   onEnded?: () => void;
+  onEngaged?: () => void;
+  /** Seconds to seek to once, after the media can play. */
+  startAt?: number;
+  /** Fired about every 10 seconds of playback and when the video pauses. */
+  onProgress?: (seconds: number) => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
   className?: string;
 }
 
@@ -35,6 +36,8 @@ const WM_POSITIONS: WatermarkPos[] = [
   { top: "50%", left: "5%" },
   { top: "50%", right: "5%" },
 ];
+
+const PLAYER_HEADER = "X-Raad-Player";
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 type SpeedOption = (typeof SPEED_OPTIONS)[number];
@@ -62,7 +65,15 @@ const LessonVideoPlayer = ({
   src,
   playbackType,
   watermarkText,
+  playerToken,
   onEnded,
+  onEngaged,
+  startAt = 0,
+  onProgress,
+  onPrevious,
+  onNext,
+  hasPrevious = false,
+  hasNext = false,
   className,
 }: LessonVideoPlayerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +88,17 @@ const LessonVideoPlayer = ({
   const bufferCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onEndedRef = useRef<(() => void) | undefined>(onEnded);
   onEndedRef.current = onEnded;
+  const onEngagedRef = useRef<(() => void) | undefined>(onEngaged);
+  onEngagedRef.current = onEngaged;
+  const onProgressRef = useRef<((seconds: number) => void) | undefined>(onProgress);
+  onProgressRef.current = onProgress;
+  const startAtRef = useRef(startAt);
+  startAtRef.current = startAt;
+  const engagedRef = useRef(false);
+  const playedSecondsRef = useRef(0);
+  const didSeekRef = useRef(false);
+  const lastReportedRef = useRef(0);
+  const lastMediaTimeRef = useRef<number | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -113,6 +135,11 @@ const LessonVideoPlayer = ({
     setDuration(0);
     setBuffered(0);
     setPlaying(false);
+    engagedRef.current = false;
+    playedSecondsRef.current = 0;
+    didSeekRef.current = false;
+    lastReportedRef.current = 0;
+    lastMediaTimeRef.current = null;
 
     const isHls =
       playbackType === "hls" ||
@@ -141,7 +168,7 @@ const LessonVideoPlayer = ({
       video.canPlayType("application/vnd.apple.mpegurl") !== "" ||
       video.canPlayType("application/x-mpegURL") !== "";
 
-    if (canNative) {
+    if (canNative && !(playerToken && Hls.isSupported())) {
       destroyHls();
       video.src = src;
       video.load();
@@ -169,6 +196,11 @@ const LessonVideoPlayer = ({
       fragLoadingMaxRetry: 3,
       manifestLoadingMaxRetry: 3,
       manifestLoadingRetryDelay: 1000,
+      xhrSetup: playerToken
+        ? (xhr: XMLHttpRequest) => {
+            xhr.setRequestHeader(PLAYER_HEADER, playerToken);
+          }
+        : undefined,
     });
     hlsRef.current = hls;
 
@@ -202,7 +234,7 @@ const LessonVideoPlayer = ({
       video.removeAttribute("src");
       video.load();
     };
-  }, [src, playbackType]);
+  }, [src, playbackType, playerToken]);
 
   // Video event listeners
   useEffect(() => {
@@ -210,11 +242,50 @@ const LessonVideoPlayer = ({
     if (!video) return;
 
     const onPlay = () => setPlaying(true);
-    const onPause = () => { setPlaying(false); setIsBuffering(false); };
-    const onEndedHandler = () => { setPlaying(false); setIsBuffering(false); onEndedRef.current?.(); };
+    const reportProgress = (seconds: number, force = false) => {
+      const floored = Math.floor(seconds);
+      if (floored < 0) return;
+      if (!force && floored - lastReportedRef.current < 10) return;
+      lastReportedRef.current = floored;
+      onProgressRef.current?.(floored);
+    };
+    const seekToStart = () => {
+      const start = startAtRef.current;
+      if (didSeekRef.current || start <= 1) return;
+      if (!Number.isFinite(video.duration) || video.duration <= start + 1) return;
+      didSeekRef.current = true;
+      lastReportedRef.current = Math.floor(start);
+      video.currentTime = start;
+    };
+    const onPause = () => {
+      setPlaying(false);
+      setIsBuffering(false);
+      if (video.currentTime > 1 && !video.ended) reportProgress(video.currentTime, true);
+    };
+    const markEngaged = () => {
+      if (engagedRef.current) return;
+      engagedRef.current = true;
+      onEngagedRef.current?.();
+    };
+    const onEndedHandler = () => {
+      setPlaying(false);
+      setIsBuffering(false);
+      markEngaged();
+      onEndedRef.current?.();
+    };
     const onTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-      lastTimeRef.current = video.currentTime;
+      const now = video.currentTime;
+      if (!video.paused && lastMediaTimeRef.current != null) {
+        const delta = now - lastMediaTimeRef.current;
+        if (delta > 0 && delta < 2) {
+          playedSecondsRef.current += delta;
+          if (playedSecondsRef.current >= 10) markEngaged();
+        }
+      }
+      lastMediaTimeRef.current = now;
+      setCurrentTime(now);
+      lastTimeRef.current = now;
+      if (!video.paused && !video.ended) reportProgress(now);
       if (video.buffered.length > 0) {
         const end = video.buffered.end(video.buffered.length - 1);
         setBuffered(video.duration > 0 ? end / video.duration : 0);
@@ -226,8 +297,17 @@ const LessonVideoPlayer = ({
       setVolume(video.volume);
     };
     const onWaiting = () => setIsBuffering(true);
-    const onCanPlay = () => setIsBuffering(false);
+    const onCanPlay = () => {
+      setIsBuffering(false);
+      seekToStart();
+    };
     const onPlaying = () => setIsBuffering(false);
+
+    const onHide = () => {
+      if (document.visibilityState === "hidden" && video.currentTime > 1 && !video.ended) {
+        reportProgress(video.currentTime, true);
+      }
+    };
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
@@ -238,8 +318,11 @@ const LessonVideoPlayer = ({
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("playing", onPlaying);
+    document.addEventListener("visibilitychange", onHide);
 
     return () => {
+      if (video.currentTime > 1 && !video.ended) reportProgress(video.currentTime, true);
+      document.removeEventListener("visibilitychange", onHide);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEndedHandler);
@@ -285,16 +368,30 @@ const LessonVideoPlayer = ({
 
   // Anti-piracy: DevTools detection
   useEffect(() => {
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+    // Docked devtools shrink only one axis; browser zoom shrinks both, so it is not flagged.
     const check = () => {
-      const open =
-        window.outerWidth - window.innerWidth > 200 ||
-        window.outerHeight - window.innerHeight > 200;
-      setDevToolsOpen(open);
+      const wideGap = window.outerWidth - window.innerWidth > 200;
+      const tallGap = window.outerHeight - window.innerHeight > 240;
+      setDevToolsOpen(wideGap !== tallGap);
     };
     check();
+    const interval = setInterval(check, 1500);
     window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("resize", check);
+    };
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !devToolsOpen) return;
+    video.pause();
+    const blockPlay = () => video.pause();
+    video.addEventListener("play", blockPlay);
+    return () => video.removeEventListener("play", blockPlay);
+  }, [devToolsOpen]);
 
   // Anti-piracy: block dangerous keyboard shortcuts globally while player is focused
   useEffect(() => {
@@ -335,14 +432,14 @@ const LessonVideoPlayer = ({
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || devToolsOpen) return;
     const willPlay = video.paused;
     if (willPlay) void video.play();
     else video.pause();
     setCenterIcon(willPlay ? "play" : "pause");
     if (centerTimerRef.current) clearTimeout(centerTimerRef.current);
     centerTimerRef.current = setTimeout(() => setCenterIcon(null), 700);
-  }, []);
+  }, [devToolsOpen]);
 
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
@@ -560,11 +657,11 @@ const LessonVideoPlayer = ({
       {watermarkText ? (
         <div
           className="pointer-events-none absolute z-20 transition-all duration-1000"
-          style={{ opacity: 0.2, ...wmPos }}
+          style={{ opacity: 0.16, ...wmPos }}
         >
           <span
-            className="select-none whitespace-nowrap text-[11px] font-medium text-white"
-            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+            className="block select-none whitespace-pre text-[11px] font-medium leading-relaxed text-neutral-300"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
           >
             {watermarkText}
           </span>
@@ -601,7 +698,7 @@ const LessonVideoPlayer = ({
         {/* Progress / seek bar */}
         <div
           ref={progressBarRef}
-          className="group/bar relative mb-3 h-1 cursor-pointer rounded-full bg-white/25 transition-all duration-100 hover:h-[5px]"
+          className="group/bar relative mb-3 h-[4.4px] cursor-pointer rounded-full bg-white/25 transition-all duration-100 hover:h-[5.5px]"
           onMouseDown={onProgressMouseDown}
           onMouseMove={onProgressMouseMove}
           onMouseLeave={() => setHoverTime(null)}
@@ -618,7 +715,7 @@ const LessonVideoPlayer = ({
           />
           {/* Played */}
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-75"
+            className="absolute inset-y-0 left-0 rounded-full bg-red-600 transition-[width] duration-75"
             style={{ width: `${playedPct}%` }}
           >
             {/* Thumb */}
@@ -638,6 +735,25 @@ const LessonVideoPlayer = ({
 
         {/* Button row */}
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white hover:bg-white/15 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            aria-label="Previous lesson"
+          >
+            <NavArrowLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white hover:bg-white/15 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Next lesson"
+          >
+            <NavArrowRight className="h-4 w-4" />
+          </button>
+
           {/* Play/Pause */}
           <button
             type="button"

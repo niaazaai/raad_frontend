@@ -17,6 +17,94 @@ export interface FinanceSummary {
   net_receivable: number;
   service_income?: number;
   service_cost?: number;
+  // Cohort (fee date in period)
+  cancelled_amount?: number;
+  student_receivable?: number;
+  credit_amount?: number;
+  enrollment_count?: number;
+  free_count?: number;
+  // Cash (transaction date in period)
+  cash_collected?: number;
+  cash_refunded?: number;
+  cash_recovered?: number;
+  cash_net?: number;
+  written_off_in_period?: number;
+}
+
+/** Report rows: enrollments with money movement in the period, or enrollments whose fee falls in it. */
+export type FinanceReportScope = "activity" | "cohort";
+
+export type FinanceBreakdownMetric =
+  | "gross"
+  | "discount"
+  | "net"
+  | "paid"
+  | "refund"
+  | "cancelled"
+  | "irrecoverable"
+  | "receivable"
+  | "student_receivable"
+  | "mof"
+  | "other"
+  | "credit"
+  | "collected"
+  | "refunded"
+  | "recovered"
+  | "written_off"
+  | "service_income"
+  | "service_cost";
+
+export interface FinanceBreakdownEnrollmentRow {
+  id: number;
+  class_id?: number | null;
+  student_id?: number | null;
+  student_name?: string | null;
+  student_code?: string | null;
+  father_name?: string | null;
+  phone_number?: string | null;
+  class_name?: string | null;
+  class_code?: string | null;
+  fee_date?: string | null;
+  last_payment_date?: string | null;
+  payment_status?: string | null;
+  payment_status_label?: string | null;
+  other_party_name?: string | null;
+  amount: number;
+  gross_amount?: number;
+  discount_amount?: number;
+  net_amount?: number;
+  paid_amount?: number;
+  refund_amount?: number;
+  irrecoverable_debt?: number;
+  net_receivable?: number;
+  currency?: string | null;
+}
+
+export interface FinanceBreakdownMeta {
+  metric: FinanceBreakdownMetric;
+  kind: "enrollments" | "transactions";
+  total: number;
+}
+
+export interface ClassStudentMoveRow {
+  id: number;
+  student_id: number;
+  from_class_student_id: number;
+  to_class_student_id: number;
+  from_class_id: number;
+  from_class_name?: string | null;
+  from_class_code?: string | null;
+  to_class_id: number;
+  to_class_name?: string | null;
+  to_class_code?: string | null;
+  old_class_fee: number;
+  new_class_fee: number;
+  move_date?: string | null;
+  reason?: string | null;
+  moved_transaction_count: number;
+  moved_invoice_count: number;
+  created_by_name?: string | null;
+  created_at?: string | null;
 }
 
 export interface FinancePeriodMeta {
@@ -61,6 +149,13 @@ export interface FinanceClassRow {
   starting_date?: string | null;
   ending_date?: string | null;
   enrollment_date?: string | null;
+  fee_date?: string | null;
+  paid_in_period?: number | null;
+  cancelled_amount?: number | string | null;
+  student_receivable_amount?: number | string | null;
+  credit_amount?: number | string | null;
+  moved_to_class_student_id?: number | null;
+  moved_from_class_student_id?: number | null;
   next_installment_date?: string | null;
   remarks?: string | null;
   currency?: string | null;
@@ -111,6 +206,10 @@ export interface FinanceTransaction {
   internal_notes?: string | null;
   transaction_type?: string | null;
   transaction_type_label?: string | null;
+  payer?: string | null;
+  payer_label?: string | null;
+  related_transaction_id?: number | null;
+  is_recovery?: boolean;
   notes?: string | null;
   created_at?: string | null;
 }
@@ -129,6 +228,8 @@ export interface FinanceReportParams {
   sort_by?: string;
   sort_dir?: string;
   include_pending?: boolean | 0 | 1;
+  scope?: FinanceReportScope;
+  payment_status?: string;
 }
 
 export interface FinanceInvoiceRow {
@@ -138,6 +239,8 @@ export interface FinanceInvoiceRow {
   currency?: string | null;
   exchange_rate?: number | string | null;
   issued_at?: string | null;
+  transaction_date?: string | null;
+  payer?: string | null;
   pdf_url?: string | null;
   class_student_id?: number | null;
   student_name?: string | null;
@@ -189,6 +292,14 @@ export interface UpcomingInstallmentRow {
   class_name?: string | null;
   class_code?: string | null;
   next_due_date?: string | null;
+  days_overdue?: number;
+  is_overdue?: boolean;
+  balance_due?: number;
+  net_amount?: number;
+  paid_amount?: number;
+  mof_receivable_amount?: number;
+  other_receivable_amount?: number;
+  last_payment_date?: string | null;
   payment_status?: string | null;
   payment_status_label?: string | null;
   currency?: string | null;
@@ -197,7 +308,38 @@ export interface UpcomingInstallmentRow {
   pdf_url?: string | null;
 }
 
-export type FinancialTransactionFilter = "irrecoverable" | "mof" | "pending" | "refund";
+export type FinancialTransactionFilter =
+  | "irrecoverable"
+  | "mof"
+  | "pending"
+  | "refund"
+  | "payment"
+  | "recovery"
+  | "write_off"
+  | "cancellation"
+  | "other";
+
+export type TransactionPayer = "student" | "mof" | "other_party";
+
+export type DuesBucket = "all" | "overdue" | "week" | "upcoming" | "no_date";
+
+export interface DuesCounts {
+  overdue: number;
+  week: number;
+  upcoming: number;
+  no_date: number;
+  all: number;
+}
+
+export interface FinancialTransactionTotals {
+  count: number;
+  collected: number;
+  refunded: number;
+  net_cash: number;
+  written_off: number;
+  write_off_reversed: number;
+  cancelled: number;
+}
 
 export interface FinancialTransactionRow {
   id: number;
@@ -223,10 +365,15 @@ export interface FinancialTransactionRow {
   father_name?: string | null;
   class_name?: string | null;
   class_code?: string | null;
+  teacher_name?: string | null;
   payment_status?: string | null;
   payment_status_label?: string | null;
   mof_receivable_amount?: number | string | null;
   irrecoverable_debt?: number | string | null;
+  payer?: string | null;
+  payer_label?: string | null;
+  related_transaction_id?: number | null;
+  is_recovery?: boolean;
   created_by?: number | null;
   created_at?: string | null;
 }

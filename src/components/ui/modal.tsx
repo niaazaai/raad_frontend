@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Xmark } from "iconoir-react";
+import { X as Xmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ModalContextValue {

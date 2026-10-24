@@ -1,8 +1,15 @@
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import type { DataTablePaginationMeta } from "@/types/datatable";
-import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../data/constants/endpoints";
-import type { ManualInvoiceSummary, ManualInvoiceTransactionRow } from "../data/models/FinanceReport";
+import {
+  FINANCE_ENDPOINTS,
+  FINANCE_QUERY_KEYS,
+  FINANCE_STALE_TIME,
+} from "../data/constants/endpoints";
+import type {
+  ManualInvoiceSummary,
+  ManualInvoiceTransactionRow,
+} from "../data/models/FinanceReport";
 
 export interface ManualInvoiceListParams {
   from?: string;
@@ -21,6 +28,7 @@ export function useManualInvoiceTransactions(params: ManualInvoiceListParams) {
     url: FINANCE_ENDPOINTS.MANUAL_INVOICES,
     method: RequestMethod.GET,
     params,
+    options: { staleTime: FINANCE_STALE_TIME, refetchOnMount: "always" },
   });
 }
 
@@ -28,7 +36,11 @@ export function extractManualInvoiceRows(response: unknown): ManualInvoiceTransa
   if (!response || typeof response !== "object") return [];
   const envelope = response as { data?: unknown };
   if (Array.isArray(envelope.data)) return envelope.data as ManualInvoiceTransactionRow[];
-  if (envelope.data && typeof envelope.data === "object" && Array.isArray((envelope.data as { data?: unknown }).data)) {
+  if (
+    envelope.data &&
+    typeof envelope.data === "object" &&
+    Array.isArray((envelope.data as { data?: unknown }).data)
+  ) {
     return (envelope.data as { data: ManualInvoiceTransactionRow[] }).data;
   }
   return [];
@@ -36,7 +48,8 @@ export function extractManualInvoiceRows(response: unknown): ManualInvoiceTransa
 
 export function extractManualInvoicePagination(response: unknown): DataTablePaginationMeta | null {
   if (!response || typeof response !== "object") return null;
-  const topLevel = (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta?.pagination;
+  const topLevel = (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta
+    ?.pagination;
   if (topLevel) return topLevel;
   const nested = response as { data?: { meta?: { pagination?: DataTablePaginationMeta } } };
   return nested.data?.meta?.pagination ?? null;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
-import { Menu, Xmark, NavArrowDown } from "iconoir-react";
+import { Menu, X as Xmark, ChevronDown as NavArrowDown } from "lucide-react";
 import LanguageSwitcher from "@/components/website/LanguageSwitcher";
 import ThemeToggle from "@/components/website/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -81,7 +81,7 @@ const LandingNavbar = ({ loginHref = "/login", className }: LandingNavbarProps) 
       >
         <nav className={glassNavClass} aria-label="Main">
           <a href="/" className="flex shrink-0 items-center gap-2 pe-2">
-            <img src="/logo.png" alt="Raad LMS" className="h-9 w-auto object-contain md:h-10" />
+            <img src="/logo.svg" alt="Raad LMS" className="h-9 w-auto object-contain md:h-10" />
           </a>
 
           <div className="hidden flex-1 items-center justify-center gap-0.5 lg:flex">

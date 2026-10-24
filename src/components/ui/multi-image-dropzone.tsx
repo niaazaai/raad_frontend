@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Label } from "@/components/ui";
-import { Page, Upload, Xmark } from "iconoir-react";
+import { File as Page, Upload, X as Xmark } from "lucide-react";
 
 export interface MultiImageDropzoneProps {
   accept: string;

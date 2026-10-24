@@ -1,4 +1,4 @@
-import { SunLight, MoonSat, Globe, Check, NavArrowDown } from "iconoir-react";
+import { Sun as SunLight, Moon as MoonSat, Globe, Check, ChevronDown as NavArrowDown } from "lucide-react";
 import { useAuth } from "@/features/auth";
 import { useLayoutStore } from "@/store";
 import { ThemeMode } from "@/data/enums";

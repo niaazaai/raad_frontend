@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FloppyDisk } from "iconoir-react";
+import { Save as FloppyDisk } from "lucide-react";
 import {
   Button,
   ImageDropzone,

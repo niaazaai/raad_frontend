@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui";
-import { BookStack } from "iconoir-react";
+import { courseLevelLabel } from "@/data/enums/courseWizard";
+import { Library as BookStack } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicCourseListItem } from "@/hooks/usePublicCourses";
 import { cn } from "@/lib/utils";
@@ -75,7 +76,7 @@ const PublicCourseCard = ({ course, enrollHref }: PublicCourseCardProps) => {
         <div className="flex flex-wrap gap-2 text-xs">
           {course.level ? (
             <span className="rounded-full border border-border bg-primary/10 px-2.5 py-1 font-medium text-primary">
-              {course.level}
+              {courseLevelLabel(course.level)}
             </span>
           ) : null}
           {course.language ? (

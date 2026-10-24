@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FloppyDisk, Eye, EyeClosed } from "iconoir-react";
+import { Save as FloppyDisk, Eye, EyeOff as EyeClosed } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useUser, useCreateUser, useUpdateUser } from "../../hooks";
 import { z } from "zod";

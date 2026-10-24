@@ -1,29 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  DashboardDots,
-  Settings,
-  UserCircle,
-  UserCrown,
-  Lock,
-  OpenBook,
-  NavArrowDown,
-  ClipboardCheck,
-  Activity,
-  UserBadgeCheck,
-  Learning,
-  GraduationCap,
-  Presentation,
-  Post,
-  DollarCircle,
-  StatsReport,
-  PageFlip,
-  CalendarArrowDown,
-  Coins,
-  PageEdit,
-  HandCash,
-  List,
-} from "iconoir-react";
+import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
+import { BookOpen as Learning } from "lucide-react";
 import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
 import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
@@ -39,6 +17,9 @@ import {
   CourseEntitySidebarIcon,
   CourseOverviewIcon,
 } from "@/modules/Course/data/courseEntitySidebarIcons";
+import { PendingCountBadge } from "@/modules/Course/components/PendingCountBadge";
+import { useCourseOverviewStats } from "@/modules/Course/hooks/useCourseOverviewStats";
+import { parseCourseOverviewStats } from "@/modules/Course/data/models";
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -99,6 +80,7 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Attendance: "sidebar.attendance",
   Blogs: "sidebar.blogs",
   "My learning": "sidebar.myLearning",
+  Help: "sidebar.help",
   "Main categories": "sidebar.mainCategories",
   "Sub categories": "sidebar.subCategories",
   "Student discounts": "sidebar.studentDiscounts",
@@ -107,17 +89,13 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Assignments: "sidebar.assignments",
   "Downloadable resources": "sidebar.downloadableResources",
   "Quiz files": "sidebar.quizFiles",
-  "Subscription plans": "sidebar.subscriptionPlans",
-  "Student subscriptions": "sidebar.studentSubscriptions",
+  "Plans": "sidebar.subscriptionPlans",
+  "Subscription": "sidebar.studentSubscriptions",
 };
 
 function linkIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/student") {
-    return (
-      pathname === "/student" ||
-      pathname.startsWith("/student/") ||
-      pathname.startsWith("/learn/course")
-    );
+    return pathname === "/student" || pathname.startsWith("/learn/course");
   }
   if (itemPath === "/course") {
     return pathname === "/course";
@@ -156,9 +134,15 @@ function courseRowsToNavItems(rows: CourseSidebarRow[]): NavItem[] {
     }
     const cfg = COURSE_ENTITY_REGISTRY[row.slug];
     const path = row.slug === "courses" ? "/course/courses" : `/course/${row.slug}`;
+    const sidebarTitle =
+      row.slug === "subscription-plans"
+        ? "Plans"
+        : row.slug === "student-subscriptions"
+          ? "Subscription"
+          : cfg.title;
     return {
       navKey: `course-entity-${row.slug}-${index}`,
-      title: cfg.title,
+      title: sidebarTitle,
       path,
       icon: <CourseEntitySidebarIcon slug={row.slug} />,
       permission: cfg.permission,
@@ -173,7 +157,7 @@ const baseNavItems: NavItem[] = [
   {
     title: "Dashboard",
     path: "/dashboard",
-    icon: <DashboardDots className={iconLg} />,
+    icon: <LayoutDashboard className={iconLg} />,
   },
   {
     title: "User Management",
@@ -214,6 +198,12 @@ const baseNavItems: NavItem[] = [
 
 const Sidebar = () => {
   const { hasPermission, hasAnyPermission, hasAnyRole, user } = useAuth();
+  const canSeePendingSubscriptions = hasPermission(
+    COURSE_ENTITY_REGISTRY["student-subscriptions"].permission
+  );
+  const { data: overviewStats } = useCourseOverviewStats(canSeePendingSubscriptions);
+  const pendingSubscriptionCount =
+    parseCourseOverviewStats(overviewStats?.data).pending_subscriptions_count ?? 0;
   const { t } = useTranslation();
   const locale = useLocaleStore((s) => s.locale);
   const location = useLocation();
@@ -231,13 +221,18 @@ const Sidebar = () => {
 
   const navItems: NavItem[] = useMemo(
     () => [
-      baseNavItems[0],
+      ...(user?.type === "student" ? [] : [baseNavItems[0]]),
       ...(user?.type === "student"
         ? [
             {
               title: "My learning",
               path: "/student",
               icon: <Learning className={iconLg} />,
+            },
+            {
+              title: "Help",
+              path: "/student/help",
+              icon: <LifeBuoy className={iconLg} />,
             },
           ]
         : []),
@@ -412,7 +407,10 @@ const Sidebar = () => {
           <SidebarMenuSubButton asChild isActive={isActive} size="sm">
             <NavLink to={item.path!} onClick={closeMobile}>
               {item.icon}
-              <span>{label}</span>
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {item.path === "/course/student-subscriptions" ? (
+                <PendingCountBadge count={pendingSubscriptionCount} className="ms-auto" />
+              ) : null}
             </NavLink>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
@@ -424,7 +422,13 @@ const Sidebar = () => {
         <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
           <NavLink to={item.path!} onClick={closeMobile}>
             {item.icon}
-            <span>{label}</span>
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            {item.path === "/course/student-subscriptions" ? (
+              <PendingCountBadge
+                count={pendingSubscriptionCount}
+                className="ms-auto group-data-[collapsible=icon]:hidden"
+              />
+            ) : null}
           </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -450,11 +454,19 @@ const Sidebar = () => {
             }
           >
             {item.icon}
-            <span>{label}</span>
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            {item.title === "Courses" && !isExpanded ? (
+              <PendingCountBadge
+                count={pendingSubscriptionCount}
+                className="ms-auto group-data-[collapsible=icon]:hidden"
+              />
+            ) : null}
             <NavArrowDown
-              className={`ms-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
-                isExpanded ? "rotate-180" : ""
-              }`}
+              className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+                item.title === "Courses" && !isExpanded && pendingSubscriptionCount > 0
+                  ? ""
+                  : "ms-auto"
+              } ${isExpanded ? "rotate-180" : ""}`}
             />
           </SidebarMenuButton>
           {isExpanded ? (
@@ -471,13 +483,13 @@ const Sidebar = () => {
     <SidebarRoot side={side} collapsible="icon" variant="inset">
       <SidebarHeader className="">
         <NavLink
-          to="/dashboard"
+          to={user?.type === "student" ? "/student" : "/dashboard"}
           onClick={closeMobile}
           title={t("sidebar.productName")}
           className="flex items-center justify-center rounded-md px-1 py-1.5 outline-none ring-sidebar-ring hover:bg-sidebar-accent focus-visible:ring-2 group-data-[collapsible=icon]:p-0"
         >
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt={t("sidebar.productName")}
             className="h-10 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:hidden"
           />

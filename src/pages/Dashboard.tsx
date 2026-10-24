@@ -1,13 +1,6 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import {
-  Group,
-  Dollar,
-  GraduationCap,
-  BookStack,
-  Calendar,
-  User,
-} from "iconoir-react";
+import { Users as Group, DollarSign as Dollar, GraduationCap, Library as BookStack, Calendar, User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth";
 import { useDashboardStats, useDashboardAnalytics } from "@/hooks";

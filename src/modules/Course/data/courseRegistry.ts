@@ -79,10 +79,10 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
     slug: "assignments",
     title: "Assignments",
     pageDescription:
-      "Issue practice papers and marked tasks—tie each assignment to the right lesson and course cohort.",
+      "Chapter notes and practice files attached to a course module.",
     apiPath: "/assignments",
     permission: "course.assignments.read",
-    columns: ["id", "course_id", "lesson_id", "title", "status", "created_at"],
+    columns: ["id", "course_id", "course_module_id", "title", "status", "created_at"],
     filterParams: ["course_id"],
   },
   "downloadable-resources": {
@@ -147,7 +147,7 @@ export const COURSE_ENTITY_REGISTRY: Record<CourseEntitySlug, CourseEntityConfig
       "Link ACCA tutors to user profiles—bios, specializations, and availability for class assignments.",
     apiPath: "/instructors",
     permission: "course.instructors.read",
-    columns: ["id", "user_name", "specialization", "bio", "status", "created_at"],
+    columns: ["id", "user_name", "specialization", "phone_number", "whatsapp_number", "email", "status", "created_at"],
   },
   "lms-classes": {
     slug: "lms-classes",

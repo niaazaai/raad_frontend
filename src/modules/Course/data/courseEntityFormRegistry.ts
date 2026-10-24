@@ -37,9 +37,10 @@ const LANG = [
 ];
 
 const LEVEL = [
-  { value: "BEGINNER", label: "Beginner" },
-  { value: "INTERMEDIATE", label: "Intermediate" },
-  { value: "ADVANCED", label: "Advanced" },
+  { value: "Essential", label: "Essential" },
+  { value: "Comprehensive", label: "Comprehensive" },
+  { value: "Practice-Intensive", label: "Practice-Intensive" },
+  { value: "Expert-Led", label: "Expert-Led" },
 ];
 
 const ACTIVE_INACTIVE = [
@@ -120,7 +121,6 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "is_featured", label: "Featured", type: "checkbox" },
       { name: "is_popular", label: "Popular", type: "checkbox" },
       { name: "is_new", label: "New", type: "checkbox" },
-      { name: "is_best_seller", label: "Best seller", type: "checkbox" },
       { name: "is_free", label: "Free", type: "checkbox" },
       {
         name: "course_module_id",
@@ -168,7 +168,7 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   assignments: {
     fields: [
       { name: "course_id", label: "Course ID", type: "number", required: true },
-      { name: "lesson_id", label: "Lesson ID", type: "number" },
+      { name: "course_module_id", label: "Module ID", type: "number", required: true },
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
       { name: "assignment_file_url", label: "Assignment file URL", type: "text", required: true },
@@ -228,18 +228,16 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
   },
   "student-subscriptions": {
     fields: [],
-    statusToggle: {
-      field: "subscription_status",
-      activeValue: "active",
-      inactiveValue: "inactive",
-    },
   },
   instructors: {
     fields: [
       { name: "user_id", label: "User", type: "number", required: true },
-      { name: "bio", label: "Bio", type: "textarea" },
-      { name: "specialization", label: "Specialization", type: "text" },
-      { name: "status", label: "Status", type: "select", options: ACTIVE_INACTIVE },
+      { name: "bio", label: "Bio", type: "textarea", placeholder: "Teaching background, subjects, and experience" },
+      { name: "specialization", label: "Specialization", type: "text", placeholder: "e.g. ACCA, audit, tax" },
+      { name: "phone_number", label: "Phone number", type: "text", placeholder: "+93701234567" },
+      { name: "whatsapp_number", label: "WhatsApp number", type: "text", placeholder: "+93701234567" },
+      { name: "email", label: "Email", type: "text", placeholder: "name@raad.af" },
+      { name: "address", label: "Address", type: "textarea", placeholder: "Street, district, city" },
     ],
     statusToggle: { field: "status", activeValue: "active", inactiveValue: "inactive" },
   },
@@ -268,7 +266,12 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "date_of_birth", label: "Date of birth", type: "date" },
       { name: "gender", label: "Gender", type: "select", options: GENDER },
       { name: "acca_id", label: "ACCA ID", type: "text" },
-      { name: "academic_background", label: "background", type: "select", options: ACADEMIC_BACKGROUND },
+      {
+        name: "academic_background",
+        label: "background",
+        type: "select",
+        options: ACADEMIC_BACKGROUND,
+      },
       { name: "address", label: "Address", type: "textarea" },
       { name: "phone_number", label: "Phone number", type: "text" },
       { name: "whatsapp_number", label: "WhatsApp number", type: "text" },
@@ -404,7 +407,8 @@ export function courseRowToFormValuesForSlug(
 
 export function serializeCourseEntityPayload(
   values: Record<string, string | boolean | File | null | undefined>,
-  fields: CourseEntityFormField[]
+  fields: CourseEntityFormField[],
+  options: { clearEmptyFields?: boolean } = {}
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
 
@@ -422,6 +426,10 @@ export function serializeCourseEntityPayload(
     }
 
     if (raw === "" || raw === undefined || raw === null) {
+      // On edit, an emptied optional field must be sent as null so the server actually clears it.
+      if (options.clearEmptyFields && raw !== undefined && !f.required) {
+        out[f.name] = null;
+      }
       continue;
     }
 

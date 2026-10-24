@@ -1,12 +1,34 @@
-import { useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import { callApi } from "@/services";
 import type { CourseEntitySlug } from "../data/courseRegistry";
 import { COURSE_ENTITY_REGISTRY } from "../data/courseRegistry";
 import { courseQueryKeys } from "../data/constants/queryKeys";
+import { FINANCE_RELATED_QUERY_KEYS } from "@/modules/Finance/data/constants/endpoints";
 
 export type CourseRow = Record<string, unknown>;
+
+export type CourseEntityFieldError = Error & { fieldErrors?: Record<string, string> };
+
+function courseEntityRequestError(data: unknown, fallback: string): CourseEntityFieldError {
+  const body = data && typeof data === "object" ? (data as { message?: string; errors?: Record<string, string[] | string> }) : undefined;
+  const fieldErrors: Record<string, string> = {};
+  if (body?.errors) {
+    for (const [key, messages] of Object.entries(body.errors)) {
+      const first = Array.isArray(messages) ? messages[0] : messages;
+      if (typeof first === "string" && first.trim() !== "") fieldErrors[key] = first;
+    }
+  }
+  const error = new Error(body?.message || fallback) as CourseEntityFieldError;
+  if (Object.keys(fieldErrors).length > 0) error.fieldErrors = fieldErrors;
+  return error;
+}
 
 function getRowsFromResponse(response: unknown): CourseRow[] {
   if (!response || typeof response !== "object") return [];
@@ -68,6 +90,7 @@ export function useDeleteCourseEntity(slug: CourseEntitySlug) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
+      queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
       if (slug === "main-categories") {
         queryClient.invalidateQueries({ queryKey: ["course", "form-meta"] });
       }
@@ -106,12 +129,13 @@ export function useCreateCourseEntity(slug: CourseEntitySlug) {
         hasFiles,
       });
       if (!response.ok) {
-        throw new Error(response.data?.message || "Create failed");
+        throw courseEntityRequestError(response.data, "Create failed");
       }
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
+      queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
       if (slug === "main-categories") {
         queryClient.invalidateQueries({ queryKey: ["course", "form-meta"] });
       }
@@ -134,18 +158,34 @@ export function useUpdateCourseEntity(slug: CourseEntitySlug) {
         hasFiles,
       });
       if (!response.ok) {
-        throw new Error(response.data?.message || "Update failed");
+        throw courseEntityRequestError(response.data, "Update failed");
       }
       return response.data;
     },
     onSuccess: (_data: unknown, vars: { id: number; body: Record<string, unknown> }) => {
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
+      queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
       queryClient.invalidateQueries({ queryKey: ["course", "entity", slug, "detail", vars.id] });
+      if (slug === "lms-class-students") {
+        // Student name / phone / ID / email also show on class, finance and dashboard screens.
+        FINANCE_RELATED_QUERY_KEYS.forEach((key) =>
+          queryClient.invalidateQueries({ queryKey: [...key] })
+        );
+      }
       if (slug === "main-categories") {
         queryClient.invalidateQueries({ queryKey: ["course", "form-meta"] });
       }
     },
   });
+}
+
+function invalidateStudentSubscriptionQueries(queryClient: QueryClient, id?: number) {
+  const slug: CourseEntitySlug = "student-subscriptions";
+  queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
+  queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
+  if (id != null) {
+    queryClient.invalidateQueries({ queryKey: ["course", "entity", slug, "detail", id] });
+  }
 }
 
 /** Approve a pending student subscription (active + paid, discount applied on server, student notified). */
@@ -166,9 +206,69 @@ export function useApproveStudentSubscription() {
       }
       return response.data;
     },
-    onSuccess: (_data: unknown, id: number) => {
-      queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
-      queryClient.invalidateQueries({ queryKey: ["course", "entity", slug, "detail", id] });
+    onSuccess: (data: unknown, id: number) => {
+      const detail = getCourseEntityDetailFromResponse(data);
+      if (detail) {
+        queryClient.setQueryData(["course", "entity", slug, "detail", id], data);
+      }
+      invalidateStudentSubscriptionQueries(queryClient, id);
+    },
+  });
+}
+
+/** Directly deactivate an active/pending student subscription (no cancel reason). */
+export function useDeactivateStudentSubscription() {
+  const queryClient = useQueryClient();
+  const slug: CourseEntitySlug = "student-subscriptions";
+  const cfg = COURSE_ENTITY_REGISTRY[slug];
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await callApi<CourseRow>({
+        url: `${cfg.apiPath}/${id}/deactivate`,
+        method: RequestMethod.POST,
+        shouldPopError: false,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Deactivate failed");
+      }
+      return response.data;
+    },
+    onSuccess: (data: unknown, id: number) => {
+      const detail = getCourseEntityDetailFromResponse(data);
+      if (detail) {
+        queryClient.setQueryData(["course", "entity", slug, "detail", id], data);
+      }
+      invalidateStudentSubscriptionQueries(queryClient, id);
+    },
+  });
+}
+
+/** Cancel an active student subscription with a required reason. */
+export function useCancelStudentSubscription() {
+  const queryClient = useQueryClient();
+  const slug: CourseEntitySlug = "student-subscriptions";
+  const cfg = COURSE_ENTITY_REGISTRY[slug];
+
+  return useMutation({
+    mutationFn: async ({ id, cancel_reason }: { id: number; cancel_reason: string }) => {
+      const response = await callApi<CourseRow>({
+        url: `${cfg.apiPath}/${id}/cancel`,
+        method: RequestMethod.POST,
+        data: { cancel_reason },
+        shouldPopError: false,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Cancel failed");
+      }
+      return response.data;
+    },
+    onSuccess: (data: unknown, vars: { id: number; cancel_reason: string }) => {
+      const detail = getCourseEntityDetailFromResponse(data);
+      if (detail) {
+        queryClient.setQueryData(["course", "entity", slug, "detail", vars.id], data);
+      }
+      invalidateStudentSubscriptionQueries(queryClient, vars.id);
     },
   });
 }

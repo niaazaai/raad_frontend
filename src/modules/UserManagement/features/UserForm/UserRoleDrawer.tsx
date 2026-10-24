@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FloppyDisk, Shield } from "iconoir-react";
+import { Save as FloppyDisk, Shield } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useUser, useUpdateUser, useRoles } from "../../hooks";
 import type { UserManagement } from "../../data/models";

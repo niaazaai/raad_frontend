@@ -48,6 +48,8 @@ export interface DataTableColumnConfig<T = unknown> {
   align?: "left" | "center" | "right";
   /** Include this column in Excel export (default: true, except key "actions") */
   exportable?: boolean;
+  /** Only include this column in Excel export; never render it in the table */
+  exportOnly?: boolean;
   /** Plain value used for Excel export */
   exportValue?: (row: T) => string | number | null | undefined;
 }
@@ -89,6 +91,8 @@ export interface DataTableConfig<T = unknown> {
   showRecordCount?: boolean;
   /** Empty state message */
   emptyMessage?: string;
+  /** Click handler for a data row (ignored when clicking actions / interactive controls) */
+  onRowClick?: (row: T) => void;
   /** Double-click handler for a data row */
   onRowDoubleClick?: (row: T) => void;
   /** Show Excel export control (default: true) */
@@ -123,6 +127,8 @@ export interface DataTableProps<T = unknown> {
   pagination?: DataTablePaginationMeta | null;
   /** Loading state */
   isLoading?: boolean;
+  /** Rendered on the toolbar's trailing edge, beside search and export (e.g. period filters) */
+  toolbar?: React.ReactNode;
   /** Optional: adapter for Typesense or other search backends (future) */
   // searchAdapter?: DataTableSearchAdapter;
 }

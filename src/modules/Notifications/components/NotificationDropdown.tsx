@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { DoubleCheck } from "iconoir-react";
+import { CheckCheck as DoubleCheck } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   useNotifications,

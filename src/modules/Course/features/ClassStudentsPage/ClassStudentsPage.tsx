@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, EditPencil, Minus, Page, Plus, Prohibition, Trash, Undo, Wallet } from "iconoir-react";
+import { ArrowLeft, Pencil as EditPencil, Minus, File as Page, Plus, Ban as Prohibition, Repeat, Trash2 as Trash, Undo2 as Undo, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
+  Checkbox,
   DataTable,
   Drawer,
   DrawerBody,
@@ -56,35 +57,19 @@ import {
   getCourseEntityDetailFromResponse,
 } from "../../hooks/useCourseEntity";
 import { useCourseEntityList, getCourseListFromResponse } from "../../hooks/useCourseEntity";
+import FinanceStatusBadge from "@/modules/Finance/components/FinanceStatusBadge";
+import MoveEnrollmentDrawer, {
+  type MoveSubject,
+} from "@/modules/Finance/components/MoveEnrollmentDrawer";
+import { localIsoDate } from "@/modules/Finance/components/financeFormat";
 
 function getPagination(response: unknown): DataTablePaginationMeta | null {
   if (!response || typeof response !== "object") return null;
   return (response as { meta?: { pagination?: DataTablePaginationMeta } }).meta?.pagination ?? null;
 }
 
-
 function PaymentStatusBadge({ value }: { value: unknown }) {
-  const { t } = useTranslation();
-  const raw = String(value ?? "pending");
-  const labels: Record<string, string> = {
-    pending: t("course.paymentStatus.pending"),
-    paid: t("course.paymentStatus.paid"),
-    partial: t("course.paymentStatus.partial"),
-    mof_pending: t("course.paymentStatus.mof_pending"),
-    other_party: t("course.paymentStatus.other_party"),
-  };
-  const colors: Record<string, string> = {
-    pending: "bg-warning/10 text-warning",
-    paid: "bg-success/10 text-success",
-    partial: "bg-info/10 text-info",
-    mof_pending: "bg-auxiliary/10 text-auxiliary",
-    other_party: "bg-info/10 text-info",
-  };
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
-      {labels[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1)}
-    </span>
-  );
+  return <FinanceStatusBadge value={String(value ?? "pending")} />;
 }
 
 function CurrencyBadge({ value }: { value: unknown }) {
@@ -95,7 +80,12 @@ function CurrencyBadge({ value }: { value: unknown }) {
     GBP: "bg-warning/10 text-warning",
   };
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-xs font-medium",
+        colors[raw] ?? "bg-muted text-muted-foreground"
+      )}
+    >
       {raw}
     </span>
   );
@@ -107,7 +97,10 @@ function formatMoney(value: unknown): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-function formatStudentPickerLabel(student: Record<string, unknown>): { value: string; label: string } {
+function formatStudentPickerLabel(student: Record<string, unknown>): {
+  value: string;
+  label: string;
+} {
   const name = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "—";
   const code = String(student.student_code ?? student.id);
   const nationalId = String(student.national_id ?? "—");
@@ -120,14 +113,19 @@ function formatStudentPickerLabel(student: Record<string, unknown>): { value: st
 }
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localIsoDate();
 }
 
 type RefundFormState = {
   amount: string;
   reason: string;
   transaction_date: string;
+  cancel_remaining: boolean;
 };
+
+function isMovedRow(row: ClassStudentRow): boolean {
+  return Boolean(row.moved_to_class_student_id) || row.payment_status === "moved";
+}
 
 const ClassStudentsPage = () => {
   const { classId: classIdParam } = useParams<{ classId: string }>();
@@ -181,13 +179,23 @@ const ClassStudentsPage = () => {
     amount: "",
     reason: "",
     transaction_date: todayIsoDate(),
+    cancel_remaining: false,
   });
 
   const generateInvoice = useGenerateClassStudentInvoice(classId);
 
-  const canPay = hasAnyPermission(["course.class_students.payment", "course.class_students.update"]);
-  const canRefund = hasAnyPermission(["course.class_students.refund", "course.class_students.update"]);
-  const canInvoice = hasAnyPermission(["course.class_students.invoice", "course.class_students.update"]);
+  const canPay = hasAnyPermission([
+    "course.class_students.payment",
+    "course.class_students.update",
+  ]);
+  const canRefund = hasAnyPermission([
+    "course.class_students.refund",
+    "course.class_students.update",
+  ]);
+  const canInvoice = hasAnyPermission([
+    "course.class_students.invoice",
+    "course.class_students.update",
+  ]);
 
   const studentsListQuery = useCourseEntityList(
     addOpen ? "lms-class-students" : null,
@@ -252,11 +260,42 @@ const ClassStudentsPage = () => {
     setPaymentModal(row);
   };
 
+  const [moveSubject, setMoveSubject] = useState<MoveSubject | null>(null);
+  const openMoveDrawer = useCallback(
+    (row: ClassStudentRow) => {
+      const paid = Number(row.paid_amount ?? 0);
+      const discountType = String(row.discount_type ?? "none");
+      setMoveSubject({
+        id: row.id,
+        classId,
+        studentName:
+          row.full_name ||
+          `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() ||
+          String(row.student_code ?? ""),
+        className: row.class_name,
+        classCode: row.class_code,
+        classFee: Number(row.class_fee ?? classFee),
+        discountPercent: discountType === "percentage" ? Number(row.discount_amount ?? 0) : 0,
+        discountValue:
+          discountType === "fixed"
+            ? Number(row.discount_amount ?? 0)
+            : Number(row.discount_value ?? 0),
+        payments: paid + Number(row.refund_amount ?? 0),
+        paid,
+        writtenOff: Number(row.irrecoverable_debt ?? 0),
+        cancelled: Number(row.cancelled_amount ?? 0),
+        currency: row.currency ?? "AFN",
+      });
+    },
+    [classFee, classId]
+  );
+
   const openRefundModal = (row: ClassStudentRow) => {
     setRefundForm({
       amount: row.paid_amount != null ? String(row.paid_amount) : "",
       reason: "",
       transaction_date: todayIsoDate(),
+      cancel_remaining: false,
     });
     setRefundModal(row);
   };
@@ -272,11 +311,9 @@ const ClassStudentsPage = () => {
         window.open(invoice.pdf_url, "_blank", "noopener,noreferrer");
       } else {
         toast.error(t("course.classStudents.invoiceFailed"));
-        return;
       }
-      toast.success(t("course.classStudents.invoiceGenerated"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("course.classStudents.invoiceFailed"));
+    } catch {
+      // error toast is shown by callApi
     }
   };
 
@@ -335,12 +372,14 @@ const ClassStudentsPage = () => {
             }
             return (
               <div className="min-w-[7rem] space-y-0.5">
-                {mockLabel ? <div className="font-mono text-sm tabular-nums">{mockLabel}</div> : null}
+                {mockLabel ? (
+                  <div className="font-mono text-sm tabular-nums">{mockLabel}</div>
+                ) : null}
                 {finalLabel ? (
                   <div
                     className={cn(
                       "text-xs font-medium",
-                      row.final_passed ? "text-success" : "text-danger",
+                      row.final_passed ? "text-success" : "text-danger"
                     )}
                   >
                     {finalLabel}
@@ -369,6 +408,11 @@ const ClassStudentsPage = () => {
             <div className="flex flex-wrap items-center gap-1.5">
               <PaymentStatusBadge value={row.payment_status} />
               <CurrencyBadge value={row.currency} />
+              {isMovedRow(row) && row.disable_reason ? (
+                <span className="basis-full text-xs text-muted-foreground">
+                  {row.disable_reason}
+                </span>
+              ) : null}
             </div>
           ),
         },
@@ -381,7 +425,9 @@ const ClassStudentsPage = () => {
             return (
               <span>
                 {formatMoney(row.due_amount)}{" "}
-                <span className="text-xs text-muted-foreground">{String(row.currency ?? "AFN")}</span>
+                <span className="text-xs text-muted-foreground">
+                  {String(row.currency ?? "AFN")}
+                </span>
               </span>
             );
           },
@@ -393,10 +439,14 @@ const ClassStudentsPage = () => {
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
-                row.status === "disabled" ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
+                row.status === "disabled"
+                  ? "bg-danger/10 text-danger"
+                  : "bg-success/10 text-success"
               )}
             >
-              {row.status === "disabled" ? t("course.classStudents.disabled") : t("course.classStudents.active")}
+              {row.status === "disabled"
+                ? t("course.classStudents.disabled")
+                : t("course.classStudents.active")}
             </span>
           ),
         },
@@ -421,6 +471,7 @@ const ClassStudentsPage = () => {
                 label: t("course.classStudents.payment"),
                 icon: <Wallet className="h-4 w-4" />,
                 onClick: openPaymentModal,
+                hidden: isMovedRow,
               },
             ]
           : []),
@@ -431,10 +482,19 @@ const ClassStudentsPage = () => {
                 label: t("course.classStudents.refund"),
                 icon: <Undo className="h-4 w-4" />,
                 onClick: openRefundModal,
-                hidden: (row: ClassStudentRow) => Number(row.paid_amount ?? 0) <= 0,
+                hidden: (row: ClassStudentRow) =>
+                  isMovedRow(row) || Number(row.paid_amount ?? 0) <= 0,
               },
             ]
           : []),
+        {
+          key: "move",
+          label: t("fin.move.action"),
+          icon: <Repeat className="h-4 w-4" />,
+          permission: "course.class_students.update",
+          hidden: isMovedRow,
+          onClick: (row: ClassStudentRow) => openMoveDrawer(row),
+        },
         ...(canInvoice
           ? [
               {
@@ -466,17 +526,35 @@ const ClassStudentsPage = () => {
           variant: "danger" as const,
           permission: "course.class_students.update",
           hidden: (row) => {
+            // Only never-billed enrollments can be removed; anything with money history must be moved/disabled.
             const status = String(row.payment_status ?? "pending");
-            return status === "paid" || status === "partial" || status === "mof_pending" || status === "other_party";
+            return (
+              status !== "pending" ||
+              Number(row.paid_amount ?? 0) > 0 ||
+              Boolean(row.moved_from_class_student_id)
+            );
           },
           onClick: async (row) => {
-            if (!(await confirm(confirmPresets.delete(t("course.classStudents.removeConfirmItem"))))) return;
+            if (
+              !(await confirm(confirmPresets.delete(t("course.classStudents.removeConfirmItem"))))
+            )
+              return;
             removeStudent.mutate(row.id);
           },
         },
       ],
     }),
-    [canInvoice, canPay, canRefund, classFee, confirm, confirmPresets, removeStudent, t],
+    [
+      canInvoice,
+      canPay,
+      canRefund,
+      classFee,
+      confirm,
+      confirmPresets,
+      removeStudent,
+      t,
+      openMoveDrawer,
+    ]
   );
 
   if (!hasPermission("course.class_students.read")) {
@@ -503,14 +581,22 @@ const ClassStudentsPage = () => {
     <div className="w-full min-w-0 max-w-full space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Button type="button" variant="ghost" size="sm" className="mb-2 gap-2" onClick={() => navigate("/classes")}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mb-2 gap-2"
+            onClick={() => navigate("/classes")}
+          >
             <ArrowLeft className="h-4 w-4" />
             {t("course.classStudents.backToClasses")}
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">
             {className}
             {classCode ? (
-              <span className="ms-2 font-mono text-base font-normal text-muted-foreground">{classCode}</span>
+              <span className="ms-2 font-mono text-base font-normal text-muted-foreground">
+                {classCode}
+              </span>
             ) : null}
           </h1>
           <div className="mt-2">
@@ -616,6 +702,8 @@ const ClassStudentsPage = () => {
         onFormChange={setRefundForm}
         onClose={() => setRefundModal(null)}
       />
+
+      <MoveEnrollmentDrawer subject={moveSubject} onClose={() => setMoveSubject(null)} />
     </div>
   );
 };
@@ -639,9 +727,10 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
 
   useEffect(() => {
     if (!open || !row) return;
-    const existing = Array.isArray(row.mock_results) && row.mock_results.length > 0
-      ? row.mock_results.map((n) => String(n))
-      : [""];
+    const existing =
+      Array.isArray(row.mock_results) && row.mock_results.length > 0
+        ? row.mock_results.map((n) => String(n))
+        : [""];
     setMockScores(existing);
     setFinalScore(row.final_score != null ? String(row.final_score) : "");
     setFinalPassed(Boolean(row.final_passed));
@@ -687,7 +776,9 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
             <>
               <div>
                 <Label>{t("course.classStudents.mockResults")}</Label>
-                <p className="mt-1 text-xs text-muted-foreground">{t("course.classStudents.mockHint")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("course.classStudents.mockHint")}
+                </p>
               </div>
               <div className="space-y-2">
                 {mockScores.map((score, index) => (
@@ -733,13 +824,24 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
                 <Plus className="h-4 w-4" />
                 {t("course.classStudents.addMock")}
               </Button>
-              <Button type="button" variant="secondary" className="w-full" onClick={() => setView("final")}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setView("final")}
+              >
                 {t("course.classStudents.finalAcca")}
               </Button>
             </>
           ) : (
             <>
-              <Button type="button" variant="ghost" size="sm" className="gap-2 px-0" onClick={() => setView("mocks")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-2 px-0"
+                onClick={() => setView("mocks")}
+              >
                 {t("course.classStudents.backToMocks")}
               </Button>
               <div className="space-y-1.5">
@@ -758,7 +860,9 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
                 <div>
                   <p className="text-sm font-medium">{t("course.classStudents.passFail")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {finalPassed ? t("course.classStudents.passed") : t("course.classStudents.failed")}
+                    {finalPassed
+                      ? t("course.classStudents.passed")
+                      : t("course.classStudents.failed")}
                   </p>
                 </div>
                 <Switch checked={finalPassed} onCheckedChange={setFinalPassed} />
@@ -771,7 +875,9 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
                   accept="application/pdf,image/jpeg,image/png,image/webp"
                   onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
                 />
-                <p className="text-xs text-muted-foreground">{t("course.classStudents.proofHint")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("course.classStudents.proofHint")}
+                </p>
                 {row.final_proof_url ? (
                   <a
                     href={row.final_proof_url}
@@ -791,7 +897,12 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
             {t("common.cancel")}
           </Button>
           {view === "mocks" ? (
-            <Button type="button" loading={updateEnrollment.isPending} disabled={!mocksValid} onClick={() => void saveMocks()}>
+            <Button
+              type="button"
+              loading={updateEnrollment.isPending}
+              disabled={!mocksValid}
+              onClick={() => void saveMocks()}
+            >
               {t("course.classStudents.saveMocks")}
             </Button>
           ) : (
@@ -819,7 +930,14 @@ interface DisableModalProps {
   onClose: () => void;
 }
 
-function DisableModal({ open, classId, enrollmentId, reason, onReasonChange, onClose }: DisableModalProps) {
+function DisableModal({
+  open,
+  classId,
+  enrollmentId,
+  reason,
+  onReasonChange,
+  onClose,
+}: DisableModalProps) {
   const disableEnrollment = useDisableClassStudent(classId, enrollmentId);
   const { t } = useTranslation();
 
@@ -875,7 +993,15 @@ interface PaymentModalProps {
   onClose: () => void;
 }
 
-function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClose }: PaymentModalProps) {
+function PaymentModal({
+  open,
+  row,
+  classId,
+  classFee,
+  form,
+  onFormChange,
+  onClose,
+}: PaymentModalProps) {
   const recordPayment = useRecordClassStudentPayment(classId, row?.id ?? 0);
   const { t } = useTranslation();
   const fmt = useFormatMessage();
@@ -888,7 +1014,9 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
     <Drawer open={open} onClose={onClose}>
       <DrawerContent className="max-w-md">
         <DrawerHeader>
-          <DrawerTitle>{fmt("course.classStudents.paymentTitle", { name: studentName })}</DrawerTitle>
+          <DrawerTitle>
+            {fmt("course.classStudents.paymentTitle", { name: studentName })}
+          </DrawerTitle>
         </DrawerHeader>
         <DrawerBody>
           <ClassStudentPaymentForm
@@ -901,8 +1029,8 @@ function PaymentModal({ open, row, classId, classFee, form, onFormChange, onClos
               try {
                 await recordPayment.mutateAsync(buildPaymentPayloadFromForm(form, row, classFee));
                 onClose();
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : t("course.classStudents.savePayment"));
+              } catch {
+                // error toast is shown by callApi
               }
             }}
           />
@@ -936,13 +1064,16 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
   const studentName = String(row.full_name ?? row.student_code ?? "");
   const maxRefund = Number(row.paid_amount ?? 0);
   const amount = form.amount ? Number(form.amount) : 0;
+  const unpaid = Number(row.receivable_amount ?? row.due_amount ?? 0);
   const canSubmit = amount > 0 && amount <= maxRefund + 0.01 && maxRefund > 0;
 
   return (
     <Drawer open={open} onClose={onClose}>
       <DrawerContent className="max-w-md">
         <DrawerHeader>
-          <DrawerTitle>{fmt("course.classStudents.refundTitle", { name: studentName })}</DrawerTitle>
+          <DrawerTitle>
+            {fmt("course.classStudents.refundTitle", { name: studentName })}
+          </DrawerTitle>
         </DrawerHeader>
         <DrawerBody className="space-y-4">
           <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm">
@@ -955,7 +1086,9 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
           </div>
 
           {maxRefund <= 0 ? (
-            <p className="text-sm text-muted-foreground">{t("course.classStudents.noPaidBalance")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("course.classStudents.noPaidBalance")}
+            </p>
           ) : (
             <>
               <div className="space-y-1.5">
@@ -988,6 +1121,24 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
                   placeholder={t("course.classStudents.refundReasonPlaceholder")}
                 />
               </div>
+              {unpaid > 0 ? (
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 text-sm">
+                  <Checkbox
+                    checked={form.cancel_remaining}
+                    onCheckedChange={(checked) =>
+                      onFormChange({ ...form, cancel_remaining: checked === true })
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium">{t("fin.refund.cancelRemaining")}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {t("fin.refund.cancelRemainingHint")} ({formatMoney(unpaid)}{" "}
+                      {String(row.currency ?? "AFN")})
+                    </span>
+                  </span>
+                </label>
+              ) : null}
             </>
           )}
         </DrawerBody>
@@ -1006,10 +1157,11 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
                   amount,
                   transaction_date: form.transaction_date || undefined,
                   reason: form.reason || undefined,
+                  cancel_remaining: form.cancel_remaining,
                 });
                 onClose();
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : t("course.classStudents.saveRefund"));
+              } catch {
+                // error toast is shown by callApi
               }
             }}
           >

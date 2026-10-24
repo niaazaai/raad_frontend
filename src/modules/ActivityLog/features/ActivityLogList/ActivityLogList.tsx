@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Eye, PageSearch } from "iconoir-react";
+import { Eye, FileSearch as PageSearch } from "lucide-react";
 import { useActivityLogs } from "../../hooks/useActivityLogs";
 import type { UserActivityLogEntry } from "../../data/models/activityLog";
 import {

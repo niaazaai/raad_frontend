@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NavArrowDown } from "iconoir-react";
+import { ChevronDown as NavArrowDown, X } from "lucide-react";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
@@ -21,6 +21,9 @@ export interface SearchableSelectProps {
   disabled?: boolean;
   emptyMessage?: string;
   id?: string;
+  /** Shows a clear control once a value is selected. */
+  clearable?: boolean;
+  invalid?: boolean;
 }
 
 /**
@@ -37,6 +40,8 @@ const SearchableSelect = ({
   disabled,
   emptyMessage = "No matches.",
   id,
+  clearable = false,
+  invalid = false,
 }: SearchableSelectProps) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -87,15 +92,39 @@ const SearchableSelect = ({
         type="button"
         variant="outline"
         disabled={disabled}
-        className={cn("h-10 w-full justify-between font-normal")}
+        className={cn("h-10 w-full justify-between font-normal", invalid && "border-destructive")}
         aria-expanded={open}
+        aria-invalid={invalid || undefined}
         aria-haspopup="listbox"
         onClick={() => !disabled && setOpen((o) => !o)}
       >
         <span className={cn("truncate", !selectedLabel && "text-muted-foreground")}>
           {selectedLabel ?? placeholder}
         </span>
-        <NavArrowDown className="h-4 w-4 shrink-0 opacity-60" />
+        <span className="flex shrink-0 items-center gap-1">
+          {clearable && value && !disabled ? (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label="Clear selection"
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                onChange("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.stopPropagation();
+                event.preventDefault();
+                onChange("");
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
+          <NavArrowDown className="h-4 w-4 opacity-60" />
+        </span>
       </Button>
       {open && (
         <div

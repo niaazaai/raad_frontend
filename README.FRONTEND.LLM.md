@@ -24,7 +24,7 @@ Browser → Host Nginx (HTTPS, security headers, routing)
 - React Router v7 (routing with lazy loading)
 - Apisauce (HTTP client wrapping Axios)
 - Sonner (toast notifications)
-- Iconoir React (`iconoir-react` — SVG icon set; [iconoir.com](https://iconoir.com))
+- Lucide React (`lucide-react`)
 - Shared loading indicator: `Spinner` in `src/components/ui/spinner.tsx` (use inside buttons and full-page loaders instead of a third-party spinner icon)
 - date-fns (date formatting)
 
@@ -123,7 +123,7 @@ Every component follows this structure:
 import { useState } from "react";
 import { useAuth } from "@/features/auth";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
-import { SomeIcon } from "iconoir-react";
+import { SomeIcon } from "lucide-react";
 
 interface MyComponentProps {
   title: string;
@@ -549,7 +549,7 @@ const handleDelete = async (id: number) => {
 **Usage pattern:**
 
 ```tsx
-import { EditPencil, Trash } from "iconoir-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { DataTable, useConfirmDialog, confirmPresets } from "@/components/ui";
 import { useDataTableParams } from "@/hooks";
 import type { DataTableConfig, DataTablePaginationMeta } from "@/types/datatable";
@@ -605,7 +605,7 @@ const MyListPage = () => {
     paginationEnabled: true,
     emptyMessage: "No records found.",
     actions: [
-      { key: "edit", label: "Edit", icon: <EditPencil />, onClick: (row) => navigate(`/items/${row.id}/edit`) },
+      { key: "edit", label: "Edit", icon: <Pencil />, onClick: (row) => navigate(`/items/${row.id}/edit`) },
       { key: "delete", label: "Delete", icon: <Trash />, variant: "danger", onClick: handleDelete },
     ],
   };
@@ -704,19 +704,19 @@ Button variants: `default`, `destructive`, `outline`, `secondary`, `ghost`, `lin
 
 ### Icons & loading
 
-- **Icons:** Use **`iconoir-react`** only (Lucide is not a dependency). Size: `h-4 w-4` (small), `h-5 w-5` (default), `h-6 w-6` (large). Look up exact component names on [iconoir.com](https://iconoir.com) — they differ from Lucide (e.g. `EditPencil` not `Pencil`, `Trash` not `Trash2`, `NavArrowRight` / `NavArrowLeft` for chevrons, `EyeClosed` for hidden password, `FloppyDisk` for save, `ViewGrid` for grid layout toggle, `MoreVert` for overflow menu, `Group` for “users” clusters, `DoubleCheck` for “mark all read”, `Xmark` for close/cancel).
+- **Icons:** Use **`lucide-react`** only. Size: `h-4 w-4` (small), `h-5 w-5` (default), `h-6 w-6` (large).
 - **Loading:** Use **`import { Spinner } from "@/components/ui/spinner"`** (or `@/components/ui` if re-exported). Do not use `animate-spin` on raw icon components for primary loading states unless there is no alternative.
-- **Name clashes:** If a Tiptap extension and an icon share a name (e.g. `Link`), import the extension under another symbol (e.g. `TiptapLink`) and import the icon as `Link as LinkIcon` from `iconoir-react`.
+- **Name clashes:** If a Tiptap extension and an icon share a name (e.g. `Link`), import the extension under another symbol (e.g. `TiptapLink`) and import the icon as `Link as LinkIcon` from `lucide-react`.
 
 ```tsx
-import { Plus, EditPencil, Trash, Search, NavArrowRight, FloppyDisk } from "iconoir-react";
+import { Plus, Pencil, Trash2, Search, ChevronRight, Save } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 <Button><Plus className="h-4 w-4" /> Add</Button>
-<Button disabled={pending}>{pending ? <Spinner className="h-4 w-4" /> : <FloppyDisk className="h-4 w-4" />} Save</Button>
+<Button disabled={pending}>{pending ? <Spinner className="h-4 w-4" /> : <Save className="h-4 w-4" />} Save</Button>
 ```
 
-**Course entity sidebar icons:** `src/modules/Course/data/courseEntitySidebarIcons.tsx` maps API entity keys to Iconoir components; use type `React.ComponentType<React.SVGProps<SVGSVGElement>>` for the values so TypeScript accepts Iconoir’s `forwardRef` components.
+**Course entity sidebar icons:** `src/modules/Course/data/courseEntitySidebarIcons.tsx` maps API entity keys to Lucide components; use type `React.ComponentType<React.SVGProps<SVGSVGElement>>` for the values.
 
 ---
 
@@ -790,6 +790,19 @@ Use `useCourseEntityList`, `useCourseEntityDetail`, `useCreateCourseEntity`, `us
   - Enroll existing students, remove, grade+marks, disable with reason, payment/discount fields per enrollment (pivot `class_student`).
 - **Removed:** `student-discounts` entity and routes (discount handled per enrollment on class students page).
 
+### Finance module (v2) — current behavior
+
+Accounting rules live in the backend (`EnrollmentBalanceCalculator`, see `backend/README.BACKEND.LLM.md` → Finance Module). The UI shows what the API returns and never re-derives balances, except the live preview in `ClassStudentPaymentForm`, which mirrors the same rules.
+
+- **Shared components** (`src/modules/Finance/components/`): `FinancePeriodFilter`, `SummaryCard` (a keyboard-accessible button that opens the breakdown), `FinanceBreakdownDrawer`, `FinanceStatusBadge` (incl. Free / Written off / Withdrawn / Moved), `MoneyWaterfall`, `MoveEnrollmentDrawer`, `TransactionFiltersDrawer`, `financeFormat.ts`. Use these; don't copy another `PaymentBadge`/`formatMoney`.
+- **Pages** (`features/`): report (`/finance`), transactions, invoices, dues (`UpcomingDuesPage` → "Dues & follow-up"), receive payment (`?enrollment=` prefill; modes Payment / Receive written-off debt / Settle MOF-other; Save discount), service income, manual invoice.
+- **Report rows:** `scope=activity` ("Money movement in period": transactions dated in the period) or `scope=cohort` ("Fee date in period"). Each button has a hover tooltip (`fin.scope.activityHint` / `cohortHint`). Double-clicking a row opens the details drawer.
+- **Dates:** every finance filter and sort uses the **transaction date**; the issue date is display-only.
+- **Data freshness:** `useQueryApi` no longer defaults to `keepPreviousData` (it showed the previous filter's rows, so "today" looked like last week). Paginated tables opt in explicitly. Finance hooks use `FINANCE_STALE_TIME` (15 s) + `refetchOnMount: "always"`. Every finance/student mutation invalidates `FINANCE_RELATED_QUERY_KEYS` (finance, lms-classes, lms-class-students, dashboard).
+- **Toasts:** `callApi` is the only place that shows API toasts, deduped by toast id. Pages must not add their own success/error toast for the same call.
+- **Student edit:** `serializeCourseEntityPayload` sends cleared fields as `null` on edit, so clearing phone, ID or email actually saves.
+- **i18n:** finance strings are in `src/i18n/financeV2Messages.ts` (en / ps / fa), merged into `translations.ts`, under the `fin.*` keys.
+
 ### Course categories (main / sub) — current behavior
 
 - **Images in tables + view:** the API now returns `thumbnail_url` (signed) on `main-categories` / `sub-categories`. `CategoryImageCell` (in `CourseEntityList.tsx`) and the form-drawer view image prefer `row.thumbnail_url`, then fall back to the session-authenticated `/main-categories|sub-categories/{id}/thumbnail` endpoint, then to an initials placeholder. When adding new image columns, mirror this "signed URL first, endpoint fallback, initials last" pattern.
@@ -857,7 +870,7 @@ All new features are **protected dashboard modules** under `MainLayout`.
 
 ## DO NOT
 
-- Add or use **`lucide-react`** (icons are **Iconoir** only)
+- Add or use an icon library other than **`lucide-react`**
 - Use `any` type (use `unknown` or proper types)
 - Use `fetch()` or `axios` directly (use `callApi`)
 - Put server state in Zustand (use React Query)

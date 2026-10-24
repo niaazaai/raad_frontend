@@ -7,7 +7,6 @@ import {
   useSuspenseQuery,
   QueryKey,
   useQueryClient,
-  keepPreviousData,
 } from "@tanstack/react-query";
 import { ApisauceConfig } from "apisauce";
 import { callApi } from "@/services";
@@ -28,6 +27,8 @@ interface QueryApiConfig<TData> extends Partial<ApisauceConfig> {
 interface MutationApiConfig<TData, TVariables> extends Partial<ApisauceConfig> {
   mutationKey?: QueryKey;
   hasFiles?: boolean;
+  shouldPopSuccess?: boolean;
+  shouldPopError?: boolean;
   invalidateKeys?: QueryKey[];
   options?: Omit<UseMutationOptions<ApiResponse<TData>, Error, TVariables>, "mutationFn">;
 }
@@ -72,8 +73,9 @@ export function useQueryApi<TData = ObjectAny>({
 
       return response.data as ApiResponse<TData>;
     },
+    // No implicit keepPreviousData: showing the previous filter's rows while a new filter loads made
+    // e.g. "today" look like last week's data. Paginated tables opt in explicitly and show a loading state.
     ...options,
-    placeholderData: options.placeholderData ?? keepPreviousData,
   });
 }
 
@@ -96,6 +98,8 @@ export function useMutationApi<TData = ObjectAny, TVariables = ObjectAny>({
   mutationKey,
   options = {},
   hasFiles = false,
+  shouldPopSuccess = true,
+  shouldPopError = true,
   invalidateKeys = [],
   ...apiConfig
 }: MutationApiConfig<TData, TVariables>) {
@@ -108,6 +112,8 @@ export function useMutationApi<TData = ObjectAny, TVariables = ObjectAny>({
         ...apiConfig,
         data: variables,
         hasFiles,
+        shouldPopSuccess,
+        shouldPopError,
       });
 
       if (!response.ok) {

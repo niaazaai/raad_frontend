@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { Check, FastArrowRight, NavArrowLeft, PageEdit, VideoCamera } from "iconoir-react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Check,
+  ChevronsRight as FastArrowRight,
+  ExternalLink as OpenNewWindow,
+  Video as VideoCamera,
+} from "lucide-react";
 import { Button } from "@/components/ui";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/features/auth";
+import { useTranslation } from "@/i18n/useTranslation";
 import {
   getCourseLearnFromResponse,
   useCourseLearn,
+  useRecordLessonWatch,
   type CourseLearnLesson,
   type CourseLearnModule,
-  type CourseLearnQuizFile,
 } from "@/hooks/useStudentLearning";
 import type { ApiResponse } from "@/types/api";
 import LessonVideoPlayer from "@/modules/Course/features/CourseViewPage/LessonVideoPlayer";
@@ -17,71 +25,266 @@ import {
   type LessonPlaybackPayload,
 } from "@/modules/Course/features/CourseViewPage/useLessonPlayback";
 import { cn } from "@/lib/utils";
-
-function quizFilesForLesson(files: CourseLearnQuizFile[], lessonId: number): CourseLearnQuizFile[] {
-  return files.filter((f) => f.lesson_id === lessonId);
-}
+import LearnLessonTabs from "./LearnLessonTabs";
+import UnitOrderModal from "./UnitOrderModal";
 
 const AUTO_ADVANCE_DELAY = 5;
+const BLOCKED_SHIFT_KEYS = ["KeyI", "KeyJ", "KeyC", "KeyK"];
+const BLOCKED_MOD_KEYS = ["KeyU", "KeyS", "KeyP"];
+
+function isBlockedShortcut(event: KeyboardEvent): boolean {
+  if (event.key === "F12") return true;
+  const mod = event.ctrlKey || event.metaKey;
+  if (!mod) return false;
+  if ((event.shiftKey || event.altKey) && [...BLOCKED_SHIFT_KEYS, "KeyU"].includes(event.code)) return true;
+  return !event.shiftKey && !event.altKey && BLOCKED_MOD_KEYS.includes(event.code);
+}
+
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  const total = Math.floor(seconds);
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+function plainText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function PlaylistLesson({
+  lesson,
+  isActive,
+  thumbnailUrl,
+  onSelect,
+}: {
+  lesson: CourseLearnLesson;
+  isActive: boolean;
+  thumbnailUrl: string | null | undefined;
+  onSelect: (lessonId: number) => void;
+}) {
+  const isReady = lesson.video_status === "ready" || lesson.video_status === "active";
+  const duration = formatDuration(lesson.video_duration);
+  const description = plainText(lesson.description);
+  const poster = lesson.thumbnail_url || thumbnailUrl;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(lesson.id)}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+          isActive ? "bg-primary/10" : "hover:bg-muted",
+        )}
+      >
+        <span className="relative h-14 w-[5.5rem] shrink-0 overflow-hidden rounded-md bg-muted">
+          {poster ? (
+            <img src={poster} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full items-center justify-center text-muted-foreground">
+              <VideoCamera className="h-5 w-5" />
+            </span>
+          )}
+          {duration ? (
+            <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium tabular-nums text-white">
+              {duration}
+            </span>
+          ) : null}
+          {lesson.watched ? (
+            <span className="absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Check className="h-3 w-3" />
+            </span>
+          ) : null}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={cn("block line-clamp-2 text-sm font-medium leading-snug", isActive && "text-primary")}>
+            {lesson.title}
+          </span>
+          {description ? (
+            <span className="mt-0.5 block line-clamp-2 text-xs leading-snug text-muted-foreground">
+              {description}
+            </span>
+          ) : !isReady ? (
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              {lesson.video_status === "processing" ? "Processing" : "Unavailable"}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </li>
+  );
+}
 
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { t } = useTranslation();
   const { courseId } = useParams<{ courseId: string }>();
   const id = courseId ? Number(courseId) : NaN;
   const validId = !Number.isNaN(id) ? id : null;
+  const [searchParams] = useSearchParams();
+  const requestedLessonId = Number(searchParams.get("lesson"));
+  const requestedTime = Math.max(0, Math.floor(Number(searchParams.get("t")) || 0));
 
   const learnQuery = useCourseLearn(validId, { enabled: validId != null });
   const payload = useMemo(() => getCourseLearnFromResponse(learnQuery.data), [learnQuery.data]);
+  const recordWatch = useRecordLessonWatch();
 
-  const lessons = payload?.lessons ?? [];
-  const modules = payload?.modules ?? [];
+  const lessons = useMemo(() => payload?.lessons ?? [], [payload]);
+  const modules = useMemo(() => payload?.modules ?? [], [payload]);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
+  const [openModuleId, setOpenModuleId] = useState<number | null>(null);
+  const [watchSession, setWatchSession] = useState("");
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null);
+  const [unitPrompt, setUnitPrompt] = useState<{
+    blockingId: number;
+    targetId: number;
+    lessonId: number | null;
+  } | null>(null);
+  const [dismissedUnitIds, setDismissedUnitIds] = useState<number[]>([]);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef(0);
+  const didInitModule = useRef(false);
+  const didApplyResume = useRef(false);
+  const reportedSessions = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    didInitModule.current = false;
+    didApplyResume.current = false;
+    setOpenModuleId(null);
+    setSelectedId(null);
+    setUnitPrompt(null);
+    setDismissedUnitIds([]);
+  }, [validId]);
 
   useEffect(() => {
     if (lessons.length === 0) return;
     setSelectedId((prev) => {
-      if (prev != null && lessons.some((l) => l.id === prev)) return prev;
+      if (prev != null && lessons.some((lesson) => lesson.id === prev)) return prev;
+      if (!didApplyResume.current && Number.isFinite(requestedLessonId)) {
+        const match = lessons.find((lesson) => lesson.id === requestedLessonId);
+        if (match) {
+          didApplyResume.current = true;
+          return match.id;
+        }
+      }
+      didApplyResume.current = true;
       return lessons[0]?.id ?? null;
     });
-  }, [lessons]);
+  }, [lessons, requestedLessonId]);
+
+  useEffect(() => {
+    if (didInitModule.current || modules.length === 0 || selectedId == null) return;
+    const lesson = lessons.find((item) => item.id === selectedId);
+    setOpenModuleId(lesson?.course_module_id ?? modules[0]?.id ?? null);
+    didInitModule.current = true;
+  }, [modules, lessons, selectedId]);
+
+  useEffect(() => {
+    if (selectedId == null) return;
+    setWatchSession(crypto.randomUUID());
+  }, [selectedId]);
 
   const selectedLesson: CourseLearnLesson | null = useMemo(
-    () => lessons.find((l) => l.id === selectedId) ?? null,
+    () => lessons.find((lesson) => lesson.id === selectedId) ?? null,
     [lessons, selectedId],
   );
 
-  // Anti-piracy: block DevTools shortcuts at page level
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "F12") { e.preventDefault(); return; }
-      if (e.ctrlKey && e.shiftKey && ["I", "J", "C", "U"].includes(e.key.toUpperCase())) {
-        e.preventDefault();
-      }
+    const onKey = (event: KeyboardEvent) => {
+      if (!isBlockedShortcut(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
     };
-    document.addEventListener("keydown", handler, { capture: true });
-    return () => document.removeEventListener("keydown", handler, { capture: true });
+    const block = (event: Event) => event.preventDefault();
+    document.addEventListener("keydown", onKey, { capture: true });
+    document.addEventListener("contextmenu", block, { capture: true });
+    document.addEventListener("copy", block, { capture: true });
+    document.addEventListener("cut", block, { capture: true });
+    document.addEventListener("dragstart", block, { capture: true });
+    return () => {
+      document.removeEventListener("keydown", onKey, { capture: true });
+      document.removeEventListener("contextmenu", block, { capture: true });
+      document.removeEventListener("copy", block, { capture: true });
+      document.removeEventListener("cut", block, { capture: true });
+      document.removeEventListener("dragstart", block, { capture: true });
+    };
   }, []);
+
+  const unitLabel = useCallback(
+    (moduleId: number | null) => {
+      const index = modules.findIndex((module) => module.id === moduleId);
+      const title = modules[index]?.title?.trim();
+      return title || t("coursePlayer.unitLabel").replace("{n}", String(index + 1));
+    },
+    [modules, t],
+  );
+
+  const unitLessons = useCallback(
+    (moduleId: number) => lessons.filter((lesson) => lesson.course_module_id === moduleId),
+    [lessons],
+  );
+
+  const blockingUnitFor = useCallback(
+    (moduleId: number | null): CourseLearnModule | null => {
+      if (moduleId == null || dismissedUnitIds.includes(moduleId)) return null;
+      const targetIndex = modules.findIndex((module) => module.id === moduleId);
+      for (let index = 0; index < targetIndex; index += 1) {
+        const earlier = modules[index];
+        if (earlier && unitLessons(earlier.id).some((lesson) => !lesson.watched)) return earlier;
+      }
+      return null;
+    },
+    [modules, unitLessons, dismissedUnitIds],
+  );
+
+  const requestOpenModule = useCallback(
+    (moduleId: number | null) => {
+      const blocking = blockingUnitFor(moduleId);
+      if (blocking && moduleId != null) {
+        setUnitPrompt({ blockingId: blocking.id, targetId: moduleId, lessonId: null });
+        return;
+      }
+      setOpenModuleId(moduleId);
+    },
+    [blockingUnitFor],
+  );
 
   const currentIndex = useMemo(
-    () => lessons.findIndex((l) => l.id === selectedId),
+    () => lessons.findIndex((lesson) => lesson.id === selectedId),
     [lessons, selectedId],
   );
 
-  const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1
-    ? lessons[currentIndex + 1]
-    : null;
+  const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
 
-  const goToLesson = useCallback((lessonId: number) => {
+  const openLesson = useCallback((lessonId: number) => {
+    const lesson = lessons.find((item) => item.id === lessonId);
+    if (lesson) setOpenModuleId(lesson.course_module_id);
     setSelectedId(lessonId);
+    if (lessonId === selectedId) setWatchSession(crypto.randomUUID());
     if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current);
     setAutoAdvanceCountdown(null);
-  }, []);
+  }, [lessons, selectedId]);
+
+  const goToLesson = useCallback(
+    (lessonId: number) => {
+      const lesson = lessons.find((item) => item.id === lessonId);
+      const blocking = lesson ? blockingUnitFor(lesson.course_module_id) : null;
+      if (lesson && blocking) {
+        if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current);
+        setAutoAdvanceCountdown(null);
+        setUnitPrompt({ blockingId: blocking.id, targetId: lesson.course_module_id, lessonId });
+        return;
+      }
+      openLesson(lessonId);
+    },
+    [lessons, blockingUnitFor, openLesson],
+  );
 
   const cancelAutoAdvance = useCallback(() => {
     if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current);
@@ -89,27 +292,37 @@ const CoursePlayerPage = () => {
   }, []);
 
   const handleLessonEnded = useCallback(() => {
-    if (selectedId != null) {
-      setCompletedIds((prev) => new Set([...prev, selectedId]));
-    }
     if (!nextLesson) return;
-
     countdownRef.current = AUTO_ADVANCE_DELAY;
     setAutoAdvanceCountdown(AUTO_ADVANCE_DELAY);
-
+    const upcoming = nextLesson;
     autoAdvanceTimerRef.current = setInterval(() => {
       countdownRef.current -= 1;
       setAutoAdvanceCountdown(countdownRef.current);
       if (countdownRef.current <= 0) {
         if (autoAdvanceTimerRef.current) clearInterval(autoAdvanceTimerRef.current);
         setAutoAdvanceCountdown(null);
-        setSelectedId((id) => {
-          const idx = lessons.findIndex((l) => l.id === id);
-          return lessons[idx + 1]?.id ?? id;
-        });
+        goToLesson(upcoming.id);
       }
     }, 1000);
-  }, [selectedId, nextLesson, lessons]);
+  }, [nextLesson, goToLesson]);
+
+  const handleEngaged = useCallback(() => {
+    if (selectedId == null || watchSession === "") return;
+    const key = `${selectedId}:${watchSession}`;
+    if (reportedSessions.current.has(key)) return;
+    reportedSessions.current.add(key);
+    recordWatch.mutate({ lesson_id: selectedId, session_id: watchSession });
+  }, [recordWatch, selectedId, watchSession]);
+
+  const handleProgress = useCallback((seconds: number) => {
+    if (selectedId == null || watchSession === "") return;
+    recordWatch.mutate({
+      lesson_id: selectedId,
+      session_id: watchSession,
+      position_seconds: Math.max(0, Math.floor(seconds)),
+    });
+  }, [recordWatch, selectedId, watchSession]);
 
   useEffect(() => {
     return () => {
@@ -117,14 +330,13 @@ const CoursePlayerPage = () => {
     };
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName.toLowerCase();
+    const onKey = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement).tagName.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
-      if (e.key === "n" || e.key === "N") {
+      if (event.key === "n" || event.key === "N") {
         if (nextLesson) goToLesson(nextLesson.id);
-      } else if (e.key === "p" || e.key === "P") {
+      } else if (event.key === "p" || event.key === "P") {
         if (prevLesson) goToLesson(prevLesson.id);
       }
     };
@@ -144,9 +356,6 @@ const CoursePlayerPage = () => {
       ? playbackPayload.src
       : "";
   const pType = playbackPayload?.type === "hls" ? "hls" : "progressive";
-
-  const quizFiles = payload?.quiz_files ?? [];
-  const mockTests = payload?.mock_tests ?? [];
 
   const loading = validId == null || learnQuery.isLoading;
   const forbidden =
@@ -178,12 +387,12 @@ const CoursePlayerPage = () => {
       <div className="mx-auto max-w-lg space-y-4 p-6">
         <p className="text-sm text-muted-foreground">
           {forbidden
-            ? "You don't have access to this course yet. Enroll from the catalog or contact support."
+            ? "You don't have access to this course. Your subscription may have ended, or you are not enrolled."
             : "Could not load this course."}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
-            <Link to={`/course/courses/${validId}/view`}>Course details</Link>
+            <Link to={`/course/courses/${validId}/view`}>View course details</Link>
           </Button>
           <Button type="button" onClick={() => navigate("/student")}>
             My learning
@@ -194,97 +403,105 @@ const CoursePlayerPage = () => {
   }
 
   const course = payload.course;
-  const shortDesc = String(course.short_description ?? "").trim();
-  const longDesc = String(course.long_description ?? "").trim();
-  const prerequisites = String(course.prerequisites ?? "").trim();
-
-  // Group lessons by module
-  const moduleMap = new Map<number, CourseLearnModule>(modules.map((m) => [m.id, m]));
+  const moduleMap = new Map<number, CourseLearnModule>(modules.map((module) => [module.id, module]));
   const groupedLessons: { module: CourseLearnModule | null; lessons: CourseLearnLesson[] }[] = [];
-
-  const seenModules = new Set<number>();
   for (const lesson of lessons) {
     const mod = moduleMap.get(lesson.course_module_id) ?? null;
     const modKey = mod?.id ?? -1;
-    if (!seenModules.has(modKey)) {
-      seenModules.add(modKey);
-      groupedLessons.push({ module: mod, lessons: [] });
+    let group = groupedLessons.find((item) => (item.module?.id ?? -1) === modKey);
+    if (!group) {
+      group = { module: mod, lessons: [] };
+      groupedLessons.push(group);
     }
-    groupedLessons[groupedLessons.length - 1]?.lessons.push(lesson);
+    group.lessons.push(lesson);
   }
+
+  const openModule = modules.find((module) => module.id === openModuleId) ?? null;
+  const chapterFiles = (payload.chapter_files ?? []).filter(
+    (file) => openModuleId != null && file.course_module_id === openModuleId,
+  );
+  const resources = payload.downloadable_resources ?? [];
+  const mockTests = payload.mock_tests ?? [];
+  const quizFiles = payload.quiz_files ?? [];
+  const chapterTitle = openModule?.title?.trim() || t("coursePlayer.chapterFallback");
+  const startBlockingUnit = () => {
+    if (!unitPrompt) return;
+    const blockingLessons = unitLessons(unitPrompt.blockingId);
+    const target = blockingLessons.find((lesson) => !lesson.watched) ?? blockingLessons[0];
+    setUnitPrompt(null);
+    if (target) openLesson(target.id);
+    else setOpenModuleId(unitPrompt.blockingId);
+  };
+
+  const continueToTargetUnit = () => {
+    if (!unitPrompt) return;
+    setDismissedUnitIds((prev) => [...prev, unitPrompt.targetId]);
+    if (unitPrompt.lessonId != null) openLesson(unitPrompt.lessonId);
+    else setOpenModuleId(unitPrompt.targetId);
+    setUnitPrompt(null);
+  };
 
   return (
     <div
-      className="mx-auto max-w-7xl select-none px-4 py-6 md:px-6"
-      onContextMenu={(e) => e.preventDefault()}
+      className="mx-auto max-w-7xl select-none px-4 py-6 print:hidden md:px-6"
+      onContextMenu={(event) => event.preventDefault()}
     >
-      {/* Header */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="mb-2 gap-1 px-0 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate("/student")}
-          >
-            <NavArrowLeft className="h-4 w-4" />
-            My learning
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{course.title}</h1>
-          {shortDesc ? (
-            <p className="mt-1.5 text-sm text-muted-foreground md:text-base">{shortDesc}</p>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {completedIds.size}/{lessons.length} completed
-          </span>
-          <Button type="button" variant="outline" size="sm" asChild>
-            <Link to={`/course/courses/${validId}/view`}>
-              <PageEdit className="mr-2 h-4 w-4" />
-              Overview
-            </Link>
-          </Button>
-        </div>
+      <UnitOrderModal
+        open={unitPrompt != null}
+        firstUnitLabel={unitLabel(unitPrompt?.blockingId ?? null)}
+        targetUnitLabel={unitLabel(unitPrompt?.targetId ?? null)}
+        onStartFirst={startBlockingUnit}
+        onContinue={continueToTargetUnit}
+        onClose={() => setUnitPrompt(null)}
+      />
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight md:text-2xl">{course.title}</h1>
+        <Button type="button" variant="outline" size="sm" className="shrink-0 gap-2" asChild>
+          <Link to={`/course/courses/${validId}/view`}>
+            <OpenNewWindow className="h-4 w-4" />
+            View course details
+          </Link>
+        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* Main content area */}
-        <div className="min-w-0 space-y-4">
-          {/* Video player */}
-          <div className="relative overflow-hidden rounded-xl border border-border bg-black shadow-lg">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="min-w-0 space-y-5">
+          <div className="overflow-hidden rounded-xl border-2 border-neutral-900 bg-black dark:border-transparent">
             {playbackQuery.isLoading ? (
               <div className="flex aspect-video items-center justify-center bg-black">
                 <Spinner className="h-10 w-10 text-primary" />
               </div>
             ) : src ? (
               <LessonVideoPlayer
+                key={watchSession || String(selectedId)}
+                className="rounded-none"
                 src={src}
                 playbackType={pType}
-                watermarkText={undefined}
+                playerToken={playbackPayload?.session ?? undefined}
+                watermarkText={
+                  user ? ` ${user.name} · ${user.email} · ID ${user.id}` : "Raad - dedicated home of ACCA and CIA in Afghanistan"
+                }
                 onEnded={handleLessonEnded}
+                onEngaged={handleEngaged}
+                onProgress={handleProgress}
+                startAt={selectedId === requestedLessonId ? requestedTime : 0}
+                onPrevious={() => prevLesson && goToLesson(prevLesson.id)}
+                onNext={() => nextLesson && goToLesson(nextLesson.id)}
+                hasPrevious={prevLesson != null}
+                hasNext={nextLesson != null}
               />
             ) : (
-              <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-black/95 px-4 text-center">
+              <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-black px-4 text-center">
                 <VideoCamera className="h-10 w-10 text-white/20" />
                 <p className="text-sm text-white/50">
-                  {selectedLesson
-                    ? "Video is not available for this lesson yet."
-                    : "Select a lesson to start."}
+                  {selectedLesson ? "Video is not available for this lesson yet." : "Select a lesson to start."}
                 </p>
               </div>
             )}
-
-            {/* Content protection badge */}
-            <div className="absolute bottom-2 right-2 z-10 rounded bg-black/40 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-white/30">
-              Protected by Raad LMS
-            </div>
           </div>
 
-          {/* Auto-advance banner */}
           {autoAdvanceCountdown !== null && nextLesson ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
               <div className="flex items-center gap-2">
                 <FastArrowRight className="h-4 w-4 shrink-0 text-primary" />
                 <p className="text-sm">
@@ -292,10 +509,8 @@ const CoursePlayerPage = () => {
                   <span className="text-muted-foreground">{nextLesson.title}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {autoAdvanceCountdown}s
-                </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm tabular-nums text-muted-foreground">{autoAdvanceCountdown}s</span>
                 <Button type="button" size="sm" onClick={() => goToLesson(nextLesson.id)}>
                   Play now
                 </Button>
@@ -306,212 +521,65 @@ const CoursePlayerPage = () => {
             </div>
           ) : null}
 
-          {/* Lesson navigation buttons */}
-          {lessons.length > 1 ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!prevLesson}
-                onClick={() => prevLesson && goToLesson(prevLesson.id)}
-              >
-                <NavArrowLeft className="mr-1 h-4 w-4" />
-                Previous
-              </Button>
-              <div className="flex-1" />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!nextLesson}
-                onClick={() => nextLesson && goToLesson(nextLesson.id)}
-              >
-                Next
-                <FastArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          ) : null}
-
-          {/* Course info */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">About this course</h2>
-            {longDesc ? (
-              longDesc.includes("<") ? (
-                <div
-                  className="prose-custom max-w-none text-sm text-muted-foreground"
-                  dangerouslySetInnerHTML={{ __html: longDesc }}
-                />
-              ) : (
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{longDesc}</p>
-              )
-            ) : (
-              <p className="text-sm text-muted-foreground">No extended description.</p>
-            )}
-            {prerequisites ? (
-              <div className="rounded-lg border border-border bg-muted/20 p-4">
-                <h3 className="text-sm font-semibold text-foreground">Prerequisites</h3>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{prerequisites}</p>
-              </div>
-            ) : null}
-          </section>
-
-          {/* Quiz files for selected lesson */}
-          {selectedLesson && quizFilesForLesson(quizFiles, selectedLesson.id).length > 0 ? (
-            <section className="space-y-2">
-              <h3 className="text-base font-semibold">Downloads for this lesson</h3>
-              <ul className="space-y-2">
-                {quizFilesForLesson(quizFiles, selectedLesson.id).map((qf) => (
-                  <li
-                    key={qf.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium">{qf.title}</span>
-                    {qf.download_url ? (
-                      <a
-                        href={qf.download_url}
-                        className="text-primary hover:underline"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Download
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Unavailable</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {/* Mock tests (course-wide) */}
-          {mockTests.length > 0 ? (
-            <section className="space-y-2">
-              <h3 className="text-base font-semibold">Mock tests</h3>
-              <p className="text-sm text-muted-foreground">
-                Download these practice tests to prepare for your exam.
-              </p>
-              <ul className="space-y-2">
-                {mockTests.map((mt) => (
-                  <li
-                    key={mt.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium">{mt.title}</span>
-                    {mt.download_url ? (
-                      <a
-                        href={mt.download_url}
-                        className="text-primary hover:underline"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Download
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Unavailable</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          <LearnLessonTabs
+            lesson={selectedLesson}
+            chapterTitle={chapterTitle}
+            chapterFiles={chapterFiles}
+            resources={resources}
+            mockTests={mockTests}
+            quizFiles={quizFiles}
+          />
         </div>
 
-        {/* Sidebar */}
-        <aside className="space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Course content
-            </h2>
-            <span className="text-xs text-muted-foreground">{lessons.length} lessons</span>
-          </div>
-
-          <div className="rounded-lg border border-border bg-card">
-            {groupedLessons.map((group, gi) => (
-              <div key={gi}>
-                {group.module ? (
-                  <div className="border-b border-border bg-muted/30 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {group.module.title}
-                    </p>
-                  </div>
-                ) : null}
-                <ul className={cn("p-1.5 space-y-0.5", gi < groupedLessons.length - 1 && group.module ? "border-b border-border" : "")}>
-                  {group.lessons.map((lesson) => {
-                    const isActive = lesson.id === selectedId;
-                    const isDone = completedIds.has(lesson.id);
-                    const isReady =
-                      lesson.video_status === "ready" || lesson.video_status === "active";
-
-                    return (
-                      <li key={lesson.id}>
-                        <button
-                          type="button"
-                          onClick={() => goToLesson(lesson.id)}
-                          className={cn(
-                            "group/item flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                            isActive
-                              ? "bg-primary text-primary-foreground"
-                              : "hover:bg-muted"
-                          )}
-                        >
-                          {/* Completion / playing indicator */}
-                          <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                            {isActive ? (
-                              <div className="h-2 w-2 animate-pulse rounded-full bg-current" />
-                            ) : isDone ? (
-                              <Check className="h-3.5 w-3.5 text-green-500" />
-                            ) : (
-                              <div
-                                className={cn(
-                                  "h-1.5 w-1.5 rounded-full",
-                                  isReady
-                                    ? "bg-primary/60"
-                                    : "bg-muted-foreground/30"
-                                )}
-                              />
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <span
-                              className={cn(
-                                "block truncate font-medium leading-snug",
-                                isActive ? "text-primary-foreground" : "text-foreground"
-                              )}
-                            >
-                              {lesson.title}
-                            </span>
-                            {isActive ? (
-                              <span className="mt-0.5 block text-[10px] font-medium text-primary-foreground/70">
-                                Now playing
-                              </span>
-                            ) : lesson.description?.trim() ? (
-                              <span className="mt-0.5 block line-clamp-1 text-[11px] text-muted-foreground">
-                                {lesson.description.trim()}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          {!isReady && !isActive ? (
-                            <span className="mt-0.5 shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                              {lesson.video_status === "processing" ? "Processing" : "Unavailable"}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            {groupedLessons
+              .filter((group) => group.module == null)
+              .map((group, groupIndex) => (
+                <ul key={`ungrouped-${groupIndex}`} className="space-y-1 border-b border-border px-2 py-2">
+                  {group.lessons.map((lesson) => (
+                    <PlaylistLesson
+                      key={lesson.id}
+                      lesson={lesson}
+                      isActive={lesson.id === selectedId}
+                      thumbnailUrl={course.thumbnail_url}
+                      onSelect={goToLesson}
+                    />
+                  ))}
                 </ul>
-              </div>
-            ))}
+              ))}
+            <Accordion
+              className="w-full"
+              value={openModuleId != null ? [String(openModuleId)] : []}
+              onValueChange={(next) => {
+                const raw = next[0];
+                requestOpenModule(raw == null || raw === "" ? null : Number(raw));
+              }}
+            >
+              {groupedLessons
+                .filter((group) => group.module != null)
+                .map((group) => (
+                  <AccordionItem key={group.module!.id} value={String(group.module!.id)}>
+                    <AccordionTrigger className="px-3">
+                      <span className="truncate">{group.module!.title}</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-1">
+                        {group.lessons.map((lesson) => (
+                          <PlaylistLesson
+                            key={lesson.id}
+                            lesson={lesson}
+                            isActive={lesson.id === selectedId}
+                            thumbnailUrl={course.thumbnail_url}
+                            onSelect={goToLesson}
+                          />
+                        ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+            </Accordion>
           </div>
-
-          {/* Keyboard hint */}
-          <p className="text-center text-[10px] text-muted-foreground/50">
-            N / P to navigate lessons
-          </p>
         </aside>
       </div>
     </div>

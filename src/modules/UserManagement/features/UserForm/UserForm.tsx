@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, FloppyDisk, Eye, EyeClosed } from "iconoir-react";
+import { ArrowLeft, Save as FloppyDisk, Eye, EyeOff as EyeClosed } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
 import { useUser, useCreateUser, useUpdateUser, useRoles } from "../../hooks";

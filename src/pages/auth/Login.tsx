@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeClosed } from "iconoir-react";
+import { Eye, EyeOff as EyeClosed } from "lucide-react";
 import { Button, Input, Label } from "@/components/ui";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoginSchema, LoginFormData, getDashboardPath } from "@/data/models/User";

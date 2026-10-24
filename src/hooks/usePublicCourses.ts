@@ -10,6 +10,7 @@ export interface PublicCourseListItem {
   language: string | null;
   price: string | null;
   is_free: boolean;
+  is_popular?: boolean;
   estimated_duration: string | number | null;
   status: string;
   created_at: string | null;
@@ -136,7 +137,13 @@ export function getPreviewPlaybackFromResponse(
   return d;
 }
 
-export function usePublicCourses(params: { page?: number; per_page?: number }) {
+export function usePublicCourses(params: {
+  page?: number;
+  per_page?: number;
+  popular?: boolean;
+  exclude_id?: number;
+  enabled?: boolean;
+}) {
   return useQueryApi<PublicCourseListItem[] | { data?: PublicCourseListItem[] }>({
     queryKey: [...PUBLIC_COURSES_QUERY_KEY, params],
     url: "/public/courses",
@@ -144,8 +151,11 @@ export function usePublicCourses(params: { page?: number; per_page?: number }) {
     params: {
       page: params.page ?? 1,
       per_page: params.per_page ?? 12,
+      ...(params.popular ? { popular: 1 } : {}),
+      ...(params.exclude_id ? { exclude_id: params.exclude_id } : {}),
     },
     options: {
+      enabled: params.enabled !== false,
       staleTime: 60_000,
     },
   });

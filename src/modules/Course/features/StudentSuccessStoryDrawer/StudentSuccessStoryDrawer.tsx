@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash } from "iconoir-react";
+import { Trash2 as Trash } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,

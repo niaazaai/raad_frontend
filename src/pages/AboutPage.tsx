@@ -3,7 +3,7 @@ import WebsiteFooter from "@/components/website/WebsiteFooter";
 import MissionVisionSection from "@/components/website/sections/MissionVisionSection";
 import TeamSection from "@/components/website/sections/TeamSection";
 import ScrollReveal from "@/components/website/ScrollReveal";
-import { Globe, ShieldCheck, HeartSolid } from "iconoir-react";
+import { Globe, ShieldCheck, Heart as HeartSolid } from "lucide-react";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
   sectionBadgeClass,

@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
-import { Xmark } from "iconoir-react";
+import { X as Xmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SwipeDirection = NonNullable<React.ComponentProps<typeof DrawerPrimitive.Root>["swipeDirection"]>;
+type SwipeDirection = NonNullable<
+  React.ComponentProps<typeof DrawerPrimitive.Root>["swipeDirection"]
+>;
 
 type DrawerContextProps = {
   hasSnapPoints: boolean;
@@ -108,17 +110,22 @@ function DrawerOverlay({
   );
 }
 
-function DrawerSwipeHandle({ className, ...props }: React.ComponentProps<"div">) {
+function DrawerSwipeHandle({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="drawer-swipe-handle"
       aria-hidden="true"
       className={cn(
-        "relative z-10 flex shrink-0 cursor-grab transition-opacity duration-200 group-data-nested-drawer-open/drawer-popup:opacity-0 group-data-nested-drawer-swiping/drawer-popup:opacity-100 group-data-[swipe-direction=left]/drawer-popup:order-last group-data-[swipe-direction=up]/drawer-popup:order-last active:cursor-grabbing",
+        "relative z-10 flex shrink-0 cursor-grab items-center justify-center transition-opacity duration-200 group-data-nested-drawer-open/drawer-popup:opacity-0 group-data-nested-drawer-swiping/drawer-popup:opacity-100 group-data-[swipe-direction=left]/drawer-popup:order-last group-data-[swipe-direction=up]/drawer-popup:order-last active:cursor-grabbing",
+        "group-data-[swipe-axis=x]/drawer-popup:h-full group-data-[swipe-axis=x]/drawer-popup:w-5 group-data-[swipe-axis=y]/drawer-popup:h-5 group-data-[swipe-axis=y]/drawer-popup:w-full",
         className
       )}
       {...props}
-    />
+    >
+      {children ?? (
+        <span className="rounded-full bg-border group-data-[swipe-axis=x]/drawer-popup:h-10 group-data-[swipe-axis=x]/drawer-popup:w-1.5 group-data-[swipe-axis=y]/drawer-popup:h-1.5 group-data-[swipe-axis=y]/drawer-popup:w-10" />
+      )}
+    </div>
   );
 }
 
@@ -201,7 +208,11 @@ function DrawerHeader({ className, children, ...props }: React.ComponentProps<"d
 
 function DrawerBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="drawer-body" className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-4", className)} {...props} />
+    <div
+      data-slot="drawer-body"
+      className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-4", className)}
+      {...props}
+    />
   );
 }
 
@@ -218,10 +229,7 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function DrawerTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Title>) {
+function DrawerTitle({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Title>) {
   return (
     <DrawerPrimitive.Title
       data-slot="drawer-title"

@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMutationApi, useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
-import { FINANCE_QUERY_KEYS } from "@/modules/Finance/data/constants/endpoints";
+import {
+  FINANCE_QUERY_KEYS,
+  FINANCE_RELATED_QUERY_KEYS,
+} from "@/modules/Finance/data/constants/endpoints";
 import { callApi } from "@/services";
 
 export interface ClassStudentRow {
@@ -45,6 +48,17 @@ export interface ClassStudentRow {
   class_name?: string | null;
   class_code?: string | null;
   class_status?: string | null;
+  discount_value?: number;
+  net_amount?: number;
+  refund_amount?: number;
+  cancelled_amount?: number;
+  receivable_amount?: number;
+  student_receivable_amount?: number;
+  credit_amount?: number;
+  payment_status_label?: string | null;
+  fee_date?: string | null;
+  moved_to_class_student_id?: number | null;
+  moved_from_class_student_id?: number | null;
 }
 
 export interface ClassStudentInvoice {
@@ -60,6 +74,9 @@ export interface RecordPaymentResult {
   enrollment: ClassStudentRow;
   invoice?: ClassStudentInvoice | null;
 }
+
+/** Finance + student screens that must refresh after any enrollment / money change. */
+const financeRelatedKeys = FINANCE_RELATED_QUERY_KEYS.map((key) => [...key]);
 
 /** Prefix for all class-student list queries (matches any pagination/filter params). */
 export const classStudentsListPrefix = (classId: number) =>
@@ -79,10 +96,13 @@ export function useClassStudents(classId: number, params?: Record<string, unknow
 }
 
 export function useAttachClassStudent(classId: number) {
-  return useMutationApi<ClassStudentRow | ClassStudentRow[], { student_id?: number; student_ids?: number[] }>({
+  return useMutationApi<
+    ClassStudentRow | ClassStudentRow[],
+    { student_id?: number; student_ids?: number[] }
+  >({
     url: `/lms-classes/${classId}/students`,
     method: RequestMethod.POST,
-    invalidateKeys: [classStudentsListPrefix(classId)],
+    invalidateKeys: [classStudentsListPrefix(classId), ...financeRelatedKeys],
   });
 }
 
@@ -109,6 +129,7 @@ export function useUpdateClassStudent(classId: number, enrollmentId: number) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
+      financeRelatedKeys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
     },
   });
 }
@@ -128,6 +149,7 @@ export function useRemoveClassStudent(classId: number) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
+      financeRelatedKeys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
     },
   });
 }
@@ -136,7 +158,7 @@ export function useDisableClassStudent(classId: number, enrollmentId: number) {
   return useMutationApi<ClassStudentRow, { disable_reason: string }>({
     url: `/lms-classes/${classId}/students/${enrollmentId}/disable`,
     method: RequestMethod.POST,
-    invalidateKeys: [classStudentsListPrefix(classId)],
+    invalidateKeys: [classStudentsListPrefix(classId), ...financeRelatedKeys],
   });
 }
 
@@ -155,18 +177,15 @@ export function useRecordClassStudentPayment(classId: number, enrollmentId: numb
       receivable_status?: string;
       other_party_name?: string;
       irrecoverable_debt?: number;
+      payer?: string;
     }
   >({
     url: `/lms-classes/${classId}/students/${enrollmentId}/payments`,
     method: RequestMethod.POST,
     invalidateKeys: [
       classStudentsListPrefix(classId),
-      FINANCE_QUERY_KEYS.report,
-      FINANCE_QUERY_KEYS.studentEnrollments,
-      FINANCE_QUERY_KEYS.transactions,
-      FINANCE_QUERY_KEYS.invoices,
-      FINANCE_QUERY_KEYS.upcomingInstallments,
       FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
+      ...financeRelatedKeys,
     ],
   });
 }
@@ -178,17 +197,15 @@ export function useRefundClassStudentPayment(classId: number, enrollmentId: numb
       amount: number;
       transaction_date?: string;
       reason?: string;
+      cancel_remaining?: boolean;
     }
   >({
     url: `/lms-classes/${classId}/students/${enrollmentId}/refunds`,
     method: RequestMethod.POST,
     invalidateKeys: [
       classStudentsListPrefix(classId),
-      FINANCE_QUERY_KEYS.report,
-      FINANCE_QUERY_KEYS.studentEnrollments,
-      FINANCE_QUERY_KEYS.transactions,
-      FINANCE_QUERY_KEYS.upcomingInstallments,
       FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
+      ...financeRelatedKeys,
     ],
   });
 }
@@ -212,7 +229,10 @@ export function useGenerateClassStudentInvoice(classId: number) {
       if (!response.ok) {
         throw new Error(response.data?.message || "Invoice generation failed");
       }
-      const payload = response.data as { data?: ClassStudentInvoice } | ClassStudentInvoice | undefined;
+      const payload = response.data as
+        | { data?: ClassStudentInvoice }
+        | ClassStudentInvoice
+        | undefined;
       if (payload && typeof payload === "object" && "data" in payload && payload.data) {
         return payload.data;
       }
@@ -220,6 +240,7 @@ export function useGenerateClassStudentInvoice(classId: number) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(classId) });
+      financeRelatedKeys.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
     },
   });
 }

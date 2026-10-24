@@ -1,12 +1,14 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { Prohibition, CheckCircle, Eye, EditPencil, Plus, Trash, AlbumList, Archive, Community as CommunityIcon, RefreshDouble, Calendar, Star } from "iconoir-react";
+import { Ban as Prohibition, CircleCheck as CheckCircle, Eye, Pencil as EditPencil, Plus, Trash2 as Trash, Images as AlbumList, Archive, Users as CommunityIcon, RefreshCcw as RefreshDouble, Calendar, Star, Clock, CircleX as XmarkCircle, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import {
   useCourseEntityList,
   useDeleteCourseEntity,
   useUpdateCourseEntity,
+  useCancelStudentSubscription,
+  useDeactivateStudentSubscription,
   getCourseListFromResponse,
   type CourseRow,
 } from "../../hooks/useCourseEntity";
@@ -23,6 +25,7 @@ import MainCategorySubCategoriesDrawer from "../MainCategorySubCategoriesDrawer/
 import StudentSuccessStoryDrawer from "../StudentSuccessStoryDrawer/StudentSuccessStoryDrawer";
 import {
   Button,
+  ButtonGroup,
   DataTable,
   Drawer,
   DrawerBody,
@@ -33,8 +36,15 @@ import {
   DrawerOverlay,
   Input,
   Label,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  ModalTitle,
   PageBreadcrumb,
-  SearchableSelect,
   useConfirmDialog,
 } from "@/components/ui";
 import {
@@ -45,6 +55,9 @@ import {
 import { Can, PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useConfirmPresets } from "@/i18n/useConfirmPresets";
 import { useCourseI18n } from "../../hooks/useCourseI18n";
+import { useCourseOverviewStats } from "../../hooks/useCourseOverviewStats";
+import { parseCourseOverviewStats } from "../../data/models";
+import { PendingCountBadge } from "../../components/PendingCountBadge";
 import { useDataTableParams } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { API_V1_BASE } from "@/services/apiClient";
@@ -192,7 +205,6 @@ function getTitleInitials(title: unknown): string {
 function StatusBadge({ value }: { value: unknown }) {
   const { t } = useCourseI18n();
   const normalized = String(value ?? "").toLowerCase();
-  const isActive = normalized === "active";
   const statusLabels: Record<string, string> = {
     active: t("common.active"),
     inactive: t("common.inactive"),
@@ -206,14 +218,21 @@ function StatusBadge({ value }: { value: unknown }) {
     due: t("common.due"),
     disabled: t("common.disabled"),
   };
-  const label = statusLabels[normalized] ?? (normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "—");
+  const tone =
+    normalized === "active"
+      ? "bg-success/10 text-success"
+      : normalized === "pending"
+        ? "bg-warning/15 text-warning"
+        : normalized === "inactive"
+          ? "bg-muted text-muted-foreground"
+          : normalized === "expired" || normalized === "cancelled"
+            ? "bg-danger/10 text-danger"
+            : "bg-muted text-muted-foreground";
+  const label =
+    statusLabels[normalized] ??
+    (normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "—");
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-        isActive ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
-      )}
-    >
+    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", tone)}>
       {label}
     </span>
   );
@@ -275,9 +294,12 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const completeClass = useCompleteLmsClassMutation();
   const [filterCourseId, setFilterCourseId] = useState(searchParams.get("course_id") ?? "");
   const [filterClassId, setFilterClassId] = useState(searchParams.get("class_id") ?? "");
+  const [filterPlanId, setFilterPlanId] = useState(searchParams.get("plan_id") ?? "");
   const [filterSubscriptionStatus, setFilterSubscriptionStatus] = useState(
     searchParams.get("subscription_status") ?? ""
   );
+  const [cancelModalRow, setCancelModalRow] = useState<CourseRow | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<CourseEntityDrawerMode>("create");
   const [drawerEntityId, setDrawerEntityId] = useState<number | null>(null);
@@ -287,6 +309,9 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   );
 
   const resolvedSlug = isSlug(slug) && !HIDDEN_INDEPENDENT_SLUGS.includes(slug) ? slug : null;
+  const { data: overviewStats } = useCourseOverviewStats(resolvedSlug === "student-subscriptions");
+  const pendingSubscriptionCount =
+    parseCourseOverviewStats(overviewStats?.data).pending_subscriptions_count ?? 0;
   const cfg = resolvedSlug ? COURSE_ENTITY_REGISTRY[resolvedSlug] : null;
   const formDef = resolvedSlug ? COURSE_ENTITY_FORM_REGISTRY[resolvedSlug] : null;
   const canReadEntity = Boolean(cfg && hasPermission(cfg.permission));
@@ -310,6 +335,27 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     }));
   }, [coursesForStudentFilter.data, t]);
 
+  const courseIdNumForPlans = Number(filterCourseId) || 0;
+  const plansForStudentFilter = useCourseEntityList(
+    resolvedSlug === "student-subscriptions" ? "subscription-plans" : null,
+    courseIdNumForPlans > 0
+      ? { attached_to_course: courseIdNumForPlans, per_page: 200 }
+      : { per_page: 200 },
+    { enabled: resolvedSlug === "student-subscriptions" }
+  );
+  const studentFilterPlanOptions = useMemo(() => {
+    const list = getCourseListFromResponse(plansForStudentFilter.data);
+    return list.map((r) => ({
+      value: String(r.id),
+      label: `${String(r.plan_name ?? t("course.plan"))} (#${r.id})`,
+    }));
+  }, [plansForStudentFilter.data, t]);
+
+  const { mutateAsync: deactivateStudentSubscription, isPending: deactivatingSubscription } =
+    useDeactivateStudentSubscription();
+  const { mutateAsync: cancelStudentSubscription, isPending: cancellingSubscription } =
+    useCancelStudentSubscription();
+
   const lmsClassStatusTabs = useMemo(
     () => [
       { value: "active" as const, label: t("course.classStatus.active") },
@@ -330,9 +376,41 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   const subscriptionStatusFilterOptions = useMemo(
     () => [
       { value: "active", label: t("course.subscriptionStatusValues.active") },
+      { value: "pending", label: t("course.subscriptionStatusValues.pending") },
       { value: "inactive", label: t("course.subscriptionStatusValues.inactive") },
       { value: "expired", label: t("course.subscriptionStatusValues.expired") },
       { value: "cancelled", label: t("course.subscriptionStatusValues.cancelled") },
+    ],
+    [t],
+  );
+
+  const subscriptionStatusQuickFilters = useMemo(
+    () => [
+      {
+        value: "active",
+        label: t("course.subscriptionStatusValues.active"),
+        icon: <CheckCircle className="h-4 w-4" />,
+      },
+      {
+        value: "pending",
+        label: t("course.subscriptionStatusValues.pending"),
+        icon: <Clock className="h-4 w-4" />,
+      },
+      {
+        value: "inactive",
+        label: t("course.subscriptionStatusValues.inactive"),
+        icon: <Prohibition className="h-4 w-4" />,
+      },
+      {
+        value: "cancelled",
+        label: t("course.subscriptionStatusValues.cancelled"),
+        icon: <XmarkCircle className="h-4 w-4" />,
+      },
+      {
+        value: "expired",
+        label: t("course.subscriptionStatusValues.expired"),
+        icon: <Timer className="h-4 w-4" />,
+      },
     ],
     [t],
   );
@@ -341,6 +419,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     const o: Record<string, string> = {};
     if (resolvedSlug === "student-subscriptions") {
       if (filterCourseId.trim()) o.course_id = filterCourseId.trim();
+      if (filterPlanId.trim()) o.plan_id = filterPlanId.trim();
       if (filterSubscriptionStatus.trim()) o.subscription_status = filterSubscriptionStatus.trim();
     } else {
       if (cfg?.filterParams?.includes("course_id") && filterCourseId.trim()) {
@@ -359,6 +438,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     resolvedSlug,
     filterCourseId,
     filterClassId,
+    filterPlanId,
     filterSubscriptionStatus,
     classStatusTab,
   ]);
@@ -425,15 +505,43 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
   }, []);
 
   const applyFiltersToUrl = useCallback(() => {
-    const next = new URLSearchParams(searchParams);
-    if (filterCourseId.trim()) next.set("course_id", filterCourseId.trim());
-    else next.delete("course_id");
-    if (filterClassId.trim()) next.set("class_id", filterClassId.trim());
-    else next.delete("class_id");
-    if (filterSubscriptionStatus.trim()) next.set("subscription_status", filterSubscriptionStatus.trim());
-    else next.delete("subscription_status");
-    setSearchParams(next, { replace: true });
-  }, [filterCourseId, filterClassId, filterSubscriptionStatus, searchParams, setSearchParams]);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (filterCourseId.trim()) next.set("course_id", filterCourseId.trim());
+        else next.delete("course_id");
+        if (filterClassId.trim()) next.set("class_id", filterClassId.trim());
+        else next.delete("class_id");
+        if (filterPlanId.trim()) next.set("plan_id", filterPlanId.trim());
+        else next.delete("plan_id");
+        if (filterSubscriptionStatus.trim()) {
+          next.set("subscription_status", filterSubscriptionStatus.trim());
+        } else {
+          next.delete("subscription_status");
+        }
+        if (next.toString() === prev.toString()) return prev;
+        return next;
+      },
+      { replace: true }
+    );
+  }, [
+    filterCourseId,
+    filterClassId,
+    filterPlanId,
+    filterSubscriptionStatus,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    if (resolvedSlug !== "student-subscriptions") return;
+    applyFiltersToUrl();
+  }, [resolvedSlug, filterCourseId, filterPlanId, filterSubscriptionStatus, applyFiltersToUrl]);
+
+  useEffect(() => {
+    if (!filterCourseId.trim()) return;
+    const stillValid = studentFilterPlanOptions.some((o) => o.value === filterPlanId);
+    if (filterPlanId && !stillValid) setFilterPlanId("");
+  }, [filterCourseId, filterPlanId, studentFilterPlanOptions]);
 
   const localizedEntityTitle = resolvedSlug ? entityTitle(resolvedSlug) : "";
 
@@ -463,8 +571,20 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
                 : "100px"
           : undefined,
       sortable: key !== "id" && key !== "course_title" && key !== "user_name" && key !== "plan_name",
-      filterable: key.includes("status"),
-      filterOptions: key.includes("status") ? statusFilterOptions : undefined,
+      filterable:
+        resolvedSlug === "student-subscriptions"
+          ? key === "course_title" || key === "plan_name" || key === "subscription_status"
+          : key.includes("status"),
+      filterOptions:
+        resolvedSlug === "student-subscriptions" && key === "course_title"
+          ? studentFilterCourseOptions
+          : resolvedSlug === "student-subscriptions" && key === "plan_name"
+            ? studentFilterPlanOptions
+            : resolvedSlug === "student-subscriptions" && key === "subscription_status"
+              ? subscriptionStatusFilterOptions
+              : key.includes("status")
+                ? statusFilterOptions
+                : undefined,
       render: (row: CourseRow) => {
         if (key === "main_category_name") {
           return getMainCategoryName(row);
@@ -602,6 +722,24 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
       columns,
       rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
       emptyMessage: t("dataTable.noRecords"),
+      onRowClick:
+        resolvedSlug === "student-subscriptions"
+          ? (row: CourseRow) => {
+              const id = row.id;
+              const idNum = typeof id === "number" ? id : Number(id);
+              if (typeof id !== "number" && Number.isNaN(idNum)) return;
+              openViewDrawer(typeof id === "number" ? id : idNum);
+            }
+          : undefined,
+      onRowDoubleClick:
+        resolvedSlug === "lms-class-students"
+          ? (row: CourseRow) => {
+              const id = row.id;
+              const idNum = typeof id === "number" ? id : Number(id);
+              if (typeof id !== "number" && Number.isNaN(idNum)) return;
+              openViewDrawer(typeof id === "number" ? id : idNum);
+            }
+          : undefined,
       actions: [
         ...(resolvedSlug === "instructors"
           ? []
@@ -693,6 +831,54 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               },
             ]
           : []),
+        ...(resolvedSlug === "student-subscriptions"
+          ? [
+              {
+                key: "deactivate-subscription",
+                label: t("course.deactivate"),
+                icon: <Prohibition className="h-4 w-4" />,
+                variant: "danger" as const,
+                permission: updatePerm,
+                hidden: (row: CourseRow) => {
+                  const status = String(row.subscription_status ?? "");
+                  return status !== "active" && status !== "pending";
+                },
+                onClick: async (row: CourseRow) => {
+                  const id = typeof row.id === "number" ? row.id : Number(row.id);
+                  if (Number.isNaN(id) || deactivatingSubscription) return;
+                  if (
+                    !(await confirm({
+                      title: t("course.deactivateSubscriptionTitle"),
+                      message: t("course.deactivateSubscriptionMessage"),
+                      confirmText: t("course.deactivate"),
+                      cancelText: t("common.cancel"),
+                      variant: "warning",
+                    }))
+                  ) {
+                    return;
+                  }
+                  try {
+                    await deactivateStudentSubscription(id);
+                    toast.success(t("course.subscriptionDeactivated"));
+                  } catch (e: unknown) {
+                    toast.error(e instanceof Error ? e.message : t("course.updateFailed"));
+                  }
+                },
+              },
+              {
+                key: "cancel-subscription",
+                label: t("course.cancelSubscription"),
+                icon: <XmarkCircle className="h-4 w-4" />,
+                variant: "danger" as const,
+                permission: updatePerm,
+                hidden: (row: CourseRow) => String(row.subscription_status ?? "") !== "active",
+                onClick: (row: CourseRow) => {
+                  setCancelModalRow(row);
+                  setCancelReason("");
+                },
+              },
+            ]
+          : []),
         {
           key: "edit",
           label: t("common.edit"),
@@ -717,7 +903,7 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
               },
             ]
           : []),
-        ...(statusToggle
+        ...(statusToggle && resolvedSlug !== "student-subscriptions"
           ? [
               {
                 key: "toggle",
@@ -798,6 +984,11 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     restoreClass,
     columnHeader,
     statusFilterOptions,
+    subscriptionStatusFilterOptions,
+    studentFilterCourseOptions,
+    studentFilterPlanOptions,
+    deactivateStudentSubscription,
+    deactivatingSubscription,
     localizedEntityTitle,
     t,
   ]);
@@ -915,33 +1106,6 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         </div>
       )}
 
-      {resolvedSlug === "student-subscriptions" && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
-          <div className="grid w-full gap-3 sm:max-w-xl sm:grid-cols-2">
-            <SearchableSelect
-              id="stu-sub-filter-course"
-              label={t("course.course")}
-              options={[{ value: "", label: t("course.allCourses") }, ...studentFilterCourseOptions]}
-              value={filterCourseId}
-              onChange={(v) => setFilterCourseId(v)}
-              placeholder={t("course.filterByCourse")}
-              disabled={coursesForStudentFilter.isFetching}
-            />
-            <SearchableSelect
-              id="stu-sub-filter-status"
-              label={t("course.subscriptionStatus")}
-              options={[{ value: "", label: t("course.allStatuses") }, ...subscriptionStatusFilterOptions]}
-              value={filterSubscriptionStatus}
-              onChange={(v) => setFilterSubscriptionStatus(v)}
-              placeholder={t("course.statusPlaceholder")}
-            />
-          </div>
-          <Button type="button" variant="secondary" size="sm" onClick={applyFiltersToUrl}>
-            {t("course.applyFilters")}
-          </Button>
-        </div>
-      )}
-
       <div className="min-w-0 max-w-full">
       <DataTable<CourseRow>
         data={rows}
@@ -951,11 +1115,69 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
           filters: {
             ...params.filters,
             status: (params.filters.status as string) || undefined,
+            ...(resolvedSlug === "student-subscriptions"
+              ? {
+                  course_title: filterCourseId || undefined,
+                  plan_name: filterPlanId || undefined,
+                  subscription_status: filterSubscriptionStatus || undefined,
+                }
+              : {}),
           },
         }}
-        onParamsChange={updateParams}
+        onParamsChange={(updates) => {
+          updateParams(updates);
+          if (resolvedSlug !== "student-subscriptions" || !updates.filters) return;
+          if ("course_title" in updates.filters) {
+            setFilterCourseId(String(updates.filters.course_title ?? ""));
+            updateParams({ page: 1 });
+          }
+          if ("plan_name" in updates.filters) {
+            setFilterPlanId(String(updates.filters.plan_name ?? ""));
+            updateParams({ page: 1 });
+          }
+          if ("subscription_status" in updates.filters) {
+            setFilterSubscriptionStatus(String(updates.filters.subscription_status ?? ""));
+            updateParams({ page: 1 });
+          }
+        }}
         pagination={pagination}
         isLoading={isFetching}
+        toolbar={
+          resolvedSlug === "student-subscriptions" ? (
+            <ButtonGroup
+              aria-label={t("course.subscriptionStatus")}
+              className="w-full flex-wrap overflow-visible pt-2 lg:w-auto"
+            >
+              {subscriptionStatusQuickFilters.map((tab) => (
+                <Button
+                  key={tab.value}
+                  type="button"
+                  size="sm"
+                  aria-pressed={filterSubscriptionStatus === tab.value}
+                  variant={filterSubscriptionStatus === tab.value ? "default" : "outline"}
+                  className={cn(
+                    "relative min-w-0 flex-1 gap-1.5 overflow-visible lg:flex-none",
+                    filterSubscriptionStatus !== tab.value &&
+                      "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => {
+                    setFilterSubscriptionStatus((prev) => (prev === tab.value ? "" : tab.value));
+                    updateParams({ page: 1 });
+                  }}
+                >
+                  {tab.icon}
+                  <span className="truncate">{tab.label}</span>
+                  {tab.value === "pending" ? (
+                    <PendingCountBadge
+                      count={pendingSubscriptionCount}
+                      className="absolute -top-2.5 end-1 z-10 shadow-sm"
+                    />
+                  ) : null}
+                </Button>
+              ))}
+            </ButtonGroup>
+          ) : undefined
+        }
       />
       </div>
 
@@ -1036,6 +1258,75 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
         onClose={() => setSuccessStoryModalRow(null)}
         row={successStoryModalRow}
       />
+
+      <Modal
+        open={!!cancelModalRow}
+        onClose={() => {
+          if (cancellingSubscription) return;
+          setCancelModalRow(null);
+          setCancelReason("");
+        }}
+      >
+        <ModalOverlay />
+        <ModalContent className="max-w-md">
+          <ModalHeader>
+            <ModalTitle>{t("course.cancelSubscriptionTitle")}</ModalTitle>
+            <ModalDescription>{t("course.cancelSubscriptionMessage")}</ModalDescription>
+          </ModalHeader>
+          <ModalBody className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="cancel-subscription-reason">{t("course.cancelReason")}</Label>
+              <textarea
+                id="cancel-subscription-reason"
+                className="border-input bg-background ring-offset-background focus-visible:ring-ring min-h-[110px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder={t("course.cancelReasonPlaceholder")}
+                disabled={cancellingSubscription}
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={cancellingSubscription}
+              onClick={() => {
+                setCancelModalRow(null);
+                setCancelReason("");
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              loading={cancellingSubscription}
+              disabled={cancelReason.trim().length < 3}
+              onClick={async () => {
+                const id =
+                  typeof cancelModalRow?.id === "number"
+                    ? cancelModalRow.id
+                    : Number(cancelModalRow?.id);
+                if (Number.isNaN(id)) return;
+                try {
+                  await cancelStudentSubscription({
+                    id,
+                    cancel_reason: cancelReason.trim(),
+                  });
+                  toast.success(t("course.subscriptionCancelled"));
+                  setCancelModalRow(null);
+                  setCancelReason("");
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : t("course.updateFailed"));
+                }
+              }}
+            >
+              {t("course.cancelSubscription")}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };

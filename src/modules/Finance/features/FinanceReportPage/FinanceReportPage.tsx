@@ -1,195 +1,105 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Bank,
-  Cart,
-  CheckCircle,
-  Clock,
-  Coins,
-  Eye,
-  GraphUp,
-  Group,
-  Percentage,
-  Undo,
-  Wallet,
-  WarningTriangle,
-} from "iconoir-react";
+import { Landmark as Bank, CalendarArrowDown, ShoppingCart as Cart, CircleCheck as CheckCircle, Clock, Coins, ArrowLeftRight as CoinsSwap, Eye, TrendingUp as GraphUp, Users as Group, HandCoins as HandCash, List, Ellipsis as MoreHoriz, FilePen as PageEdit, BookOpenText as PageFlip, Percent as Percentage, Undo2 as Undo, Wallet, TriangleAlert as WarningTriangle, CircleX as XmarkCircle } from "lucide-react";
 import {
   Button,
+  ButtonGroup,
   DataTable,
-  Input,
-  Label,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   PageBreadcrumb,
-  Switch,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui";
-import FinanceDetailsDrawer from "./FinanceDetailsDrawer";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
-import { cn } from "@/lib/utils";
 import { fetchAllListPages } from "@/lib/fetchAllListPages";
+import { cn } from "@/lib/utils";
 import type { DataTableConfig } from "@/types/datatable";
+import FinanceBreakdownDrawer, {
+  type BreakdownRequest,
+} from "../../components/FinanceBreakdownDrawer";
+import FinancePeriodFilter from "../../components/FinancePeriodFilter";
+import FinanceStatusBadge from "../../components/FinanceStatusBadge";
+import SummaryCard from "../../components/SummaryCard";
+import {
+  defaultPeriodState,
+  exportPeriodParams,
+  formatMoney,
+  periodParams,
+  periodRange,
+  type PeriodState,
+} from "../../components/financeFormat";
 import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
+import type {
+  FinanceBreakdownEnrollmentRow,
+  FinanceBreakdownMetric,
+  FinanceClassRow,
+  FinanceCourseRow,
+  FinanceModule,
+  FinanceReportScope,
+  FinanceSummary,
+} from "../../data/models/FinanceReport";
 import {
   extractFinancePagination,
   extractFinanceRows,
   extractFinanceSummary,
   useFinanceReport,
 } from "../../hooks/useFinanceReport";
-import type {
-  FinanceClassRow,
-  FinanceCourseRow,
-  FinanceModule,
-  FinancePeriod,
-  FinanceSummary,
-} from "../../data/models/FinanceReport";
+import FinanceDetailsDrawer from "./FinanceDetailsDrawer";
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function currentMonth(): string {
-  return todayIsoDate().slice(0, 7);
-}
-
-function currentYear(): number {
-  return new Date().getFullYear();
-}
-
-function formatMoney(value: unknown): string {
-  const n = Number(value);
-  if (Number.isNaN(n)) return "—";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function PaymentBadge({ value, label }: { value?: string | null; label?: string | null }) {
-  const raw = String(value ?? "pending");
-  const colors: Record<string, string> = {
-    pending: "bg-warning/10 text-warning",
-    paid: "bg-success/10 text-success",
-    partial: "bg-info/10 text-info",
-    mof_pending: "bg-auxiliary/10 text-auxiliary",
-    other_party: "bg-info/10 text-info",
-    failed: "bg-danger/10 text-danger",
-    refunded: "bg-muted text-muted-foreground",
-  };
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", colors[raw] ?? "bg-muted text-muted-foreground")}>
-      {label || raw}
-    </span>
-  );
-}
-
-type SummaryTone = "default" | "success" | "warning" | "danger" | "info" | "auxiliary";
-
-interface SummaryCardProps {
-  label: string;
-  value: number;
-  hint: string;
-  icon: ReactNode;
-  tone?: SummaryTone;
-}
-
-const SUMMARY_THEMES: Record<SummaryTone, { border: string; bg: string; icon: string; value: string }> = {
-  default: {
-    border: "border-border",
-    bg: "from-muted/40 via-card to-card",
-    icon: "bg-muted text-muted-foreground",
-    value: "text-foreground",
-  },
-  success: {
-    border: "border-success/20",
-    bg: "from-success/8 via-card to-card",
-    icon: "bg-success/15 text-success",
-    value: "text-success",
-  },
-  warning: {
-    border: "border-warning/20",
-    bg: "from-warning/8 via-card to-card",
-    icon: "bg-warning/15 text-warning",
-    value: "text-warning",
-  },
-  danger: {
-    border: "border-danger/20",
-    bg: "from-danger/8 via-card to-card",
-    icon: "bg-danger/15 text-danger",
-    value: "text-danger",
-  },
-  info: {
-    border: "border-info/20",
-    bg: "from-info/8 via-card to-card",
-    icon: "bg-info/15 text-info",
-    value: "text-info",
-  },
-  auxiliary: {
-    border: "border-auxiliary/20",
-    bg: "from-auxiliary/8 via-card to-card",
-    icon: "bg-auxiliary/15 text-auxiliary",
-    value: "text-auxiliary",
-  },
-};
-
-const SummaryCard = ({ label, value, hint, icon, tone = "default" }: SummaryCardProps) => {
-  const theme = SUMMARY_THEMES[tone];
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className={cn(
-            "relative cursor-help rounded-xl border bg-gradient-to-br p-5 outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
-            theme.border,
-            theme.bg
-          )}
-        >
-          <div className={cn("absolute end-4 top-4 rounded-lg p-2", theme.icon)}>{icon}</div>
-          <p className="pe-12 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className={cn("mt-2 text-2xl font-bold tabular-nums tracking-tight", theme.value)}>
-            {formatMoney(value)}
-          </p>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top">{hint}</TooltipContent>
-    </Tooltip>
-  );
+const EMPTY_SUMMARY: FinanceSummary = {
+  class_income: 0,
+  course_income: 0,
+  total_income: 0,
+  fees_amount: 0,
+  discount_amount: 0,
+  net_amount: 0,
+  paid_amount: 0,
+  refund_amount: 0,
+  mof_receivable: 0,
+  other_receivable: 0,
+  irrecoverable_debt: 0,
+  net_receivable: 0,
+  service_income: 0,
+  service_cost: 0,
 };
 
 const FinanceReportPage = () => {
   const { t } = useTranslation();
   const { hasPermission, hasAnyPermission } = useAuth();
   const [module, setModule] = useState<FinanceModule>("class");
-  const [period, setPeriod] = useState<FinancePeriod>("daily");
-  const [includePending, setIncludePending] = useState(false);
-  const [date, setDate] = useState(todayIsoDate());
-  const [month, setMonth] = useState(currentMonth());
-  const [year, setYear] = useState(String(currentYear()));
-  const [from, setFrom] = useState(currentMonth() + "-01");
-  const [to, setTo] = useState(todayIsoDate());
-  const [detailsRow, setDetailsRow] = useState<FinanceClassRow | FinanceCourseRow | null>(null);
+  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("today"));
+  const [scope, setScope] = useState<FinanceReportScope>("activity");
+  const [detailsRow, setDetailsRow] = useState<
+    (Partial<FinanceClassRow> & { id: number }) | FinanceCourseRow | null
+  >(null);
+  const [breakdown, setBreakdown] = useState<BreakdownRequest | null>(null);
 
   const { params, debouncedSearch, updateParams } = useDataTableParams({
     defaultPageSize: 25,
-    defaultSortBy: "last_transaction_at",
+    defaultSortBy: "payment_date",
     defaultSortDir: "desc",
     searchDebounceMs: 400,
   });
 
-  const periodParams = useMemo(() => {
-    if (period === "daily") return { date };
-    if (period === "yearly") return { year: Number(year) || currentYear() };
-    if (period === "range") return { from, to };
-    if (period === "all") return {};
-    return { month };
-  }, [period, date, month, year, from, to]);
+  const period = useMemo(() => periodParams(periodState), [periodState]);
+  const range = periodRange(periodState);
+  const periodLabel = range
+    ? range.from === range.to
+      ? range.from
+      : `${range.from} → ${range.to}`
+    : t("finance.periodAll");
 
-  const { data, isLoading } = useFinanceReport({
+  const { data, isLoading, isFetching } = useFinanceReport({
     module,
-    period,
-    ...periodParams,
-    include_pending: module === "class" ? (includePending ? 1 : 0) : undefined,
+    ...period,
+    scope: module === "class" ? scope : undefined,
     search: debouncedSearch || undefined,
     page: params.page,
     per_page: params.per_page,
@@ -199,185 +109,199 @@ const FinanceReportPage = () => {
 
   const rows = extractFinanceRows(data);
   const pagination = extractFinancePagination(data);
-  const summary: FinanceSummary = extractFinanceSummary(data) ?? {
-    class_income: 0,
-    course_income: 0,
-    total_income: 0,
-    fees_amount: 0,
-    discount_amount: 0,
-    net_amount: 0,
-    paid_amount: 0,
-    refund_amount: 0,
-    mof_receivable: 0,
-    other_receivable: 0,
-    irrecoverable_debt: 0,
-    net_receivable: 0,
-    service_income: 0,
-    service_cost: 0,
-  };
+  const summary: FinanceSummary = extractFinanceSummary(data) ?? EMPTY_SUMMARY;
 
   const setModuleAndReset = (next: FinanceModule) => {
     setModule(next);
     setDetailsRow(null);
-    updateParams({ page: 1, sort_by: next === "course" ? "purchase_date" : "last_transaction_at" });
+    updateParams({ page: 1, sort_by: next === "course" ? "purchase_date" : "payment_date" });
   };
 
-  const setPeriodAndReset = (next: FinancePeriod) => {
-    setPeriod(next);
+  const onPeriodChange = (next: PeriodState) => {
+    setPeriodState(next);
     updateParams({ page: 1 });
   };
+
+  const openBreakdown = (metric: FinanceBreakdownMetric, label: string, hint: string) =>
+    setBreakdown({ metric, label, hint });
+
+  const openEnrollmentFromBreakdown = useCallback((row: FinanceBreakdownEnrollmentRow) => {
+    setDetailsRow({
+      id: row.id,
+      class_id: row.class_id ?? undefined,
+      student_id: row.student_id ?? undefined,
+      student_name: row.student_name,
+      student_code: row.student_code,
+      class_name: row.class_name,
+      class_code: row.class_code,
+      payment_status: row.payment_status,
+    });
+  }, []);
 
   const classConfig: DataTableConfig<FinanceClassRow> = {
     columns: [
       {
         key: "student_name",
         header: t("finance.columns.name"),
-        sortable: false,
-        render: (row) => <span className="font-medium">{row.student_name || "—"}</span>,
+        render: (row) => (
+          <div>
+            <div className="font-medium">{row.student_name || "—"}</div>
+            {row.student_code ? (
+              <div className="font-mono text-xs text-muted-foreground">{row.student_code}</div>
+            ) : null}
+          </div>
+        ),
+        exportValue: (row) => row.student_name,
+      },
+      {
+        key: "student_code",
+        header: t("finance.columns.studentId"),
+        render: (row) => row.student_code || "—",
+        exportOnly: true,
       },
       {
         key: "father_name",
         header: t("finance.columns.fatherName"),
-        sortable: false,
         render: (row) => row.father_name || "—",
       },
       {
         key: "class_name",
         header: t("finance.columns.class"),
-        sortable: false,
         render: (row) => (
           <div>
             <div>{row.class_name || "—"}</div>
-            {row.class_code ? <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div> : null}
+            {row.class_code ? (
+              <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div>
+            ) : null}
           </div>
+        ),
+        exportValue: (row) => row.class_code ?? row.class_name,
+      },
+      {
+        key: "class_full_name",
+        header: t("finance.columns.className"),
+        render: (row) => row.class_name || "—",
+        exportValue: (row) => row.class_name,
+        exportOnly: true,
+      },
+      {
+        key: "starting_date",
+        header: t("finance.columns.classStartDate"),
+        sortable: false,
+        render: (row) => (
+          <span className="whitespace-nowrap tabular-nums">{row.starting_date || "—"}</span>
         ),
       },
       {
-        key: "invoice_number",
-        header: t("finance.columns.invoice"),
-        sortable: false,
-        render: (row) => <span className="font-mono text-xs">{row.invoice_number || "—"}</span>,
+        key: "paid_in_period",
+        header: t("fin.columns.paidInPeriod"),
+        align: "right",
+        render: (row) => (
+          <span className="font-semibold tabular-nums text-success">
+            {row.paid_in_period != null ? formatMoney(row.paid_in_period) : "—"}
+          </span>
+        ),
+        exportValue: (row) => row.paid_in_period,
       },
       {
         key: "fees_amount",
         header: t("finance.columns.fees"),
-        sortable: false,
         align: "right",
         render: (row) => formatMoney(row.fees_amount),
-      },
-      {
-        key: "discount_percent",
-        header: t("finance.columns.discountPercent"),
-        sortable: false,
-        align: "right",
-        render: (row) => formatMoney(row.discount_percent),
+        exportValue: (row) => row.fees_amount as number,
       },
       {
         key: "discount_amount",
         header: t("finance.columns.discountAmount"),
-        sortable: false,
         align: "right",
-        render: (row) => formatMoney(row.discount_amount),
+        render: (row) => (
+          <span className="tabular-nums">
+            {formatMoney(row.discount_amount)}
+            {Number(row.discount_percent) > 0 ? (
+              <span className="ms-1 text-xs text-muted-foreground">
+                ({Number(row.discount_percent)}%)
+              </span>
+            ) : null}
+          </span>
+        ),
+        exportValue: (row) => row.discount_amount as number,
       },
       {
         key: "net_amount",
         header: t("finance.columns.net"),
-        sortable: false,
         align: "right",
         render: (row) => formatMoney(row.net_amount),
+        exportValue: (row) => row.net_amount as number,
       },
       {
         key: "paid_amount",
-        header: t("finance.columns.paid"),
-        sortable: false,
+        header: t("fin.columns.totalPaid"),
         align: "right",
         render: (row) => formatMoney(row.paid_amount),
+        exportValue: (row) => row.paid_amount as number,
       },
       {
         key: "refund_amount",
         header: t("finance.columns.refund"),
-        sortable: false,
         align: "right",
         render: (row) => formatMoney(row.refund_amount),
-      },
-      {
-        key: "mof_receivable_amount",
-        header: t("finance.columns.mof"),
-        sortable: false,
-        align: "right",
-        render: (row) => formatMoney(row.mof_receivable_amount),
-      },
-      {
-        key: "other_receivable_amount",
-        header: t("finance.columns.other"),
-        sortable: false,
-        render: (row) => {
-          const amount = formatMoney(row.other_receivable_amount);
-          if (!row.other_party_name) return amount;
-          return (
-            <span>
-              {amount}{" "}
-              <span className="text-xs text-muted-foreground">({row.other_party_name})</span>
-            </span>
-          );
-        },
+        exportValue: (row) => row.refund_amount as number,
       },
       {
         key: "irrecoverable_debt",
         header: t("finance.columns.irrecoverable"),
-        sortable: false,
         align: "right",
         render: (row) => formatMoney(row.irrecoverable_debt),
+        exportValue: (row) => row.irrecoverable_debt as number,
       },
       {
         key: "net_receivable",
         header: t("finance.columns.netReceivable"),
-        sortable: false,
         align: "right",
         render: (row) => (
-          <span className="font-medium tabular-nums">{formatMoney(row.net_receivable)}</span>
+          <div className="text-end">
+            <div className="font-semibold tabular-nums text-warning">
+              {formatMoney(row.net_receivable)}
+            </div>
+            {Number(row.mof_receivable_amount) > 0 ? (
+              <div className="text-xs text-auxiliary">
+                MOF {formatMoney(row.mof_receivable_amount)}
+              </div>
+            ) : null}
+            {Number(row.other_receivable_amount) > 0 ? (
+              <div className="text-xs text-info">
+                {row.other_party_name || t("fin.payer.other_party")}{" "}
+                {formatMoney(row.other_receivable_amount)}
+              </div>
+            ) : null}
+          </div>
         ),
-      },
-      {
-        key: "payment_date",
-        header: t("finance.columns.paymentDate"),
-        sortable: true,
-        render: (row) => row.payment_date || "—",
-      },
-      {
-        key: "teacher_name",
-        header: t("finance.columns.teacher"),
-        sortable: false,
-        render: (row) => row.teacher_name || "—",
+        exportValue: (row) => row.net_receivable as number,
       },
       {
         key: "payment_status",
         header: t("finance.columns.paymentStatus"),
         sortable: true,
-        render: (row) => <PaymentBadge value={row.payment_status} label={row.payment_status_label} />,
+        render: (row) => (
+          <FinanceStatusBadge value={row.payment_status} fallbackLabel={row.payment_status_label} />
+        ),
+        exportValue: (row) => row.payment_status_label ?? row.payment_status,
       },
       {
-        key: "class_status",
-        header: t("finance.columns.classStatus"),
-        sortable: false,
-        render: (row) => row.class_status_label || row.class_status || "—",
+        key: "fee_date",
+        header: t("finance.columns.enrollmentDate"),
+        sortable: true,
+        render: (row) => row.fee_date || "—",
       },
       {
-        key: "starting_date",
-        header: t("finance.columns.startingDate"),
-        sortable: false,
-        render: (row) => row.starting_date || "—",
-      },
-      {
-        key: "next_installment_date",
-        header: t("finance.columns.nextInstallment"),
-        sortable: false,
-        render: (row) => row.next_installment_date || "—",
+        key: "teacher_name",
+        header: t("finance.columns.teacher"),
+        render: (row) => row.teacher_name || "—",
       },
       {
         key: "actions",
         header: t("dataTable.actions"),
-        sortable: false,
+        exportable: false,
         render: (row) => (
           <Button type="button" variant="outline" size="sm" onClick={() => setDetailsRow(row)}>
             <Eye className="h-4 w-4" />
@@ -392,6 +316,7 @@ const FinanceReportPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("finance.empty"),
+    onRowDoubleClick: (row) => setDetailsRow(row),
     exportFilename: "finance-class-report",
     exportDateKey: "payment_date",
     fetchExportRows: (query) =>
@@ -399,15 +324,13 @@ const FinanceReportPage = () => {
         url: FINANCE_ENDPOINTS.REPORT,
         params: {
           module: "class",
-          include_pending: includePending ? 1 : 0,
+          scope,
           search: debouncedSearch || undefined,
           sort_by: params.sort_by,
           sort_dir: params.sort_dir,
-          ...(query.allTime
-            ? { period: "all" }
-            : { period: "range", from: query.from, to: query.to }),
+          ...exportPeriodParams(query),
         },
-        extractRows: extractFinanceRows,
+        extractRows: (res) => extractFinanceRows(res) as FinanceClassRow[],
         extractPagination: extractFinancePagination,
       }),
   };
@@ -417,25 +340,21 @@ const FinanceReportPage = () => {
       {
         key: "student_name",
         header: t("finance.columns.student"),
-        sortable: false,
         render: (row) => <span className="font-medium">{row.student_name || "—"}</span>,
       },
       {
         key: "course_title",
         header: t("finance.columns.course"),
-        sortable: false,
         render: (row) => row.course_title || "—",
       },
       {
         key: "plan_name",
         header: t("finance.columns.plan"),
-        sortable: false,
         render: (row) => row.plan_name || "—",
       },
       {
         key: "amount",
         header: t("finance.columns.amount"),
-        sortable: false,
         align: "right",
         render: (row) => formatMoney(row.amount),
       },
@@ -443,7 +362,9 @@ const FinanceReportPage = () => {
         key: "payment_status",
         header: t("finance.columns.paymentStatus"),
         sortable: true,
-        render: (row) => <PaymentBadge value={row.payment_status} label={row.payment_status_label} />,
+        render: (row) => (
+          <FinanceStatusBadge value={row.payment_status} fallbackLabel={row.payment_status_label} />
+        ),
       },
       {
         key: "purchase_date",
@@ -454,13 +375,12 @@ const FinanceReportPage = () => {
       {
         key: "subscription_status",
         header: t("finance.columns.subscriptionStatus"),
-        sortable: false,
         render: (row) => row.subscription_status_label || row.subscription_status || "—",
       },
       {
         key: "actions",
         header: t("dataTable.actions"),
-        sortable: false,
+        exportable: false,
         render: (row) => (
           <Button type="button" variant="outline" size="sm" onClick={() => setDetailsRow(row)}>
             <Eye className="h-4 w-4" />
@@ -475,6 +395,7 @@ const FinanceReportPage = () => {
     filtersEnabled: false,
     paginationEnabled: true,
     emptyMessage: t("finance.empty"),
+    onRowDoubleClick: (row) => setDetailsRow(row),
     exportFilename: "finance-course-report",
     exportDateKey: "purchase_date",
     fetchExportRows: (query) =>
@@ -485,11 +406,9 @@ const FinanceReportPage = () => {
           search: debouncedSearch || undefined,
           sort_by: params.sort_by,
           sort_dir: params.sort_dir,
-          ...(query.allTime
-            ? { period: "all" }
-            : { period: "range", from: query.from, to: query.to }),
+          ...exportPeriodParams(query),
         },
-        extractRows: extractFinanceRows,
+        extractRows: (res) => extractFinanceRows(res) as FinanceCourseRow[],
         extractPagination: extractFinancePagination,
       }),
   };
@@ -498,21 +417,65 @@ const FinanceReportPage = () => {
     return <PermissionDeniedCard />;
   }
 
-  const canReceivePayment = hasAnyPermission(["course.class_students.payment", "course.class_students.update"]);
+  const canReceivePayment = hasAnyPermission([
+    "course.class_students.payment",
+    "course.class_students.update",
+  ]);
+  const loadingCards = isLoading || (isFetching && !data);
+  const cohortFootnote = `${summary.enrollment_count ?? 0} ${t("fin.cards.enrollments")}${
+    summary.free_count ? ` · ${summary.free_count} ${t("fin.cards.freeStudents")}` : ""
+  }`;
 
-      const periodTabs: { value: FinancePeriod; label: string }[] = [
-        { value: "daily", label: t("finance.periodDaily") },
-        { value: "monthly", label: t("finance.periodMonthly") },
-        { value: "yearly", label: t("finance.periodYearly") },
-        { value: "range", label: t("finance.periodRange") },
-        { value: "all", label: t("finance.periodAll") },
-      ];
+  const tableToolbar = (
+    <div className="flex w-full min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end">
+      {isFetching && data ? (
+        <span className="text-xs text-primary">{t("fin.updating")}</span>
+      ) : null}
+      <ButtonGroup aria-label={t("finance.classModule")} className="w-full lg:w-auto">
+        <Button
+          type="button"
+          size="sm"
+          aria-pressed={module === "class"}
+          variant={module === "class" ? "default" : "outline"}
+          className={cn(
+            "min-w-0 flex-1 lg:flex-none",
+            module !== "class" && "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setModuleAndReset("class")}
+        >
+          <Group className="h-4 w-4" />
+          {t("finance.classModule")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          aria-pressed={module === "course"}
+          variant={module === "course" ? "default" : "outline"}
+          className={cn(
+            "min-w-0 flex-1 lg:flex-none",
+            module !== "course" && "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setModuleAndReset("course")}
+        >
+          <Cart className="h-4 w-4" />
+          {t("finance.courseModule")}
+        </Button>
+      </ButtonGroup>
+      <FinancePeriodFilter
+        className="w-full min-w-0 lg:w-auto"
+        value={periodState}
+        onChange={onPeriodChange}
+      />
+    </div>
+  );
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("finance.title")}</h1>
+    <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            {t("finance.title")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("finance.subtitle")}</p>
           <div className="mt-2">
             <PageBreadcrumb
@@ -523,179 +486,282 @@ const FinanceReportPage = () => {
             />
           </div>
         </div>
-        {canReceivePayment ? (
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" asChild>
-              <Link to="/finance/invoices">{t("finance.invoices.title")}</Link>
+        <ButtonGroup className="w-full min-w-0 sm:w-auto sm:shrink-0">
+          {canReceivePayment ? (
+            <Button type="button" asChild className="min-w-0 flex-1 sm:flex-none">
+              <Link to="/finance/receive-payment">
+                <HandCash className="h-4 w-4" />
+                {t("finance.receivePayment.title")}
+              </Link>
             </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/finance/transactions">{t("finance.transactions.title")}</Link>
-            </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/finance/upcoming-dues">{t("finance.upcomingDues.title")}</Link>
-            </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/finance/service-income">{t("finance.serviceIncome.title")}</Link>
-            </Button>
-            <Button type="button" asChild>
-              <Link to="/finance/receive-payment">{t("finance.receivePayment.title")}</Link>
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-border p-1">
-          <Button type="button" size="sm" variant={module === "class" ? "default" : "ghost"} onClick={() => setModuleAndReset("class")}>
-            {t("finance.classModule")}
-          </Button>
-          <Button type="button" size="sm" variant={module === "course" ? "default" : "ghost"} onClick={() => setModuleAndReset("course")}>
-            {t("finance.courseModule")}
-          </Button>
-        </div>
-        <div className="inline-flex rounded-lg border border-border p-1">
-          {periodTabs.map((tab) => (
-            <Button
-              key={tab.value}
-              type="button"
-              size="sm"
-              variant={period === tab.value ? "default" : "ghost"}
-              onClick={() => setPeriodAndReset(tab.value)}
-            >
-              {tab.label}
-            </Button>
-          ))}
-        </div>
-        {period === "daily" ? (
-          <div className="space-y-1">
-            <Label htmlFor="finance-date">{t("finance.date")}</Label>
-            <Input id="finance-date" type="date" value={date} onChange={(e) => { setDate(e.target.value); updateParams({ page: 1 }); }} />
-          </div>
-        ) : null}
-        {period === "monthly" ? (
-          <div className="space-y-1">
-            <Label htmlFor="finance-month">{t("finance.month")}</Label>
-            <Input id="finance-month" type="month" value={month} onChange={(e) => { setMonth(e.target.value); updateParams({ page: 1 }); }} />
-          </div>
-        ) : null}
-        {period === "yearly" ? (
-          <div className="space-y-1">
-            <Label htmlFor="finance-year">{t("finance.year")}</Label>
-            <Input id="finance-year" type="number" min={2000} max={2100} value={year} onChange={(e) => { setYear(e.target.value); updateParams({ page: 1 }); }} />
-          </div>
-        ) : null}
-        {period === "range" ? (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="finance-from">{t("finance.from")}</Label>
-              <Input id="finance-from" type="date" value={from} onChange={(e) => { setFrom(e.target.value); updateParams({ page: 1 }); }} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="finance-to">{t("finance.to")}</Label>
-              <Input id="finance-to" type="date" value={to} onChange={(e) => { setTo(e.target.value); updateParams({ page: 1 }); }} />
-            </div>
-          </div>
-        ) : null}
-        {module === "class" ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-            <Switch
-              id="include-pending"
-              checked={includePending}
-              onCheckedChange={(checked) => {
-                setIncludePending(checked);
-                updateParams({ page: 1 });
-              }}
-            />
-            <Label htmlFor="include-pending" className="cursor-pointer text-sm font-normal">
-              {t("finance.includePending")}
-            </Label>
-          </div>
-        ) : null}
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant={canReceivePayment ? "outline" : "default"}
+                size={canReceivePayment ? "icon" : undefined}
+                className="shrink-0"
+                aria-label={t("fin.more")}
+              >
+                <MoreHoriz className="h-4 w-4" />
+                {canReceivePayment ? null : t("fin.more")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link to="/finance/transactions">
+                  <List className="h-4 w-4" />
+                  {t("finance.transactions.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/upcoming-dues">
+                  <CalendarArrowDown className="h-4 w-4" />
+                  {t("fin.dues.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/invoices">
+                  <PageFlip className="h-4 w-4" />
+                  {t("finance.invoices.title")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/finance/service-income">
+                  <Coins className="h-4 w-4" />
+                  {t("finance.serviceIncome.title")}
+                </Link>
+              </DropdownMenuItem>
+              {canReceivePayment ? (
+                <DropdownMenuItem asChild>
+                  <Link to="/finance/manual-invoice">
+                    <PageEdit className="h-4 w-4" />
+                    {t("finance.manualInvoice.title")}
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
       </div>
 
       <TooltipProvider delayDuration={150}>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {module === "class" ? (
-          <>
-            <SummaryCard
-              label={t("finance.classGrossIncome")}
-              value={summary.gross_amount ?? summary.fees_amount}
-              hint={t("finance.hints.gross")}
-              icon={<Wallet className="h-5 w-5" />}
-              tone="success"
-            />
-            <SummaryCard
-              label={t("finance.classDiscount")}
-              value={summary.discount_amount}
-              hint={t("finance.hints.discount")}
-              icon={<Percentage className="h-5 w-5" />}
-              tone="info"
-            />
-            <SummaryCard
-              label={t("finance.columns.net")}
-              value={summary.net_amount}
-              hint={t("finance.hints.net")}
-              icon={<GraphUp className="h-5 w-5" />}
-              tone="auxiliary"
-            />
-            <SummaryCard
-              label={t("finance.paid")}
-              value={summary.paid_amount}
-              hint={t("finance.hints.paid")}
-              icon={<CheckCircle className="h-5 w-5" />}
-              tone="success"
-            />
-            <SummaryCard
-              label={t("finance.netReceivable")}
-              value={summary.net_receivable}
-              hint={t("finance.hints.netReceivable")}
-              icon={<Clock className="h-5 w-5" />}
-              tone="warning"
-            />
-            <SummaryCard
-              label={t("finance.refunds")}
-              value={summary.refund_amount}
-              hint={t("finance.hints.refund")}
-              icon={<Undo className="h-5 w-5" />}
-            />
-            <SummaryCard
-              label={t("finance.irrecoverable")}
-              value={summary.irrecoverable_debt}
-              hint={t("finance.hints.irrecoverable")}
-              icon={<WarningTriangle className="h-5 w-5" />}
-              tone="danger"
-            />
-            <SummaryCard
-              label={t("finance.mofReceivable")}
-              value={summary.mof_receivable}
-              hint={t("finance.hints.mof")}
-              icon={<Bank className="h-5 w-5" />}
-              tone="warning"
-            />
-            <SummaryCard
-              label={t("finance.otherReceivable")}
-              value={summary.other_receivable}
-              hint={t("finance.hints.other")}
-              icon={<Group className="h-5 w-5" />}
-              tone="info"
-            />
-            <SummaryCard
-              label={t("finance.netServiceIncome")}
-              value={summary.service_income ?? 0}
-              hint={t("finance.hints.serviceIncome")}
-              icon={<Coins className="h-5 w-5" />}
-              tone="success"
-            />
-            <SummaryCard
-              label={t("finance.netServiceCost")}
-              value={summary.service_cost ?? 0}
-              hint={t("finance.hints.serviceCost")}
-              icon={<Cart className="h-5 w-5" />}
-              tone="danger"
-            />
-          </>
+          <div className="space-y-6">
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  {t("fin.groups.cohortTitle")}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {t("fin.groups.cohortHint")}{" "}
+                  <span className="font-mono">({t("fin.identity")})</span>
+                </p>
+              </div>
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                  loadingCards && "opacity-60"
+                )}
+              >
+                <SummaryCard
+                  label={t("fin.cards.gross")}
+                  value={summary.gross_amount ?? summary.fees_amount}
+                  hint={t("fin.hints.gross")}
+                  icon={<Wallet className="h-5 w-5" />}
+                  footnote={cohortFootnote}
+                  onClick={() => openBreakdown("gross", t("fin.cards.gross"), t("fin.hints.gross"))}
+                />
+                <SummaryCard
+                  label={t("fin.cards.discount")}
+                  value={summary.discount_amount}
+                  hint={t("fin.hints.discount")}
+                  icon={<Percentage className="h-5 w-5" />}
+                  tone="info"
+                  onClick={() =>
+                    openBreakdown("discount", t("fin.cards.discount"), t("fin.hints.discount"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.net")}
+                  value={summary.net_amount}
+                  hint={t("fin.hints.net")}
+                  icon={<GraphUp className="h-5 w-5" />}
+                  tone="auxiliary"
+                  onClick={() => openBreakdown("net", t("fin.cards.net"), t("fin.hints.net"))}
+                />
+                <SummaryCard
+                  label={t("fin.cards.paidToDate")}
+                  value={summary.paid_amount}
+                  hint={t("fin.hints.paidToDate")}
+                  icon={<CheckCircle className="h-5 w-5" />}
+                  tone="success"
+                  onClick={() =>
+                    openBreakdown("paid", t("fin.cards.paidToDate"), t("fin.hints.paidToDate"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.receivable")}
+                  value={summary.net_receivable}
+                  hint={t("fin.hints.receivable")}
+                  icon={<Clock className="h-5 w-5" />}
+                  tone="warning"
+                  parts={[
+                    { label: t("fin.cards.studentPart"), value: summary.student_receivable ?? 0 },
+                    { label: t("fin.cards.mofPart"), value: summary.mof_receivable },
+                    { label: t("fin.cards.otherPart"), value: summary.other_receivable },
+                  ]}
+                  onClick={() =>
+                    openBreakdown(
+                      "receivable",
+                      t("fin.cards.receivable"),
+                      t("fin.hints.receivable")
+                    )
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.writtenOff")}
+                  value={summary.irrecoverable_debt}
+                  hint={t("fin.hints.writtenOff")}
+                  icon={<WarningTriangle className="h-5 w-5" />}
+                  tone="danger"
+                  onClick={() =>
+                    openBreakdown(
+                      "irrecoverable",
+                      t("fin.cards.writtenOff"),
+                      t("fin.hints.writtenOff")
+                    )
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.mof")}
+                  value={summary.mof_receivable}
+                  hint={t("finance.hints.mof")}
+                  icon={<Bank className="h-5 w-5" />}
+                  tone="auxiliary"
+                  onClick={() => openBreakdown("mof", t("fin.cards.mof"), t("finance.hints.mof"))}
+                />
+                <SummaryCard
+                  label={t("fin.cards.other")}
+                  value={summary.other_receivable}
+                  hint={t("finance.hints.other")}
+                  icon={<Group className="h-5 w-5" />}
+                  tone="info"
+                  onClick={() =>
+                    openBreakdown("other", t("fin.cards.other"), t("finance.hints.other"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.refunds")}
+                  value={summary.refund_amount}
+                  hint={t("fin.hints.refunds")}
+                  icon={<Undo className="h-5 w-5" />}
+                  onClick={() =>
+                    openBreakdown("refund", t("fin.cards.refunds"), t("fin.hints.refunds"))
+                  }
+                />
+                {(summary.cancelled_amount ?? 0) > 0 ? (
+                  <SummaryCard
+                    label={t("fin.cards.cancelled")}
+                    value={summary.cancelled_amount ?? 0}
+                    hint={t("fin.hints.cancelled")}
+                    icon={<XmarkCircle className="h-5 w-5" />}
+                    onClick={() =>
+                      openBreakdown("cancelled", t("fin.cards.cancelled"), t("fin.hints.cancelled"))
+                    }
+                  />
+                ) : null}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">
+                  {t("fin.groups.cashTitle")}
+                </h2>
+                <p className="text-xs text-muted-foreground">{t("fin.groups.cashHint")}</p>
+              </div>
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
+                  loadingCards && "opacity-60"
+                )}
+              >
+                <SummaryCard
+                  label={t("fin.cards.collected")}
+                  value={summary.cash_collected ?? 0}
+                  hint={t("fin.hints.collected")}
+                  icon={<Coins className="h-5 w-5" />}
+                  tone="success"
+                  onClick={() =>
+                    openBreakdown("collected", t("fin.cards.collected"), t("fin.hints.collected"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.refunded")}
+                  value={summary.cash_refunded ?? 0}
+                  hint={t("fin.hints.refunded")}
+                  icon={<Undo className="h-5 w-5" />}
+                  onClick={() =>
+                    openBreakdown("refunded", t("fin.cards.refunded"), t("fin.hints.refunded"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.recovered")}
+                  value={summary.cash_recovered ?? 0}
+                  hint={t("fin.hints.recovered")}
+                  icon={<CoinsSwap className="h-5 w-5" />}
+                  tone="success"
+                  onClick={() =>
+                    openBreakdown("recovered", t("fin.cards.recovered"), t("fin.hints.recovered"))
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.netCash")}
+                  value={summary.cash_net ?? summary.class_income}
+                  hint={t("fin.hints.netCash")}
+                  icon={<GraphUp className="h-5 w-5" />}
+                  tone="success"
+                />
+                <SummaryCard
+                  label={t("fin.cards.serviceIncome")}
+                  value={summary.service_income ?? 0}
+                  hint={t("fin.hints.serviceIncome")}
+                  icon={<Coins className="h-5 w-5" />}
+                  tone="info"
+                  onClick={() =>
+                    openBreakdown(
+                      "service_income",
+                      t("fin.cards.serviceIncome"),
+                      t("fin.hints.serviceIncome")
+                    )
+                  }
+                />
+                <SummaryCard
+                  label={t("fin.cards.serviceCost")}
+                  value={summary.service_cost ?? 0}
+                  hint={t("fin.hints.serviceCost")}
+                  icon={<Cart className="h-5 w-5" />}
+                  tone="danger"
+                  onClick={() =>
+                    openBreakdown(
+                      "service_cost",
+                      t("fin.cards.serviceCost"),
+                      t("fin.hints.serviceCost")
+                    )
+                  }
+                />
+              </div>
+            </section>
+          </div>
         ) : (
-          <>
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+              loadingCards && "opacity-60"
+            )}
+          >
             <SummaryCard
               label={t("finance.courseIncome")}
               value={summary.course_income}
@@ -723,20 +789,51 @@ const FinanceReportPage = () => {
               icon={<Cart className="h-5 w-5" />}
               tone="danger"
             />
-          </>
+          </div>
         )}
-      </div>
       </TooltipProvider>
 
       {module === "class" ? (
-        <DataTable
-          data={rows as FinanceClassRow[]}
-          config={classConfig}
-          params={params}
-          onParamsChange={updateParams}
-          pagination={pagination}
-          isLoading={isLoading}
-        />
+        <div className="space-y-3">
+          <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("fin.scope.label")}
+            </span>
+            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+              <TooltipProvider delayDuration={150}>
+                {(["activity", "cohort"] as FinanceReportScope[]).map((value) => (
+                  <Tooltip key={value}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={scope === value ? "default" : "ghost"}
+                        onClick={() => {
+                          setScope(value);
+                          updateParams({ page: 1 });
+                        }}
+                      >
+                        {t(value === "activity" ? "fin.scope.activity" : "fin.scope.cohort")}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      {t(value === "activity" ? "fin.scope.activityHint" : "fin.scope.cohortHint")}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+          </div>
+          <DataTable
+            data={rows as FinanceClassRow[]}
+            config={classConfig}
+            params={params}
+            onParamsChange={updateParams}
+            pagination={pagination}
+            isLoading={isLoading}
+            toolbar={tableToolbar}
+          />
+        </div>
       ) : (
         <DataTable
           data={rows as FinanceCourseRow[]}
@@ -745,6 +842,7 @@ const FinanceReportPage = () => {
           onParamsChange={updateParams}
           pagination={pagination}
           isLoading={isLoading}
+          toolbar={tableToolbar}
         />
       )}
 
@@ -752,8 +850,20 @@ const FinanceReportPage = () => {
         open={detailsRow != null}
         onClose={() => setDetailsRow(null)}
         module={module}
-        classRow={module === "class" ? (detailsRow as FinanceClassRow | null) : null}
+        classRow={
+          module === "class"
+            ? (detailsRow as (Partial<FinanceClassRow> & { id: number }) | null)
+            : null
+        }
         courseRow={module === "course" ? (detailsRow as FinanceCourseRow | null) : null}
+      />
+
+      <FinanceBreakdownDrawer
+        request={breakdown}
+        periodParams={period}
+        periodLabel={periodLabel}
+        onClose={() => setBreakdown(null)}
+        onOpenEnrollment={openEnrollmentFromBreakdown}
       />
     </div>
   );

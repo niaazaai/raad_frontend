@@ -3,6 +3,18 @@ export { Spinner } from "./spinner";
 export { Skeleton } from "./skeleton";
 export { Button, buttonVariants } from "./button";
 export {
+  ButtonGroup,
+  ButtonGroupSeparator,
+  ButtonGroupText,
+  buttonGroupVariants,
+} from "./button-group";
+export { Popover, PopoverTrigger, PopoverClose, PopoverContent } from "./popover";
+export { Calendar, CalendarDayButton } from "./calendar";
+export { DatePicker, MonthPicker, YearPicker, DateRangePicker } from "./date-picker";
+export type { IsoDateRange } from "./date-picker";
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "./tabs";
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./accordion";
+export {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -54,7 +66,16 @@ export {
   SelectValue,
 } from "./select";
 export { Avatar } from "./avatar";
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card";
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+} from "./card";
+export { Badge, badgeVariants } from "./badge";
 export {
   Drawer,
   DrawerOverlay,

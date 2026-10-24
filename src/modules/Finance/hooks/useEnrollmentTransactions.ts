@@ -8,7 +8,11 @@ export function useEnrollmentTransactions(enrollmentId: number | null) {
     queryKey: FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId ?? 0),
     url: FINANCE_ENDPOINTS.ENROLLMENT_TRANSACTIONS(enrollmentId ?? 0),
     method: RequestMethod.GET,
-    options: { enabled: enrollmentId != null && enrollmentId > 0 },
+    options: {
+      enabled: enrollmentId != null && enrollmentId > 0,
+      staleTime: 0,
+      refetchOnMount: "always",
+    },
   });
 }
 

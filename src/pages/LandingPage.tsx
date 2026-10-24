@@ -11,7 +11,7 @@ import ScrollReveal from "@/components/website/ScrollReveal";
 import PublicCourseCard from "@/components/website/PublicCourseCard";
 import { Button } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight as NavArrowRight } from "lucide-react";
 import { getPublicCoursesFromResponse, usePublicCourses } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useMemo } from "react";

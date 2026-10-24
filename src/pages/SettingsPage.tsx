@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, HalfMoon, SunLight } from "iconoir-react";
+import { Globe, Moon as HalfMoon, Sun as SunLight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth";

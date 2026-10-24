@@ -9,7 +9,11 @@ export function useStudentActiveEnrollments(studentId: number | null) {
     queryKey: [...FINANCE_QUERY_KEYS.studentEnrollments, studentId],
     url: FINANCE_ENDPOINTS.STUDENT_ENROLLMENTS(studentId ?? 0),
     method: RequestMethod.GET,
-    options: { enabled: studentId != null && studentId > 0 },
+    options: {
+      enabled: studentId != null && studentId > 0,
+      staleTime: 0,
+      refetchOnMount: "always",
+    },
   });
 }
 

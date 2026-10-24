@@ -4,6 +4,8 @@ export type LessonPlaybackPayload = {
   type: "hls" | "progressive";
   src: string;
   qualities?: { label: string; src: string }[] | null;
+  /** Protected playback session; must be sent as the player header on every HLS request. */
+  session?: string | null;
 };
 
 /**
@@ -15,6 +17,9 @@ export function useLessonPlayback(lessonId: number | null, enabled: boolean) {
     url: lessonId != null ? `/lessons/${lessonId}/playback` : `/lessons/0/playback`,
     options: {
       enabled: enabled && lessonId != null,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 }

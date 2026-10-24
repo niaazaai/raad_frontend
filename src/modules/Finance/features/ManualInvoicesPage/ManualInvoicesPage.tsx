@@ -1,7 +1,7 @@
-import { useCallback, useMemo } from "react";
-import { Coins, Page, Plus, Wallet } from "iconoir-react";
+import { useCallback, useMemo, useState } from "react";
+import { Coins, File as Page, Plus, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
+import { Button, Card, CardContent, DataTable, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -16,11 +16,16 @@ import {
   useManualInvoiceTransactions,
 } from "../../hooks/useManualInvoiceTransactions";
 import type { ManualInvoiceTransactionRow } from "../../data/models/FinanceReport";
+import FinancePeriodFilter from "../../components/FinancePeriodFilter";
+import { defaultPeriodState, periodRange, type PeriodState } from "../../components/financeFormat";
 
 function formatMoney(value: unknown, currency?: string | null): string {
   const n = Number(value);
   if (Number.isNaN(n)) return "—";
-  const formatted = n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const formatted = n.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
   return currency ? `${formatted} ${currency}` : formatted;
 }
 
@@ -35,7 +40,11 @@ const ManualInvoicesPage = () => {
     searchDebounceMs: 400,
   });
 
+  const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("all"));
+  const range = periodRange(periodState);
+
   const { data, isLoading } = useManualInvoiceTransactions({
+    ...(range ? { from: range.from, to: range.to } : { all_time: true }),
     search: debouncedSearch || undefined,
     page: params.page,
     per_page: params.per_page,
@@ -72,7 +81,11 @@ const ManualInvoicesPage = () => {
           header: t("finance.serviceIncome.columns.transactionNumber"),
           sortable: false,
           render: (row) =>
-            row.transaction_id ? <span className="font-mono text-xs">{row.transaction_id}</span> : "—",
+            row.transaction_id ? (
+              <span className="font-mono text-xs">{row.transaction_id}</span>
+            ) : (
+              "—"
+            ),
         },
         {
           key: "invoice_number",
@@ -159,13 +172,15 @@ const ManualInvoicesPage = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 p-6">
+    <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {t("finance.serviceIncome.title")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("finance.serviceIncome.subtitle")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("finance.serviceIncome.subtitle")}
+          </p>
           <div className="mt-2">
             <PageBreadcrumb
               items={[
@@ -190,6 +205,19 @@ const ManualInvoicesPage = () => {
           ) : null}
         </div>
       </div>
+
+      <Card className="shadow-none">
+        <CardContent className="p-4">
+          <FinancePeriodFilter
+            value={periodState}
+            idPrefix="service-period"
+            onChange={(next) => {
+              setPeriodState(next);
+              updateParams({ page: 1 });
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-gradient-to-br from-success/8 via-card to-card p-5">
@@ -222,11 +250,17 @@ const ManualInvoicesPage = () => {
             </div>
           </div>
         </div>
-        <div className={cn("rounded-xl border border-border bg-gradient-to-br from-muted/40 via-card to-card p-5")}>
+        <div
+          className={cn(
+            "rounded-xl border border-border bg-gradient-to-br from-muted/40 via-card to-card p-5"
+          )}
+        >
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("finance.serviceIncome.count")}
           </p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{summary?.count ?? 0}</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+            {summary?.count ?? 0}
+          </p>
         </div>
       </div>
 

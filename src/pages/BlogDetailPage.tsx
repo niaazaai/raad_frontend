@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { NavArrowLeft } from "iconoir-react";
+import { ChevronLeft as NavArrowLeft } from "lucide-react";
 import LandingNavbar from "@/components/website/LandingNavbar";
 import WebsiteFooter from "@/components/website/WebsiteFooter";
 import { Spinner } from "@/components/ui/spinner";

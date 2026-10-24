@@ -6,22 +6,11 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Attachment,
-  Check,
-  CreditCard,
-  EditPencil,
-  Folder,
-  Page,
-  PageEdit,
-  Play,
-  Plus,
-  Search,
-  Timer,
-  Trash,
-} from "iconoir-react";
+import { Paperclip as Attachment, Check, CreditCard, Download, Pencil as EditPencil, ExternalLink, Folder, File as Page, FilePen as PageEdit, Play, Plus, Search, Timer, Trash2 as Trash } from "lucide-react";
+import { downloadMedia, openMediaInNewTab } from "@/lib/openMedia";
 import {
   Button,
+  Checkbox,
   Drawer,
   DrawerBody,
   DrawerContent,
@@ -46,6 +35,8 @@ import {
   COURSE_LEVEL_OPTIONS,
   CourseLanguage,
   CourseLevel,
+  courseLevelLabel,
+  isCourseLevelValue,
   type CourseLanguageValue,
   type CourseLevelValue,
 } from "@/data/enums/courseWizard";
@@ -69,7 +60,6 @@ const COURSE_DETAIL_FLAG_FIELDS = [
   "is_featured",
   "is_popular",
   "is_new",
-  "is_best_seller",
   "is_free",
 ] as const;
 
@@ -79,9 +69,12 @@ const COURSE_DETAIL_FLAG_LABELS: Record<CourseDetailFlagField, string> = {
   is_featured: "Featured",
   is_popular: "Popular",
   is_new: "New",
-  is_best_seller: "Best seller",
   is_free: "Free",
 };
+
+function toCourseFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
 
 /** Radix Select cannot use empty string — optional numeric FKs use this sentinel */
 const SELECT_NONE_VALUE = "__none__";
@@ -94,7 +87,12 @@ function stripHtmlToText(html: string): string {
 }
 
 const courseLanguageSchema = z.enum(["PASHTOO", "DARI", "ENGLISH"]);
-const courseLevelSchema = z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]);
+const courseLevelSchema = z.enum([
+  CourseLevel.ESSENTIAL,
+  CourseLevel.COMPREHENSIVE,
+  CourseLevel.PRACTICE_INTENSIVE,
+  CourseLevel.EXPERT_LED,
+]);
 
 const schema = z.object({
   course_main_category_id: z.coerce.number().min(1, "Main category is required"),
@@ -105,14 +103,13 @@ const schema = z.object({
   long_description: z.string().optional(),
   prerequisites: z.string().optional(),
   language: courseLanguageSchema.default(CourseLanguage.DARI),
-  level: courseLevelSchema.default(CourseLevel.INTERMEDIATE),
+  level: z.union([courseLevelSchema, z.literal("")]),
   thumbnail: z.string().optional(),
   banner: z.string().optional(),
   instructor_id: z.coerce.number().optional(),
   is_featured: z.boolean().default(false),
   is_popular: z.boolean().default(false),
   is_new: z.boolean().default(false),
-  is_best_seller: z.boolean().default(false),
   is_free: z.boolean().default(false),
 });
 
@@ -143,7 +140,7 @@ const steps: StepConfig[] = [
   {
     id: "lessons",
     title: "Lessons",
-    hint: "Modules & lesson videos",
+    hint: "Lessons and chapter files",
   },
   {
     id: "resources",
@@ -202,12 +199,8 @@ function normalizeCourseLanguage(raw: unknown): CourseLanguageValue {
   return CourseLanguage.DARI;
 }
 
-function normalizeCourseLevel(raw: unknown): CourseLevelValue {
-  const s = String(raw ?? "")
-    .trim()
-    .toUpperCase();
-  if (s === "BEGINNER" || s === "INTERMEDIATE" || s === "ADVANCED") return s;
-  return CourseLevel.INTERMEDIATE;
+function normalizeCourseLevel(raw: unknown): CourseLevelValue | "" {
+  return isCourseLevelValue(String(raw ?? "").trim()) ? (String(raw).trim() as CourseLevelValue) : "";
 }
 
 function mediaUrlForPreview(path: unknown): string | undefined {
@@ -219,11 +212,48 @@ function mediaUrlForPreview(path: unknown): string | undefined {
   return undefined;
 }
 
+function AttachmentFileActions({ url, label }: { url: string; label: string }) {
+  if (!url) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => openMediaInNewTab(url)}
+        aria-label={`Open ${label}`}
+        title="Open"
+      >
+        <ExternalLink className="h-4 w-4" strokeWidth={1.5} />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => void downloadMedia(url, fileLabelFromUrl(url) || label)}
+        aria-label={`Download ${label}`}
+        title="Download"
+      >
+        <Download className="h-4 w-4" strokeWidth={1.5} />
+      </Button>
+    </span>
+  );
+}
+
 function fileLabelFromUrl(path: unknown): string {
   const u = String(path ?? "").trim();
   if (!u) return "";
-  const seg = u.split(/[/\\]/).pop();
-  return seg && seg.length > 0 ? seg : u;
+  try {
+    const pathname = new URL(u, window.location.origin).pathname;
+    const seg = pathname.split("/").pop();
+    return seg && seg.length > 0 ? decodeURIComponent(seg) : u;
+  } catch {
+    const withoutQuery = u.split("?")[0] ?? u;
+    const seg = withoutQuery.split(/[/\\]/).pop();
+    return seg && seg.length > 0 ? seg : u;
+  }
 }
 
 function truncateDescription(raw: unknown, max = DESC_MAX_LEN): string {
@@ -523,6 +553,11 @@ const CourseWizardPage = () => {
     effectiveCourseId != null ? { course_id: effectiveCourseId, per_page: 200 } : undefined,
     { enabled: effectiveCourseId != null }
   );
+  const assignmentsQuery = useCourseEntityList(
+    effectiveCourseId != null ? "assignments" : null,
+    effectiveCourseId != null ? { course_id: effectiveCourseId, per_page: 200 } : undefined,
+    { enabled: effectiveCourseId != null }
+  );
 
   const createMutation = useCreateCourseEntity("courses");
   const updateMutation = useUpdateCourseEntity("courses");
@@ -540,6 +575,9 @@ const CourseWizardPage = () => {
   const deleteQuizMutation = useDeleteCourseEntity("quiz-files");
   const createMockTestMutation = useCreateCourseEntity("mock-tests");
   const deleteMockTestMutation = useDeleteCourseEntity("mock-tests");
+  const createAssignmentMutation = useCreateCourseEntity("assignments");
+  const updateAssignmentMutation = useUpdateCourseEntity("assignments");
+  const deleteAssignmentMutation = useDeleteCourseEntity("assignments");
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
@@ -551,16 +589,16 @@ const CourseWizardPage = () => {
       is_featured: false,
       is_popular: false,
       is_new: false,
-      is_best_seller: false,
       is_free: false,
       language: CourseLanguage.DARI,
-      level: CourseLevel.INTERMEDIATE,
+      level: editId != null ? "" : CourseLevel.ESSENTIAL,
     },
   });
 
   const { register, handleSubmit, setValue, watch, control, formState, getValues, trigger } =
     form;
 
+  const [savedLegacyLevel, setSavedLegacyLevel] = useState<string | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
 
@@ -586,6 +624,23 @@ const CourseWizardPage = () => {
 
   const [mockTestFiles, setMockTestFiles] = useState<File[]>([]);
   const [mockTestsUploading, setMockTestsUploading] = useState(false);
+
+  const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false);
+  const [assignmentDraft, setAssignmentDraft] = useState<{
+    moduleId: number;
+    id: number | null;
+    title: string;
+    description: string;
+    file: File | null;
+    existingFileUrl: string | null;
+  }>({
+    moduleId: 0,
+    id: null,
+    title: "",
+    description: "",
+    file: null,
+    existingFileUrl: null,
+  });
 
   const [lessonDrawerOpen, setLessonDrawerOpen] = useState(false);
   const [lessonDraft, setLessonDraft] = useState<{
@@ -667,16 +722,18 @@ const CourseWizardPage = () => {
     setValue("long_description", String(detail.long_description ?? ""));
     setValue("prerequisites", String(detail.prerequisites ?? ""));
     setValue("language", normalizeCourseLanguage(detail.language));
-    setValue("level", normalizeCourseLevel(detail.level));
+    const nextLevel = normalizeCourseLevel(detail.level);
+    setValue("level", nextLevel);
+    const rawLevel = String(detail.level ?? "").trim();
+    setSavedLegacyLevel(nextLevel || !rawLevel ? null : rawLevel);
     setValue("thumbnail", String(detail.thumbnail ?? ""));
     setValue("banner", String(detail.banner ?? ""));
     const instructorId = Number(detail.instructor_id ?? 0);
     setValue("instructor_id", instructorId > 0 ? instructorId : undefined);
-    setValue("is_featured", Boolean(detail.is_featured));
-    setValue("is_popular", Boolean(detail.is_popular));
-    setValue("is_new", Boolean(detail.is_new));
-    setValue("is_best_seller", Boolean(detail.is_best_seller));
-    setValue("is_free", Boolean(detail.is_free));
+    setValue("is_featured", toCourseFlag(detail.is_featured));
+    setValue("is_popular", toCourseFlag(detail.is_popular));
+    setValue("is_new", toCourseFlag(detail.is_new));
+    setValue("is_free", toCourseFlag(detail.is_free));
     setThumbnailFile(null);
     setBannerFile(null);
     const planIdsRaw = detail.subscription_plan_ids;
@@ -703,6 +760,10 @@ const CourseWizardPage = () => {
   const lessonsRowsStep = useMemo(
     () => getCourseListFromResponse(lessonsQuery.data),
     [lessonsQuery.data]
+  );
+  const assignmentRowsStep = useMemo(
+    () => getCourseListFromResponse(assignmentsQuery.data),
+    [assignmentsQuery.data]
   );
 
   const mainSelected = Boolean(selectedMain && Number(selectedMain) > 0);
@@ -732,16 +793,15 @@ const CourseWizardPage = () => {
       long_description: values.long_description,
       prerequisites: values.prerequisites,
       language: values.language,
-      level: values.level,
       instructor_id: values.instructor_id,
-      is_featured: values.is_featured,
-      is_popular: values.is_popular,
-      is_new: values.is_new,
-      is_best_seller: values.is_best_seller,
-      is_free: values.is_free,
+      is_featured: toCourseFlag(values.is_featured),
+      is_popular: toCourseFlag(values.is_popular),
+      is_new: toCourseFlag(values.is_new),
+      is_free: toCourseFlag(values.is_free),
       status: "active",
       subscription_plan_ids: selectedSubscriptionPlanIds,
     };
+    if (values.level) payload.level = values.level;
 
     if (thumbnailFile) {
       payload.thumbnail_file = thumbnailFile;
@@ -810,13 +870,12 @@ const CourseWizardPage = () => {
       long_description: values.long_description,
       prerequisites: values.prerequisites,
       language: values.language,
-      level: values.level,
+      ...(values.level ? { level: values.level } : {}),
       instructor_id: values.instructor_id,
-      is_featured: values.is_featured,
-      is_popular: values.is_popular,
-      is_new: values.is_new,
-      is_best_seller: values.is_best_seller,
-      is_free: values.is_free,
+      is_featured: toCourseFlag(values.is_featured),
+      is_popular: toCourseFlag(values.is_popular),
+      is_new: toCourseFlag(values.is_new),
+      is_free: toCourseFlag(values.is_free),
       status: "active",
       subscription_plan_ids: selectedSubscriptionPlanIds,
     };
@@ -895,7 +954,7 @@ const CourseWizardPage = () => {
   const uploadQueueRef = useRef<Array<() => void>>([]);
   /** Count of uploads currently running (not queued). */
   const activeUploadCountRef = useRef(0);
-  const MAX_CONCURRENT_UPLOADS = 3;
+  const MAX_CONCURRENT_UPLOADS = 4;
 
   const processUploadQueue = useCallback(() => {
     while (
@@ -922,7 +981,7 @@ const CourseWizardPage = () => {
             })),
         })
           .then(() => {
-            toast.success("Video uploaded; transcoding started.");
+            toast.success("Video uploaded. Transcoding will run in the background.");
             setLessonVideoUploadPct((prev) => {
               const next = { ...prev };
               delete next[lessonId];
@@ -1321,7 +1380,8 @@ const CourseWizardPage = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid items-start gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="min-w-0 space-y-1.5">
                   <FieldLabel htmlFor="course-language">Language</FieldLabel>
                   <Controller
@@ -1353,18 +1413,32 @@ const CourseWizardPage = () => {
                     name="level"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange} disabled={viewMode}>
-                        <SelectTrigger id="course-level">
-                          <SelectValue placeholder="Difficulty" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COURSE_LEVEL_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select
+                          value={field.value || undefined}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSavedLegacyLevel(null);
+                          }}
+                          disabled={viewMode}
+                        >
+                          <SelectTrigger id="course-level">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COURSE_LEVEL_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {savedLegacyLevel ? (
+                          <p className="text-xs text-muted-foreground">
+                            Saved as {courseLevelLabel(savedLegacyLevel)}. Choose a level to replace it.
+                          </p>
+                        ) : null}
+                      </>
                     )}
                   />
                 </div>
@@ -1406,9 +1480,49 @@ const CourseWizardPage = () => {
                     }}
                   />
                 </div>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="block text-sm font-medium leading-none" aria-hidden>
+                    {"\u00A0"}
+                  </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {COURSE_DETAIL_FLAG_FIELDS.map((key) => (
+                    <Controller
+                      key={key}
+                      name={key}
+                      control={control}
+                      render={({ field }) => {
+                        const checked = toCourseFlag(field.value);
+                        return (
+                          <label
+                            htmlFor={`course-flag-${key}`}
+                            className={cn(
+                              "relative flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 transition-colors",
+                              "hover:border-primary/40 hover:bg-muted/30",
+                              checked && "border-primary bg-primary/10",
+                              viewMode && "pointer-events-none opacity-60"
+                            )}
+                          >
+                            <Checkbox
+                              id={`course-flag-${key}`}
+                              checked={checked}
+                              onCheckedChange={(next) => field.onChange(next === true)}
+                              disabled={viewMode}
+                              aria-label={COURSE_DETAIL_FLAG_LABELS[key]}
+                            />
+                            <span className="truncate text-sm font-medium leading-none text-foreground">
+                              {COURSE_DETAIL_FLAG_LABELS[key]}
+                            </span>
+                          </label>
+                        );
+                      }}
+                    />
+                  ))}
+                </div>
+                </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid items-stretch gap-4 lg:grid-cols-2">
                 <ImageDropzone
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   label="Thumbnail"
@@ -1436,42 +1550,6 @@ const CourseWizardPage = () => {
                   initialPreviewName={(watch("banner") ?? "").trim() || null}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {COURSE_DETAIL_FLAG_FIELDS.map((key) => (
-                  <label
-                    key={key}
-                    className={cn(
-                      "relative flex min-h-[72px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card px-2 py-3 text-center shadow-sm transition-colors",
-                      "hover:border-primary/35 hover:bg-muted/20",
-                      "[&:has(:checked)]:border-primary [&:has(:checked)]:bg-primary/10",
-                      viewMode && "pointer-events-none opacity-60"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className="peer sr-only"
-                      {...register(key)}
-                      disabled={viewMode}
-                    />
-                    <span
-                      className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-background transition-all duration-200 ease-out",
-                        "peer-checked:border-primary peer-checked:bg-primary",
-                        "peer-checked:[&_svg]:scale-100 peer-checked:[&_svg]:opacity-100"
-                      )}
-                    >
-                      <Check
-                        className="h-3.5 w-3.5 scale-50 stroke-[2.5] text-white opacity-0 transition-all duration-200 ease-out"
-                        aria-hidden
-                      />
-                    </span>
-                    <span className="text-xs font-medium leading-snug text-foreground">
-                      {COURSE_DETAIL_FLAG_LABELS[key]}
-                    </span>
-                  </label>
-                ))}
-              </div>
             </div>
           )}
 
@@ -1495,7 +1573,7 @@ const CourseWizardPage = () => {
                   here.
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {planCatalogRows.map((row) => {
                     const pid = Number(row.id);
                     const selected = selectedSubscriptionPlanIds.includes(pid);
@@ -1504,7 +1582,12 @@ const CourseWizardPage = () => {
                     const plain = stripHtmlToText(String(row.plan_description ?? ""));
                     const excerpt =
                       plain.length > 160 ? `${plain.slice(0, 160)}…` : plain || "No description";
-                    const price = row.price != null && row.price !== "" ? String(row.price) : "—";
+                    const price =
+                      typeof row.price_label === "string" && row.price_label.trim() !== ""
+                        ? row.price_label
+                        : row.price != null && row.price !== ""
+                          ? `${String(row.price)} AFN`
+                          : "—";
                     const duration =
                       row.duration_in_days != null && Number(row.duration_in_days) > 0
                         ? `${row.duration_in_days} days`
@@ -1516,36 +1599,57 @@ const CourseWizardPage = () => {
                         type="button"
                         disabled={viewMode || atMax}
                         onClick={() => toggleSubscriptionPlanSelection(pid)}
+                        aria-pressed={selected}
                         className={cn(
-                          "relative flex flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition-all",
+                          "flex h-full flex-col overflow-hidden rounded-xl border bg-card text-start transition-colors",
                           selected
-                            ? "border-primary ring-2 ring-primary/30"
+                            ? "border-primary bg-primary/[0.04]"
                             : "border-border hover:border-primary/40",
                           (viewMode || atMax) && !selected && "cursor-not-allowed opacity-50"
                         )}
                       >
-                        {selected ? (
+                        <div className="flex items-start gap-3 p-4">
                           <span
-                            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                            className={cn(
+                              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                              selected
+                                ? "border-primary bg-primary text-white"
+                                : "border-border bg-background"
+                            )}
                             aria-hidden
                           >
-                            <Check className="h-4 w-4" strokeWidth={2.5} />
+                            {selected ? <Check className="h-3 w-3" strokeWidth={2.5} /> : null}
                           </span>
-                        ) : null}
-                        <p className="pr-10 font-semibold text-foreground">{name}</p>
-                        <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{excerpt}</p>
-                        <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-xs">
-                          <div>
-                            <dt className="text-muted-foreground">Price</dt>
-                            <dd className="font-medium text-foreground">{price}</dd>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-base font-semibold leading-snug text-foreground">{name}</p>
+                              <span className="shrink-0 rounded-full bg-success px-2 py-0.5 text-[10px] font-medium capitalize text-white">
+                                {subType}
+                              </span>
+                            </div>
+                            <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                              {excerpt}
+                            </p>
                           </div>
-                          <div>
-                            <dt className="text-muted-foreground">Duration</dt>
-                            <dd className="font-medium text-foreground">{duration}</dd>
+                        </div>
+                        <dl className="mt-auto grid grid-cols-3 divide-x divide-border border-t border-border rtl:divide-x-reverse">
+                          <div className="px-3 py-3">
+                            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Price
+                            </dt>
+                            <dd className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums text-foreground">{price}</dd>
                           </div>
-                          <div>
-                            <dt className="text-muted-foreground">Type</dt>
-                            <dd className="font-medium capitalize text-foreground">{subType}</dd>
+                          <div className="px-3 py-3">
+                            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Duration
+                            </dt>
+                            <dd className="mt-1 text-sm font-semibold text-foreground">{duration}</dd>
+                          </div>
+                          <div className="px-3 py-3">
+                            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Type
+                            </dt>
+                            <dd className="mt-1 text-sm font-semibold capitalize text-foreground">{subType}</dd>
                           </div>
                         </dl>
                       </button>
@@ -1575,7 +1679,7 @@ const CourseWizardPage = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Lessons</h3>
                   <p className="text-sm text-muted-foreground">
-                    Modules (Faasl) group your lesson videos — expand each module to manage lessons.
+                    Each module holds lesson videos and chapter files — notes, summaries, and practice sheets.
                   </p>
                 </div>
                 {!viewMode ? (
@@ -1604,6 +1708,31 @@ const CourseWizardPage = () => {
                     const lessonsForModule = lessonsRowsStep.filter(
                       (row) => Number(row.course_module_id) === mid
                     );
+                    const assignmentsForModule = assignmentRowsStep.filter(
+                      (row) => Number(row.course_module_id) === mid
+                    );
+                    const openNewLesson = () => {
+                      setLessonDraft({
+                        moduleId: mid,
+                        lessonId: null,
+                        title: "",
+                        description: "",
+                        videoFile: null,
+                        existingVideoUrl: null,
+                      });
+                      setLessonDrawerOpen(true);
+                    };
+                    const openNewAssignment = () => {
+                      setAssignmentDraft({
+                        moduleId: mid,
+                        id: null,
+                        title: "",
+                        description: "",
+                        file: null,
+                        existingFileUrl: null,
+                      });
+                      setAssignmentDrawerOpen(true);
+                    };
                     return (
                       <div key={mid} className="overflow-hidden rounded-lg border border-border bg-card">
                         <div className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
@@ -1651,38 +1780,22 @@ const CourseWizardPage = () => {
                           ) : null}
                         </div>
                         {open ? (
-                          <div className="space-y-2 border-t border-border bg-muted/10 px-4 py-3">
+                          <div className="grid grid-cols-1 border-t border-border lg:grid-cols-2">
+                            <div className="flex min-w-0 flex-col lg:border-e lg:border-border">
                             {lessonsForModule.length === 0 ? (
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-xs text-muted-foreground">
-                                  No lessons in this module yet — add a lesson title, then optionally attach
-                                  a video (upload runs in the background after you save).
+                              <div className="flex min-h-48 flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Lessons
                                 </p>
-                                {!viewMode ? (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="shrink-0 self-start sm:self-center"
-                                    onClick={() => {
-                                      setLessonDraft({
-                                        moduleId: mid,
-                                        lessonId: null,
-                                        title: "",
-                                        description: "",
-                                        videoFile: null,
-                                        existingVideoUrl: null,
-                                      });
-                                      setLessonDrawerOpen(true);
-                                    }}
-                                  >
-                                    <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                                    Add lesson
-                                  </Button>
-                                ) : null}
+                                <p className="mt-2 text-sm text-muted-foreground">No lessons in this module yet.</p>
                               </div>
                             ) : (
-                              lessonsForModule.map((lesson) => {
+                              <div className="space-y-3 px-4 py-4">
+                              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Lessons
+                              </p>
+                              <div className="grid grid-cols-1 gap-3">
+                              {lessonsForModule.map((lesson) => {
                                 const lid = Number(lesson.id);
                                 const pct = lessonVideoUploadPct[lid];
                                 const isQueued = pct === -1;
@@ -1694,12 +1807,17 @@ const CourseWizardPage = () => {
                                 return (
                                   <div
                                     key={lid}
-                                    className="space-y-2 rounded-md border border-border bg-background px-3 py-2"
+                                    className="flex h-full flex-col gap-2 rounded-xl border border-border bg-background p-3"
                                   >
-                                    <div className="flex items-center justify-between gap-3">
-                                      <span className="min-w-0 truncate text-sm font-medium">
-                                        {String(lesson.title ?? "")}
-                                      </span>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-foreground">
+                                          {String(lesson.title ?? "")}
+                                        </p>
+                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                          {truncateDescription(lesson.description, 120) || "No description"}
+                                        </p>
+                                      </div>
                                       {!viewMode ? (
                                         <span className="flex shrink-0 items-center gap-1">
                                           <Button
@@ -1765,39 +1883,139 @@ const CourseWizardPage = () => {
                                           )}
                                         </div>
                                       </div>
-                                    ) : vStatus && vStatus !== "ready" ? (
-                                      <p className="text-[11px] capitalize text-muted-foreground">
+                                    ) : (
+                                      <p className="text-[11px] text-muted-foreground">
                                         {vStatus === "failed"
                                           ? `Video failed: ${String(lesson.video_error ?? "Error")}`
-                                          : `Video: ${vStatus.replace(/_/g, " ")}`}
+                                          : vStatus === "ready"
+                                            ? "Video ready"
+                                            : vStatus === "queued"
+                                              ? "Uploaded — transcoding queued"
+                                              : vStatus
+                                                ? `Video: ${vStatus.replace(/_/g, " ")}`
+                                                : "No video yet"}
                                       </p>
-                                    ) : null}
+                                    )}
                                   </div>
                                 );
-                              })
+                              })}
+                              </div>
+                              </div>
                             )}
                             {!viewMode ? (
-                              <Button
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
-                                className="mt-1"
-                                onClick={() => {
-                                  setLessonDraft({
-                                    moduleId: mid,
-                                    lessonId: null,
-                                    title: "",
-                                    description: "",
-                                    videoFile: null,
-                                    existingVideoUrl: null,
-                                  });
-                                  setLessonDrawerOpen(true);
-                                }}
+                                onClick={openNewLesson}
+                                className="mt-auto flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-muted/40"
                               >
-                                <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                                <Plus className="h-4 w-4" strokeWidth={1.5} />
                                 Add lesson
-                              </Button>
+                              </button>
                             ) : null}
+                            </div>
+                            <div className="flex min-w-0 flex-col border-t border-border lg:border-t-0">
+                              {assignmentsForModule.length === 0 ? (
+                                <div className="flex min-h-48 flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Chapter files
+                                  </p>
+                                  <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                                    PDF notes, class summaries, and Word or Excel practice files for this module.
+                                  </p>
+                                  <p className="mt-2 text-sm text-muted-foreground">No chapter files yet.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-3 px-4 py-4">
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Chapter files
+                                  </p>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    PDF notes, class summaries, and Word or Excel practice files for this module.
+                                  </p>
+                                </div>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {assignmentsForModule.map((fileRow) => {
+                                      const aid = Number(fileRow.id);
+                                      const atitle = String(fileRow.title ?? "");
+                                      const adesc = truncateDescription(fileRow.description, 120);
+                                      const aurl = String(fileRow.assignment_file_url ?? "");
+                                      return (
+                                        <div
+                                          key={aid}
+                                          className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex min-w-0 items-start gap-2">
+                                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                                <Page className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                                              </span>
+                                              <div className="min-w-0">
+                                                <p className="truncate text-sm font-semibold text-foreground">{atitle}</p>
+                                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                  {adesc || fileLabelFromUrl(aurl) || "File attached"}
+                                                </p>
+                                              </div>
+                                            </div>
+                                            <span className="flex shrink-0 items-center gap-1">
+                                              <AttachmentFileActions url={aurl} label={atitle || "chapter file"} />
+                                              {!viewMode ? (
+                                                <>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-2"
+                                                    onClick={() => {
+                                                      setAssignmentDraft({
+                                                        moduleId: mid,
+                                                        id: aid,
+                                                        title: atitle,
+                                                        description: String(fileRow.description ?? ""),
+                                                        file: null,
+                                                        existingFileUrl: aurl || null,
+                                                      });
+                                                      setAssignmentDrawerOpen(true);
+                                                    }}
+                                                    aria-label="Edit chapter file"
+                                                  >
+                                                    <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                                                  </Button>
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 px-2 text-danger hover:text-danger"
+                                                    onClick={() =>
+                                                      deleteAssignmentMutation.mutate(aid, {
+                                                        onSuccess: () => invalidateCourseLists(),
+                                                      })
+                                                    }
+                                                    aria-label="Delete chapter file"
+                                                  >
+                                                    <Trash className="h-4 w-4" strokeWidth={1.5} />
+                                                  </Button>
+                                                </>
+                                              ) : null}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              {!viewMode ? (
+                                <button
+                                  type="button"
+                                  onClick={openNewAssignment}
+                                  className="mt-auto flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-muted/40"
+                                >
+                                  <Plus className="h-4 w-4" strokeWidth={1.5} />
+                                  Add chapter file
+                                </button>
+                              ) : null}
+                            </div>
                           </div>
                         ) : null}
                       </div>
@@ -1805,6 +2023,133 @@ const CourseWizardPage = () => {
                   })}
                 </div>
               )}
+
+              <Drawer open={assignmentDrawerOpen} onClose={() => setAssignmentDrawerOpen(false)}>
+                <DrawerOverlay />
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>
+                      {assignmentDraft.id != null ? "Edit chapter file" : "Add chapter file"}
+                    </DrawerTitle>
+                  </DrawerHeader>
+                  <DrawerBody>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="assignment-drawer-title">Title</Label>
+                        <Input
+                          id="assignment-drawer-title"
+                          value={assignmentDraft.title}
+                          onChange={(e) =>
+                            setAssignmentDraft((d) => ({ ...d, title: e.target.value }))
+                          }
+                          placeholder="Chapter notes, summary, or practice sheet"
+                          disabled={viewMode}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="assignment-drawer-description">Description</Label>
+                        <textarea
+                          id="assignment-drawer-description"
+                          className={textAreaClassName}
+                          value={assignmentDraft.description}
+                          onChange={(e) =>
+                            setAssignmentDraft((d) => ({ ...d, description: e.target.value }))
+                          }
+                          placeholder="What this file is for"
+                          disabled={viewMode}
+                        />
+                      </div>
+                      <ImageDropzone
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        label="File"
+                        hint="PDF, Word, or Excel — up to 20 MB"
+                        value={assignmentDraft.file}
+                        onSelect={(file) => setAssignmentDraft((d) => ({ ...d, file }))}
+                        previewMode="square"
+                        initialPreviewUrl={
+                          assignmentDraft.file
+                            ? null
+                            : mediaUrlForPreview(assignmentDraft.existingFileUrl)
+                        }
+                        initialPreviewName={
+                          assignmentDraft.file
+                            ? null
+                            : fileLabelFromUrl(assignmentDraft.existingFileUrl) || null
+                        }
+                      />
+                    </div>
+                  </DrawerBody>
+                  <DrawerFooter>
+                    <Button type="button" variant="outline" onClick={() => setAssignmentDrawerOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={
+                        viewMode ||
+                        createAssignmentMutation.isPending ||
+                        updateAssignmentMutation.isPending ||
+                        assignmentDraft.moduleId <= 0 ||
+                        (assignmentDraft.id == null &&
+                          !assignmentDraft.title.trim() &&
+                          assignmentDraft.file == null) ||
+                        (assignmentDraft.id == null && assignmentDraft.file == null)
+                      }
+                      onClick={() => {
+                        const cid = effectiveCourseId;
+                        if (!cid || assignmentDraft.moduleId <= 0) return;
+                        const title =
+                          assignmentDraft.title.trim() ||
+                          (assignmentDraft.file?.name ? assignmentDraft.file.name : "Untitled");
+                        if (assignmentDraft.id != null) {
+                          const body: Record<string, unknown> = {
+                            course_id: cid,
+                            course_module_id: assignmentDraft.moduleId,
+                            title,
+                            description: assignmentDraft.description.trim(),
+                          };
+                          if (assignmentDraft.file) body.assignment_file = assignmentDraft.file;
+                          updateAssignmentMutation.mutate(
+                            { id: assignmentDraft.id, body },
+                            {
+                              onSuccess: () => {
+                                invalidateCourseLists();
+                                setAssignmentDrawerOpen(false);
+                              },
+                            }
+                          );
+                          return;
+                        }
+                        if (!assignmentDraft.file) return;
+                        createAssignmentMutation.mutate(
+                          {
+                            course_id: cid,
+                            course_module_id: assignmentDraft.moduleId,
+                            title,
+                            description: assignmentDraft.description.trim(),
+                            assignment_file: assignmentDraft.file,
+                            status: "active",
+                          },
+                          {
+                            onSuccess: () => {
+                              invalidateCourseLists();
+                              setAssignmentDrawerOpen(false);
+                            },
+                          }
+                        );
+                      }}
+                    >
+                      {createAssignmentMutation.isPending || updateAssignmentMutation.isPending ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : assignmentDraft.id != null ? (
+                        "Save changes"
+                      ) : (
+                        "Add file"
+                      )}
+                    </Button>
+                  </DrawerFooter>
+                </DrawerContent>
+              </Drawer>
             </div>
           )}
 
@@ -1853,42 +2198,45 @@ const CourseWizardPage = () => {
                         key={rid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2"
-                              onClick={() => {
-                                setResourceDraft({
-                                  id: rid,
-                                  title: rtitle,
-                                  file: null,
-                                  existingFileUrl: rurl || null,
-                                });
-                                setResourceDrawerOpen(true);
-                              }}
-                              aria-label="Edit resource"
-                            >
-                              <EditPencil className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-danger hover:text-danger"
-                              onClick={() =>
-                                deleteResourceMutation.mutate(rid, {
-                                  onSuccess: () => invalidateCourseLists(),
-                                })
-                              }
-                              aria-label="Delete resource"
-                            >
-                              <Trash className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                          </div>
-                        ) : null}
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={rurl} label={rtitle || "resource"} />
+                          {!viewMode ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => {
+                                  setResourceDraft({
+                                    id: rid,
+                                    title: rtitle,
+                                    file: null,
+                                    existingFileUrl: rurl || null,
+                                  });
+                                  setResourceDrawerOpen(true);
+                                }}
+                                aria-label="Edit resource"
+                              >
+                                <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-danger hover:text-danger"
+                                onClick={() =>
+                                  deleteResourceMutation.mutate(rid, {
+                                    onSuccess: () => invalidateCourseLists(),
+                                  })
+                                }
+                                aria-label="Delete resource"
+                              >
+                                <Trash className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Attachment className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
@@ -2111,8 +2459,9 @@ const CourseWizardPage = () => {
                         key={mid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={murl} label={mtitle || "mock test"} />
+                          {!viewMode ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -2127,8 +2476,8 @@ const CourseWizardPage = () => {
                             >
                               <Trash className="h-4 w-4" strokeWidth={1.5} />
                             </Button>
-                          </div>
-                        ) : null}
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Timer className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
@@ -2193,42 +2542,45 @@ const CourseWizardPage = () => {
                         key={qid}
                         className="group relative overflow-hidden rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                       >
-                        {!viewMode ? (
-                          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2"
-                              onClick={() => {
-                                setQuizDraft({
-                                  id: qid,
-                                  title: qtitle,
-                                  file: null,
-                                  existingFileUrl: qurl || null,
-                                });
-                                setQuizDrawerOpen(true);
-                              }}
-                              aria-label="Edit quiz file"
-                            >
-                              <EditPencil className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-danger hover:text-danger"
-                              onClick={() =>
-                                deleteQuizMutation.mutate(qid, {
-                                  onSuccess: () => invalidateCourseLists(),
-                                })
-                              }
-                              aria-label="Delete quiz file"
-                            >
-                              <Trash className="h-4 w-4" strokeWidth={1.5} />
-                            </Button>
-                          </div>
-                        ) : null}
+                        <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md bg-card/90 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                          <AttachmentFileActions url={qurl} label={qtitle || "quiz file"} />
+                          {!viewMode ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2"
+                                onClick={() => {
+                                  setQuizDraft({
+                                    id: qid,
+                                    title: qtitle,
+                                    file: null,
+                                    existingFileUrl: qurl || null,
+                                  });
+                                  setQuizDrawerOpen(true);
+                                }}
+                                aria-label="Edit quiz file"
+                              >
+                                <EditPencil className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-danger hover:text-danger"
+                                onClick={() =>
+                                  deleteQuizMutation.mutate(qid, {
+                                    onSuccess: () => invalidateCourseLists(),
+                                  })
+                                }
+                                aria-label="Delete quiz file"
+                              >
+                                <Trash className="h-4 w-4" strokeWidth={1.5} />
+                              </Button>
+                            </>
+                          ) : null}
+                        </div>
                         <div className="flex items-start gap-3 pr-14">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Page className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
@@ -2539,6 +2891,7 @@ const CourseWizardPage = () => {
         </div>
       ) : null}
 
+      {lessonDrawerOpen ? (
       <Drawer open={lessonDrawerOpen} onClose={closeLessonDrawer}>
         <DrawerOverlay />
         <DrawerContent>
@@ -2674,6 +3027,7 @@ const CourseWizardPage = () => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+      ) : null}
     </div>
   );
 };
