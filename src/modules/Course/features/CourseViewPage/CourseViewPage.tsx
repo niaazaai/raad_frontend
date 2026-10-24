@@ -30,6 +30,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { CONTACT_INFO } from "@/components/website/websiteData";
 import { useAuth } from "@/features/auth";
 import { AuthStatus } from "@/data/enums";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { cn } from "@/lib/utils";
 import { RequestMethod } from "@/data/constants/methods";
 import { useMutationApi } from "@/hooks";
@@ -61,16 +62,6 @@ function formatMoney(amount: string | number | null | undefined): string {
 
 function stripHtml(text: string): string {
   return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function sanitizeRichText(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-    .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
-    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
-    .replace(/javascript:/gi, "");
 }
 
 /** API may send strings or numbers (e.g. decimal duration). */
@@ -458,7 +449,7 @@ const CourseViewPage = () => {
                 looksLikeHtml(shortDesc) ? (
                   <div
                     className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(shortDesc) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(shortDesc) }}
                   />
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{shortDesc}</p>
@@ -468,7 +459,7 @@ const CourseViewPage = () => {
                 looksLikeHtml(longDesc) ? (
                   <div
                     className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(longDesc) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(longDesc) }}
                   />
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{longDesc}</p>
@@ -482,7 +473,7 @@ const CourseViewPage = () => {
                 {looksLikeHtml(prerequisites) ? (
                   <div
                     className="prose-custom max-w-none text-sm leading-relaxed text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(prerequisites) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(prerequisites) }}
                   />
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{prerequisites}</p>
