@@ -1,10 +1,7 @@
 /**
- * Generic object with any keys and values
+ * Loose JSON object. Values are `unknown` so callers narrow before use.
  */
-export interface ObjectAny {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
-}
+export type ObjectAny = Record<string, unknown>;
 
 /**
  * Lookup option for select inputs
