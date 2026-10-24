@@ -6,6 +6,7 @@ import { callApi, fetchCsrfCookie } from "@/services";
 import { API_ENDPOINTS } from "@/data/constants/endpoints";
 import { RequestMethod } from "@/data/constants/methods";
 import { toast } from "sonner";
+import { translate } from "@/i18n/translate";
 
 const VerifyEmailPage = () => {
   const location = useLocation();
@@ -25,13 +26,16 @@ const VerifyEmailPage = () => {
       const response = await callApi({
         url: API_ENDPOINTS.AUTH.EMAIL_RESEND,
         method: RequestMethod.POST,
+        shouldPopError: false,
+        shouldPopSuccess: false,
         data: { email: targetEmail },
       });
-      const body = response.data as { success?: boolean; message?: string };
-      if (response.ok && body?.success !== false) {
-        toast.success(body?.message ?? "Verification link sent. Check your email.");
+      if (response.status === 429) {
+        toast.error(translate("common.tooManyAttempts"));
+      } else if (response.ok) {
+        toast.success(translate("auth.verificationIfExists"));
       } else {
-        toast.error(body?.message ?? "Failed to send verification email.");
+        toast.error(translate("common.unexpectedError"));
       }
     } catch {
       toast.error("Failed to send verification email.");
