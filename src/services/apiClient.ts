@@ -11,10 +11,24 @@ export const CSRF_COOKIE_PATH = "/sanctum/csrf-cookie";
 
 /**
  * Absolute origin for rare cases (e.g. debugging). Prefer relative paths in the UI.
+ * No hard-coded host: a missing env var outside the browser fails the build/start.
  */
 export function getApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
   if (typeof window !== "undefined") return window.location.origin;
-  return import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  throw new Error(
+    "VITE_API_BASE_URL is not set and window is unavailable. Refusing to call a hard-coded host."
+  );
+}
+
+function isCrossOriginRequest(url: string | undefined): boolean {
+  if (!url || typeof window === "undefined") return false;
+  try {
+    return new URL(url, window.location.origin).origin !== window.location.origin;
+  } catch {
+    return false;
+  }
 }
 
 const apiClient: ApisauceInstance = create({
@@ -27,8 +41,9 @@ const apiClient: ApisauceInstance = create({
   timeout: 30000,
 });
 
-/** Attach the XSRF-TOKEN cookie value as a header on every request. */
+/** Attach the XSRF-TOKEN cookie value on same-origin requests only. */
 apiClient.addRequestTransform((request) => {
+  if (isCrossOriginRequest(request.url)) return;
   const xsrfToken = getCookie("XSRF-TOKEN");
   if (xsrfToken && request.headers) {
     request.headers["X-XSRF-TOKEN"] = decodeURIComponent(xsrfToken);
