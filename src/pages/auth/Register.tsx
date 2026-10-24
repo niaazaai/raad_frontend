@@ -9,6 +9,7 @@ import { callApi, fetchCsrfCookie } from "@/services";
 import { API_ENDPOINTS } from "@/data/constants/endpoints";
 import { RequestMethod } from "@/data/constants/methods";
 import { cn } from "@/lib/utils";
+import { translate } from "@/i18n/translate";
 
 const authFormLightScope =
   "[color-scheme:light] text-foreground [--background:#ffffff] [--foreground:#071437] [--muted-foreground:#64748b] [--border:#e5e7eb] [--input:#e5e7eb] [--ring:#0069B4] [--card:#ffffff] [--accent:#f1f5f9] [--accent-foreground:#071437] [--secondary-foreground:#071437]";
@@ -36,6 +37,8 @@ const RegisterPage = () => {
       const response = await callApi({
         url: API_ENDPOINTS.AUTH.REGISTER,
         method: RequestMethod.POST,
+        shouldPopError: false,
+        shouldPopSuccess: false,
         data: {
           name: data.name,
           email: data.email,
@@ -61,8 +64,12 @@ const RegisterPage = () => {
             state: { registered: true, email: body?.email ?? data.email },
           });
         }
+      } else if (response.status === 429) {
+        setSubmitError(translate("common.tooManyAttempts"));
+      } else if ((response.status ?? 0) >= 500) {
+        setSubmitError(translate("common.unexpectedError"));
       } else {
-        setSubmitError((body?.message as string) || "Registration failed. Please try again.");
+        setSubmitError(body?.message || "Registration failed. Please try again.");
       }
     } catch {
       setSubmitError("An error occurred. Please try again.");
