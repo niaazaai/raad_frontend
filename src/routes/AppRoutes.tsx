@@ -3,7 +3,7 @@ import { Suspense, lazy } from "react";
 import ProtectedRoutes from "./ProtectedRoutes";
 import { AuthWrapper, ProtectedRoute, canAccessRoute, useAuth } from "@/features/auth";
 import Layout from "@/layouts/MainLayout";
-import PublicWebsiteLayout from "@/layouts/PublicWebsiteLayout";
+import { PageLoader } from "@/components/ui";
 
 // Auth pages
 const LoginPage = lazy(() => import("@/pages/auth/Login"));
@@ -23,16 +23,11 @@ const BlogDetailPage = lazy(() => import("@/pages/BlogDetailPage"));
 const StudentSuccessPage = lazy(() => import("@/pages/StudentSuccessPage"));
 const ExploreCoursesPage = lazy(() => import("@/pages/ExploreCoursesPage"));
 const CourseViewPage = lazy(() => import("@/modules/Course/features/CourseViewPage/CourseViewPage"));
+const PublicWebsiteLayout = lazy(() => import("@/layouts/PublicWebsiteLayout"));
 
 // Error pages
 const NotFoundPage = lazy(() => import("@/pages/errors/NotFound"));
 const UnauthorizedPage = lazy(() => import("@/pages/errors/Unauthorized"));
-
-const PageLoader = () => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-  </div>
-);
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -110,7 +105,13 @@ const AppRoutes = () => {
       />
 
       {/* Public marketing site — one WebsiteShell so Lenis/ScrollTrigger survive SPA nav */}
-      <Route element={<PublicWebsiteLayout />}>
+      <Route
+        element={
+          <Suspense fallback={<PageLoader />}>
+            <PublicWebsiteLayout />
+          </Suspense>
+        }
+      >
         <Route
           path="/"
           element={
