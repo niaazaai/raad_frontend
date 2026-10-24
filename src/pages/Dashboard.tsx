@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { Users as Group, DollarSign as Dollar, GraduationCap, Library as BookStack, Calendar, User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth";
@@ -16,7 +14,6 @@ import { useTranslation } from "@/i18n/useTranslation";
 import { useFormatMessage } from "@/i18n/useConfirmPresets";
 
 const DashboardPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = useAuth();
   const { t } = useTranslation();
 
@@ -25,14 +22,6 @@ const DashboardPage = () => {
     hasPermission("dashboard.analytics.read") || hasDashboardPermission;
 
   const hasAdminDashboard = hasDashboardPermission || hasAnalyticsPermission;
-
-  useEffect(() => {
-    if (searchParams.get("from") === "google") {
-      const next = new URLSearchParams(searchParams);
-      next.delete("from");
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   const { data: statsRes, isLoading: loadingStats } = useDashboardStats(hasDashboardPermission);
   const { data: analyticsRes, isLoading: loadingAnalytics } = useDashboardAnalytics(
