@@ -163,7 +163,7 @@ function LearnFileCard({ file }: { file: CourseLearnFile | CourseLearnQuizFile |
       <a
         href={file.download_url}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="group flex items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2 transition-colors hover:border-primary/40 hover:bg-primary/5"
       >
         {body}
