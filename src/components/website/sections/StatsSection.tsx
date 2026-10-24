@@ -91,7 +91,7 @@ const StatsSection = () => {
 
         {isLoading ? (
           <div className="flex min-h-[160px] items-center justify-center">
-            <Spinner className="h-8 w-8 text-muted-foreground" />
+            <Spinner className="h-8 w-8 text-primary" />
           </div>
         ) : (
           <div

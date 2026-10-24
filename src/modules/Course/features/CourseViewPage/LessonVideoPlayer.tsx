@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { Minimize2 as Compress, Maximize2 as Expand, CircleQuestionMark as HelpCircle, ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight, Pause, Play, Settings, Volume2 as SoundHigh, Volume1 as SoundLow, VolumeX as SoundOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui";
 
 export interface LessonVideoPlayerProps {
   src: string;
@@ -649,7 +650,7 @@ const LessonVideoPlayer = ({
       {/* Buffering spinner overlay */}
       {isBuffering && !error && !devToolsOpen ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+          <Spinner className="h-12 w-12 text-white" />
         </div>
       ) : null}
 

@@ -8,6 +8,7 @@ import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Bold, Italic, Strikethrough, List, ListOrdered as NumberedListLeft, Quote, Heading1 as Number1Square, Heading2 as Number2Square, Heading3 as Number3Square, Link as LinkIcon, ImagePlus as MediaImagePlus, Minus, Undo2 as Undo, Redo2 as Redo } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "./spinner";
 
 const linkExtension = TiptapLink.configure({
   openOnClick: false,
@@ -87,7 +88,7 @@ const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorProps>(
             className
           )}
         >
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <Spinner className="h-8 w-8 text-primary" />
         </div>
       );
     }
