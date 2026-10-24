@@ -2,6 +2,7 @@ import { ApiResponse as ApisauceResponse, ApisauceConfig } from "apisauce";
 import apiClient, { CSRF_COOKIE_PATH } from "./apiClient";
 import { ApiResponse, ObjectAny } from "@/types";
 import { RequestMethod } from "@/data/constants/methods";
+import { translate } from "@/i18n/translate";
 import { toast } from "sonner";
 
 type CallApiProps<R> = {
@@ -34,8 +35,6 @@ export async function fetchCsrfCookie(): Promise<void> {
       if (!response.ok) {
         throw new Error(`CSRF cookie fetch failed: ${response.status} ${response.statusText}`);
       }
-    } catch (error) {
-      throw error;
     } finally {
       csrfPromise = null;
     }
@@ -158,6 +157,11 @@ const handleResponse = <T>({ response, shouldPopError, shouldPopSuccess = true }
     return;
   }
 
+  if (response.status === 429) {
+    toast.error(translate("common.tooManyAttempts"), { id: "api-error-429" });
+    return;
+  }
+
   // Handle different error types
   if (!shouldPopError) return;
 
@@ -207,7 +211,7 @@ const handleResponse = <T>({ response, shouldPopError, shouldPopSuccess = true }
 
   // Never surface raw Laravel / SQL dumps in the UI
   if (response.status != null && response.status >= 500) {
-    toast.error("An unexpected error occurred", { id: "api-error" });
+    toast.error(translate("common.unexpectedError"), { id: "api-error" });
     return;
   }
 
@@ -219,9 +223,12 @@ const handleResponse = <T>({ response, shouldPopError, shouldPopSuccess = true }
   const looksLikeInternalError =
     /SQLSTATE|Illuminate\\|QueryException|Stack trace|Connection: mysql/i.test(rawMessage);
 
-  toast.error(looksLikeInternalError || !rawMessage ? "An unexpected error occurred" : rawMessage, {
-    id: "api-error",
-  });
+  toast.error(
+    looksLikeInternalError || !rawMessage ? translate("common.unexpectedError") : rawMessage,
+    {
+      id: "api-error",
+    }
+  );
 };
 
 /**
@@ -259,35 +266,45 @@ const convertToFormData = (data: ObjectAny, method: string): FormData => {
 /**
  * Recursively append data to FormData
  */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !(value instanceof File) &&
+    !(value instanceof FileList)
+  );
+}
+
 const appendToFormData = (formData: FormData, data: ObjectAny, parentKey = ""): void => {
-  for (const key in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key)) {
-      const value = data[key];
-      const formKey = parentKey ? `${parentKey}[${key}]` : key;
+  for (const key of Object.keys(data)) {
+    const value = data[key];
+    const formKey = parentKey ? `${parentKey}[${key}]` : key;
 
-      if (value === null || value === undefined) {
-        continue;
-      }
+    if (value === null || value === undefined) {
+      continue;
+    }
 
-      if (value instanceof File) {
-        formData.append(formKey, value);
-      } else if (value instanceof FileList) {
-        Array.from(value).forEach((file, index) => {
-          formData.append(`${formKey}[${index}]`, file);
-        });
-      } else if (Array.isArray(value)) {
-        value.forEach((item, index) => {
-          if (typeof item === "object" && !(item instanceof File)) {
-            appendToFormData(formData, item, `${formKey}[${index}]`);
-          } else {
-            formData.append(`${formKey}[${index}]`, item);
-          }
-        });
-      } else if (typeof value === "object") {
-        appendToFormData(formData, value, formKey);
-      } else {
-        formData.append(formKey, String(value));
-      }
+    if (value instanceof File) {
+      formData.append(formKey, value);
+    } else if (value instanceof FileList) {
+      Array.from(value).forEach((file, index) => {
+        formData.append(`${formKey}[${index}]`, file);
+      });
+    } else if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (item instanceof File) {
+          formData.append(`${formKey}[${index}]`, item);
+        } else if (isPlainRecord(item)) {
+          appendToFormData(formData, item, `${formKey}[${index}]`);
+        } else if (item != null) {
+          formData.append(`${formKey}[${index}]`, String(item));
+        }
+      });
+    } else if (isPlainRecord(value)) {
+      appendToFormData(formData, value, formKey);
+    } else {
+      formData.append(formKey, String(value));
     }
   }
 };
