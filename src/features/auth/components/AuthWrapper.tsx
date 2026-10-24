@@ -2,6 +2,7 @@ import { useEffect, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store";
 import { AuthStatus } from "@/data/enums";
+import { PageLoader } from "@/components/ui";
 import { useAuth } from "../hooks/useAuth";
 
 interface AuthWrapperProps {
@@ -19,7 +20,7 @@ const AuthWrapper = ({ children, loginPath = "/login" }: AuthWrapperProps) => {
   }, [fetchUser]);
 
   if (status === AuthStatus.LOADING || status === AuthStatus.IDLE) {
-    return <AppLoader />;
+    return <PageLoader className="fixed inset-0 z-50 min-h-0" />;
   }
 
   if (!user && (status === AuthStatus.UNAUTHENTICATED || status === AuthStatus.FAILED)) {
@@ -28,20 +29,6 @@ const AuthWrapper = ({ children, loginPath = "/login" }: AuthWrapperProps) => {
   }
 
   return <>{children}</>;
-};
-
-/**
- * Simple loading spinner for auth check
- */
-const AppLoader = () => {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    </div>
-  );
 };
 
 export default AuthWrapper;

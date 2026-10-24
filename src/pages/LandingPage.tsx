@@ -52,7 +52,7 @@ const ProgramsSection = () => {
 
         {isLoading ? (
           <div className="flex min-h-[220px] items-center justify-center">
-            <Spinner className="h-8 w-8 text-muted-foreground" />
+            <Spinner className="h-8 w-8 text-primary" />
           </div>
         ) : latestCourses.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card py-16 text-center">

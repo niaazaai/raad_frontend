@@ -40,7 +40,7 @@ const BlogPreviewSection = () => {
 
         {isLoading ? (
           <div className="flex min-h-[200px] items-center justify-center">
-            <Spinner className="h-8 w-8 text-muted-foreground" />
+            <Spinner className="h-8 w-8 text-primary" />
           </div>
         ) : blogs.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground">{t("blog.empty")}</p>

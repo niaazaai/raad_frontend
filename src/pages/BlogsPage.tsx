@@ -37,7 +37,7 @@ const BlogsPage = () => {
         <div className={sectionInnerClass}>
           {isLoading ? (
             <div className="flex min-h-[240px] items-center justify-center">
-              <Spinner className="h-8 w-8 text-muted-foreground" />
+              <Spinner className="h-8 w-8 text-primary" />
             </div>
           ) : blogs.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">{t("blog.empty")}</p>

@@ -33,7 +33,7 @@ export function useNextManualInvoiceNumber(enabled = true) {
     queryKey: [...FINANCE_QUERY_KEYS.invoices, "next-number", "primary"] as const,
     url: FINANCE_ENDPOINTS.MANUAL_INVOICE_NEXT_NUMBER,
     method: RequestMethod.GET,
-    options: { enabled, retry: 1 },
+    options: { enabled },
   });
 
   const fallback = useQueryApi<{ invoice_number: string }>({
@@ -45,7 +45,6 @@ export function useNextManualInvoiceNumber(enabled = true) {
       enabled:
         enabled &&
         (primary.isError || (primary.isSuccess && !extractInvoiceNumberPayload(primary.data))),
-      retry: 1,
     },
   });
 

@@ -72,7 +72,7 @@ const NotificationDropdown = ({ isOpen, onClose, anchorRef }: NotificationDropdo
       <div className="max-h-80 overflow-y-auto">
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Spinner className="h-6 w-6 text-muted-foreground" />
+            <Spinner className="h-6 w-6 text-primary" />
           </div>
         ) : notifications.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-muted-foreground">

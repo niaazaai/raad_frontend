@@ -10,7 +10,16 @@ import {
 } from "@tanstack/react-query";
 import { ApisauceConfig } from "apisauce";
 import { callApi } from "@/services";
+import { ApiRequestError } from "@/lib/apiError";
+import { translate } from "@/i18n/translate";
 import { ObjectAny, ApiResponse } from "@/types";
+
+function apiFailure(status: number | null | undefined, message: string | undefined): ApiRequestError {
+  const code = status ?? null;
+  const text =
+    code === 429 ? translate("common.tooManyAttempts") : message || "Request failed";
+  return new ApiRequestError(text, code);
+}
 
 /**
  * Configuration for useQueryApi hook
@@ -54,7 +63,7 @@ export function useQueryApi<TData = ObjectAny>({
   ...apiConfig
 }: QueryApiConfig<TData>) {
   return useQuery({
-    queryKey: [...queryKey, hasFiles, apiConfig.url, apiConfig.method, apiConfig.params ?? null],
+    queryKey: [...queryKey, hasFiles, apiConfig],
     queryFn: async ({ signal }) => {
       const response = await callApi<TData>({
         ...apiConfig,
@@ -68,7 +77,7 @@ export function useQueryApi<TData = ObjectAny>({
       }
 
       if (!response.ok) {
-        throw new Error(response.data?.message || "Request failed");
+        throw apiFailure(response.status, response.data?.message);
       }
 
       return response.data as ApiResponse<TData>;
@@ -117,7 +126,7 @@ export function useMutationApi<TData = ObjectAny, TVariables = ObjectAny>({
       });
 
       if (!response.ok) {
-        throw new Error(response.data?.message || "Request failed");
+        throw apiFailure(response.status, response.data?.message);
       }
 
       return response.data as ApiResponse<TData>;
@@ -155,7 +164,7 @@ type MultiQueryApiConfigItem<TData> = {
 export function useMultiQueryApi<TData = ObjectAny>(configs: MultiQueryApiConfigItem<TData>[]) {
   return useQueries({
     queries: configs.map(({ queryKey, options = {}, hasFiles = false, ...apiConfig }) => ({
-      queryKey,
+      queryKey: [...queryKey, hasFiles, apiConfig],
       queryFn: async () => {
         const response = await callApi<TData>({
           ...apiConfig,
@@ -164,7 +173,7 @@ export function useMultiQueryApi<TData = ObjectAny>(configs: MultiQueryApiConfig
         });
 
         if (!response.ok) {
-          throw new Error(response.data?.message || "Request failed");
+          throw apiFailure(response.status, response.data?.message);
         }
 
         return response.data as ApiResponse<TData>;
@@ -201,7 +210,7 @@ export function useSuspenseQueryApi<TData = ObjectAny>({
       });
 
       if (!response.ok) {
-        throw new Error(response.data?.message || "Request failed");
+        throw apiFailure(response.status, response.data?.message);
       }
 
       return response.data as ApiResponse<TData>;

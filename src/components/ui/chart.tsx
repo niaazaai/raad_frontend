@@ -34,7 +34,7 @@ const ChartContainer = React.forwardRef<
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`.replace(/[^a-zA-Z0-9_-]/g, "");
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -55,9 +55,25 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+/**
+ * Chart CSS is built only from developer config (hex / rgb / hsl / CSS variables),
+ * never from API or user text. Anything else is dropped before injection.
+ */
+const SAFE_CHART_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,40}$/;
+const SAFE_CHART_COLOR =
+  /^(?:#[0-9a-fA-F]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)|rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(?:0|1|0?\.\d+)\s*\)|hsl\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)|hsla\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*,\s*(?:0|1|0?\.\d+)\s*\)|var\(--[a-zA-Z0-9-]+\))$/;
+
+function chartColorValue(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return SAFE_CHART_COLOR.test(trimmed) ? trimmed : null;
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([, item]) => item.theme || item.color);
   if (!colorConfig.length) return null;
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!safeId) return null;
 
   return (
     <style
@@ -65,11 +81,13 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    if (!SAFE_CHART_KEY.test(key)) return null;
+    const color = chartColorValue(
+      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color
+    );
     return color ? `  --color-${key}: ${color};` : null;
   })
   .filter(Boolean)

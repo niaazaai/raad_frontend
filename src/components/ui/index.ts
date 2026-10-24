@@ -1,5 +1,6 @@
 // Export UI components
 export { Spinner } from "./spinner";
+export { default as PageLoader } from "./page-loader";
 export { Skeleton } from "./skeleton";
 export { Button, buttonVariants } from "./button";
 export {
@@ -111,8 +112,6 @@ export {
   alertPresets,
 } from "./confirm-dialog";
 export type { ConfirmDialogOptions, ConfirmVariant } from "./confirm-dialog";
-export { RichTextEditor } from "./rich-text-editor";
-export type { RichTextEditorProps } from "./rich-text-editor";
 export {
   DropdownMenu,
   DropdownMenuTrigger,

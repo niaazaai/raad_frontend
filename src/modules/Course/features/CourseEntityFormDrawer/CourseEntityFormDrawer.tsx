@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { Calendar, Banknote as Cash, Clock, Save as FloppyDisk, Hash as Hashtag, File as Page, User } from "lucide-react";
 import { isPdfUrl, openMediaInNewTab } from "@/lib/openMedia";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import MediaPreview from "./MediaPreview";
 import StudentViewPanel from "./StudentViewPanel";
 import { Spinner } from "@/components/ui/spinner";
@@ -39,7 +40,6 @@ import {
   ImageDropzone,
   Input,
   Label,
-  RichTextEditor,
   SearchableSelect,
   Select,
   SelectContent,
@@ -48,6 +48,7 @@ import {
   SelectValue,
   useConfirmDialog,
 } from "@/components/ui";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { cn } from "@/lib/utils";
 import { API_V1_BASE } from "@/services/apiClient";
 
@@ -896,7 +897,7 @@ const CourseEntityFormDrawer = ({
               <div
                 className="prose prose-sm dark:prose-invert max-w-none text-foreground"
                 dangerouslySetInnerHTML={{
-                  __html: String(detail.plan_description ?? "<p>—</p>"),
+                  __html: sanitizeHtml(String(detail.plan_description ?? "")) || "<p>—</p>",
                 }}
               />
               <div className="grid gap-3 sm:grid-cols-3">

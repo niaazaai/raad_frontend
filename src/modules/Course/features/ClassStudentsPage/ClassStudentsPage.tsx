@@ -882,7 +882,7 @@ function GradeModal({ open, row, classId, onClose }: GradeModalProps) {
                   <a
                     href={row.final_proof_url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-xs font-medium text-primary underline-offset-2 hover:underline"
                   >
                     {t("course.classStudents.existingProof")}

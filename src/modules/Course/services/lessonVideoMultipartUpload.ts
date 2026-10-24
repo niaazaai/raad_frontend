@@ -1,6 +1,34 @@
 import apiClient from "@/services/apiClient";
 import { fetchCsrfCookie } from "@/services/callApi";
+import { translate } from "@/i18n/translate";
 import type { ApiResponse } from "@/types/api";
+
+export const LESSON_VIDEO_ACCEPT =
+  ".mp4,.m4v,.webm,.mov,.avi,.3gp,.mkv,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/3gpp,video/x-matroska";
+
+const LESSON_VIDEO_EXTENSIONS = [".mp4", ".m4v", ".webm", ".mov", ".avi", ".3gp", ".mkv"];
+
+/** Matches the lesson multipart init rules: extension, video/* or octet-stream, type ≤ 100 chars. */
+export function validateLessonVideoFile(file: File): string | null {
+  const name = file.name.trim().toLowerCase();
+  if (!LESSON_VIDEO_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+    return translate("common.lessonVideoType");
+  }
+  const contentType = (file.type || "application/octet-stream").trim();
+  if (
+    contentType.length === 0 ||
+    contentType.length > 100 ||
+    (!contentType.startsWith("video/") && contentType !== "application/octet-stream")
+  ) {
+    return translate("common.lessonVideoType");
+  }
+  return null;
+}
+
+export function lessonVideoContentType(file: File): string {
+  const contentType = file.type.trim();
+  return contentType === "" ? "application/octet-stream" : contentType;
+}
 
 export type LessonMultipartUploadOptions = {
   onProgress?: (loadedBytes: number, totalBytes: number) => void;
@@ -138,6 +166,9 @@ export async function uploadLessonVideoMultipart(
   options: LessonMultipartUploadOptions = {}
 ): Promise<void> {
   const { onProgress, signal } = options;
+  const invalid = validateLessonVideoFile(file);
+  if (invalid) throw new Error(invalid);
+  const contentType = lessonVideoContentType(file);
   const totalBytes = file.size;
 
   await fetchCsrfCookie();
@@ -147,7 +178,7 @@ export async function uploadLessonVideoMultipart(
     `/lessons/${lessonId}/video/multipart/init`,
     {
       filename: file.name,
-      content_type: file.type || "application/octet-stream",
+      content_type: contentType,
       size_bytes: file.size,
     }
   );
@@ -191,7 +222,7 @@ export async function uploadLessonVideoMultipart(
       const etag = await putPart(
         url,
         blob,
-        file.type || "application/octet-stream",
+        contentType,
         (loaded) => {
           loadedPerPart[partIndex] = loaded;
           reportProgress();

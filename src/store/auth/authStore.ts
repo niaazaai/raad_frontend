@@ -4,6 +4,7 @@ import { User } from "@/data/models/User";
 import { API_ENDPOINTS } from "@/data/constants/endpoints";
 import { AuthStatus } from "@/data/enums";
 import { RequestMethod } from "@/data/constants/methods";
+import { translate } from "@/i18n/translate";
 import { applyUserUiPreferences } from "@/features/auth/applyUserUiPreferences";
 
 /**
@@ -97,7 +98,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         url: API_ENDPOINTS.AUTH.LOGIN,
         method: RequestMethod.POST,
         data: { email, password },
-        shouldPopError: true,
+        shouldPopError: false,
+        shouldPopSuccess: false,
       });
 
       const data = response.data as { data?: User };
@@ -112,20 +114,33 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           error: null,
         });
         return true;
-      } else {
-        const isCsrfExpired = response.status === 419;
-        const apiMessage =
-          (response.data as { message?: string })?.message ||
-          (response.data as { errors?: { email?: string[] } })?.errors?.email?.[0] ||
-          null;
-        set({
-          status: AuthStatus.UNAUTHENTICATED,
-          error: isCsrfExpired
-            ? "Session expired. Please refresh the page and try again."
-            : apiMessage || "Invalid credentials",
-        });
-        return false;
       }
+
+      const status = response.status ?? 0;
+      const apiMessage =
+        (response.data as { message?: string })?.message ||
+        (response.data as { errors?: { email?: string[] } })?.errors?.email?.[0] ||
+        "";
+      let error = translate("auth.invalidCredentials");
+      if (status === 429) {
+        error = translate("common.tooManyAttempts");
+      } else if (status === 419) {
+        error = "Session expired. Please refresh the page and try again.";
+      } else if (status === 401 || status === 403) {
+        error =
+          apiMessage ||
+          (status === 401 ? translate("auth.invalidCredentials") : translate("auth.signInBlocked"));
+      } else if (status >= 500 || status === 0) {
+        error = translate("common.unexpectedError");
+      } else if (apiMessage) {
+        error = apiMessage;
+      }
+
+      set({
+        status: AuthStatus.UNAUTHENTICATED,
+        error,
+      });
+      return false;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Login failed";
       set({ status: AuthStatus.FAILED, error: message });
