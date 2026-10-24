@@ -22,7 +22,6 @@ import {
   Input,
   Label,
   MultiImageDropzone,
-  RichTextEditor,
   Select,
   SelectContent,
   SelectItem,
@@ -30,6 +29,7 @@ import {
   SelectValue,
   Spinner,
 } from "@/components/ui";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   COURSE_LANGUAGE_OPTIONS,
   COURSE_LEVEL_OPTIONS,
@@ -53,7 +53,9 @@ import {
 } from "../../hooks/useCourseEntity";
 import {
   abortLessonMultipartUpload,
+  LESSON_VIDEO_ACCEPT,
   uploadLessonVideoMultipart,
+  validateLessonVideoFile,
 } from "../../services/lessonVideoMultipartUpload";
 
 const COURSE_DETAIL_FLAG_FIELDS = [
@@ -971,6 +973,11 @@ const CourseWizardPage = () => {
 
   const beginLessonVideoUpload = useCallback(
     (lessonId: number, file: File) => {
+      const invalid = validateLessonVideoFile(file);
+      if (invalid) {
+        toast.error(invalid);
+        return;
+      }
       const runUpload = () => {
         setLessonVideoUploadPct((prev) => ({ ...prev, [lessonId]: 0 }));
         void uploadLessonVideoMultipart(lessonId, file, {
@@ -2931,12 +2938,23 @@ const CourseWizardPage = () => {
                 />
               </div>
               <ImageDropzone
-                accept="video/mp4,video/webm,video/quicktime,video/*"
+                accept={LESSON_VIDEO_ACCEPT}
                 mediaPreview="video"
                 label="Video"
-                hint="MP4, WebM, MOV — uploads go directly to storage in the background; you can add more lessons while one is uploading."
+                hint="MP4, M4V, WebM, MOV, AVI, 3GP, or MKV. Uploads go directly to storage in the background."
                 value={lessonDraft.videoFile}
-                onSelect={(file) => setLessonDraft((d) => ({ ...d, videoFile: file }))}
+                onSelect={(file) => {
+                  if (!file) {
+                    setLessonDraft((d) => ({ ...d, videoFile: null }));
+                    return;
+                  }
+                  const invalid = validateLessonVideoFile(file);
+                  if (invalid) {
+                    toast.error(invalid);
+                    return;
+                  }
+                  setLessonDraft((d) => ({ ...d, videoFile: file }));
+                }}
                 previewMode="wide"
                 initialPreviewUrl={
                   lessonDraft.videoFile ? null : lessonDraft.existingVideoUrl
