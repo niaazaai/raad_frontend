@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -108,7 +108,6 @@ const SettingsPage = () => {
     register,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<ProfileFormValues>({
@@ -125,8 +124,7 @@ const SettingsPage = () => {
     },
   });
 
-  const draftLocale = watch("preferred_locale");
-  const draftTheme = watch("preferred_theme");
+  const preferenceRequest = useRef(0);
 
   useEffect(() => {
     if (!user || editing) return;
@@ -235,13 +233,57 @@ const SettingsPage = () => {
         : t("settings.typeStudent");
   const roles = user.roles ?? [];
   const localeValue =
-    (editing ? draftLocale : (user.preferred_locale as AppLocale | null | undefined)) ??
-    AppLocale.ENGLISH;
-  const themeValue = editing
-    ? draftTheme
-    : user.preferred_theme === ThemeMode.DARK
-      ? ThemeMode.DARK
-      : ThemeMode.LIGHT;
+    (user.preferred_locale as AppLocale | null | undefined) ?? AppLocale.ENGLISH;
+  const themeValue =
+    user.preferred_theme === ThemeMode.DARK ? ThemeMode.DARK : ThemeMode.LIGHT;
+
+  const savePreferences = async (locale: AppLocale, theme: ThemeChoice) => {
+    if (locale === localeValue && theme === themeValue) return;
+
+    const previous = user;
+    const requestId = ++preferenceRequest.current;
+    const optimistic = { ...user, preferred_locale: locale, preferred_theme: theme };
+    setValue("preferred_locale", locale, { shouldDirty: true });
+    setValue("preferred_theme", theme, { shouldDirty: true });
+    useAuthStore.getState().setUser(optimistic);
+    applyUserUiPreferences(optimistic);
+
+    try {
+      await fetchCsrfCookie();
+      const response = await callApi<User>({
+        url: API_ENDPOINTS.AUTH.PREFERENCES,
+        method: RequestMethod.PUT,
+        data: { preferred_locale: locale, preferred_theme: theme },
+      });
+
+      if (requestId !== preferenceRequest.current) return;
+
+      if (!response.ok) {
+        useAuthStore.getState().setUser(previous);
+        applyUserUiPreferences(previous);
+        setValue("preferred_locale", localeValue, { shouldDirty: true });
+        setValue("preferred_theme", themeValue, { shouldDirty: true });
+        const body = response.data as { message?: string; errors?: Record<string, string[]> };
+        const first = body?.errors ? Object.values(body.errors).flat()[0] : undefined;
+        toast.error(first ?? body?.message ?? t("settings.saveFailed"));
+        return;
+      }
+
+      const updated = (response.data as { data?: User })?.data;
+      if (updated) {
+        useAuthStore.getState().setUser(updated);
+        applyUserUiPreferences(updated);
+      }
+      toast.success(t("settings.saved"));
+    } catch {
+      if (requestId !== preferenceRequest.current) return;
+      useAuthStore.getState().setUser(previous);
+      applyUserUiPreferences(previous);
+      setValue("preferred_locale", localeValue, { shouldDirty: true });
+      setValue("preferred_theme", themeValue, { shouldDirty: true });
+      toast.error(t("settings.saveFailed"));
+    }
+  };
 
   const preferences = (
     <div className="space-y-2">
@@ -249,13 +291,11 @@ const SettingsPage = () => {
       <div className="grid gap-3 sm:grid-cols-2">
         <LanguagePreference
           value={localeValue}
-          editing={editing}
-          onChange={(code) => setValue("preferred_locale", code, { shouldDirty: true })}
+          onChange={(code) => void savePreferences(code, themeValue)}
         />
         <ThemePreference
           value={themeValue}
-          editing={editing}
-          onChange={(mode) => setValue("preferred_theme", mode, { shouldDirty: true })}
+          onChange={(mode) => void savePreferences(localeValue, mode)}
         />
       </div>
     </div>
@@ -506,11 +546,9 @@ function Fact({
 
 function LanguagePreference({
   value,
-  editing,
   onChange,
 }: {
   value: AppLocale;
-  editing: boolean;
   onChange: (code: AppLocale) => void;
 }) {
   const { t } = useTranslation();
@@ -525,29 +563,20 @@ function LanguagePreference({
       <div className="space-y-1.5">
         {Object.values(AppLocale).map((code) => {
           const active = value === code;
-          const className = cn(
-            "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-start text-sm",
-            active
-              ? "border-primary bg-primary/10 font-medium text-primary"
-              : "border-border text-foreground",
-            editing && !active && "hover:bg-muted/60"
-          );
-          const inner = (
-            <>
+          return (
+            <button
+              key={code}
+              type="button"
+              className={cn(
+                "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-start text-sm",
+                active
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-border text-foreground hover:bg-muted/60"
+              )}
+              onClick={() => onChange(code)}
+            >
               <span>{AppLocaleLabels[code]}</span>
               {active ? <Check className="h-4 w-4 shrink-0" /> : null}
-            </>
-          );
-          if (!editing) {
-            return (
-              <div key={code} className={className}>
-                {inner}
-              </div>
-            );
-          }
-          return (
-            <button key={code} type="button" className={className} onClick={() => onChange(code)}>
-              {inner}
             </button>
           );
         })}
@@ -558,11 +587,9 @@ function LanguagePreference({
 
 function ThemePreference({
   value,
-  editing,
   onChange,
 }: {
   value: ThemeChoice;
-  editing: boolean;
   onChange: (mode: ThemeChoice) => void;
 }) {
   const { t } = useTranslation();
@@ -583,37 +610,23 @@ function ThemePreference({
         {options.map((option) => {
           const active = value === option.mode;
           const Icon = option.icon;
-          const className = cn(
-            "flex flex-col items-center gap-1 rounded-lg border px-3 py-3 text-sm",
-            active
-              ? "border-primary bg-primary/10 font-medium text-primary"
-              : "border-border text-foreground",
-            editing && !active && "hover:bg-muted/60"
-          );
-          const inner = (
-            <>
+          return (
+            <button
+              key={option.mode}
+              type="button"
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-lg border px-3 py-3 text-sm",
+                active
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-border text-foreground hover:bg-muted/60"
+              )}
+              onClick={() => onChange(option.mode)}
+            >
               <Icon className="h-5 w-5" />
               <span>{option.label}</span>
               <span className={cn("text-[11px]", active ? "text-primary" : "text-transparent")}>
                 {t("settings.selected")}
               </span>
-            </>
-          );
-          if (!editing) {
-            return (
-              <div key={option.mode} className={className}>
-                {inner}
-              </div>
-            );
-          }
-          return (
-            <button
-              key={option.mode}
-              type="button"
-              className={className}
-              onClick={() => onChange(option.mode)}
-            >
-              {inner}
             </button>
           );
         })}
