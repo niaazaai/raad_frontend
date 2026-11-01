@@ -330,7 +330,7 @@ const UserList = () => {
       {/* User Form Drawer */}
       <Drawer open={formDrawerOpen} onClose={closeFormDrawer}>
         <DrawerOverlay />
-        <DrawerContent className="w-[21%] min-w-[320px]">
+        <DrawerContent className="w-[min(26rem,calc(100vw-1.5rem))] [--drawer-content-width:min(26rem,calc(100vw-1.5rem))]">
           <UserFormDrawer user={editingUser} onSuccess={closeFormDrawer} />
         </DrawerContent>
       </Drawer>

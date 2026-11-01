@@ -732,14 +732,19 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
             }
           : undefined,
       onRowDoubleClick:
-        resolvedSlug === "lms-class-students"
+        resolvedSlug === "lms-classes"
           ? (row: CourseRow) => {
-              const id = row.id;
-              const idNum = typeof id === "number" ? id : Number(id);
-              if (typeof id !== "number" && Number.isNaN(idNum)) return;
-              openViewDrawer(typeof id === "number" ? id : idNum);
+              const id = typeof row.id === "number" ? row.id : Number(row.id);
+              if (!Number.isNaN(id)) navigate(`/classes/${id}/students`);
             }
-          : undefined,
+          : resolvedSlug === "lms-class-students"
+            ? (row: CourseRow) => {
+                const id = row.id;
+                const idNum = typeof id === "number" ? id : Number(id);
+                if (typeof id !== "number" && Number.isNaN(idNum)) return;
+                openViewDrawer(typeof id === "number" ? id : idNum);
+              }
+            : undefined,
       actions: [
         ...(resolvedSlug === "instructors"
           ? []

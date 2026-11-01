@@ -172,19 +172,16 @@ const ClassAttendancePage = () => {
           </div>
 
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden rtl:flex-row-reverse">
-              {/* Frozen student columns */}
-              <div className="flex w-[8.5rem] shrink-0 flex-col overflow-hidden border-e border-border sm:w-[14rem] lg:w-[20.5rem]">
+              {/* Frozen student columns — name grows to the full string, id sits under it */}
+              <div className="flex w-max shrink-0 flex-col border-e border-border">
                 <div
                   className={cn(
                     HEADER_H,
-                    "flex shrink-0 items-end gap-2 border-b border-border bg-muted/80 px-2 py-2 text-[11px] font-medium sm:text-xs"
+                    "flex shrink-0 items-end border-b border-border bg-muted/80 text-[11px] font-medium sm:text-xs"
                   )}
                 >
-                  <span className="hidden w-[5.25rem] shrink-0 sm:block">
-                    {t("course.columns.student_code")}
-                  </span>
-                  <span className="min-w-0 flex-1">{t("course.columns.full_name")}</span>
-                  <span className="hidden w-[6.25rem] shrink-0 lg:block">
+                  <span className="min-w-[12rem] px-3 pb-2">{t("course.columns.full_name")}</span>
+                  <span className="hidden w-[7.5rem] shrink-0 px-2 pb-2 lg:block">
                     {t("course.columns.father_name")}
                   </span>
                 </div>
@@ -194,7 +191,7 @@ const ClassAttendancePage = () => {
                   onScroll={(e) => syncVertical(e.currentTarget)}
                 >
                   {grid.students.length === 0 ? (
-                    <div className="px-2 py-10 text-center text-xs text-muted-foreground">
+                    <div className="px-3 py-10 text-center text-xs text-muted-foreground">
                       {t("course.classStudents.empty")}
                     </div>
                   ) : (
@@ -203,16 +200,18 @@ const ClassAttendancePage = () => {
                         key={student.student_id}
                         className={cn(
                           ROW_H,
-                          "flex items-center gap-2 border-b border-border px-2 text-xs hover:bg-muted/20"
+                          "flex items-center border-b border-border hover:bg-muted/20"
                         )}
                       >
-                        <span className="hidden w-[5.25rem] shrink-0 truncate font-mono sm:block">
-                          {student.student_code ?? student.student_id}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate font-medium">
-                          {student.full_name || "—"}
-                        </span>
-                        <span className="hidden w-[6.25rem] shrink-0 truncate text-muted-foreground lg:block">
+                        <div className="flex min-w-[12rem] flex-col justify-center gap-0.5 px-3">
+                          <span className="whitespace-nowrap text-[0.825rem] font-semibold leading-tight text-foreground">
+                            {student.full_name || "—"}
+                          </span>
+                          <span className="whitespace-nowrap font-mono text-[0.65rem] leading-none text-muted-foreground">
+                            {student.student_code ?? student.student_id}
+                          </span>
+                        </div>
+                        <span className="hidden w-[7.5rem] shrink-0 truncate px-2 text-xs text-muted-foreground lg:block">
                           {student.father_name || "—"}
                         </span>
                       </div>

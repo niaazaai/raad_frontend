@@ -38,7 +38,9 @@ const WebsiteShell = ({ children, className }: WebsiteShellProps) => {
         data-locale={locale}
         className={cn(
           "website-shell min-h-screen scroll-smooth bg-background text-foreground antialiased",
-          dir === "rtl" ? "font-[Vazirmatn,Inter,system-ui,sans-serif]" : "font-[Inter,system-ui,sans-serif]",
+          dir === "rtl"
+            ? "font-[Vazirmatn,'Plus_Jakarta_Sans',system-ui,sans-serif]"
+            : "font-sans",
           className,
         )}
       >

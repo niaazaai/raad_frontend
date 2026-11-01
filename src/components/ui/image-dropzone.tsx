@@ -18,6 +18,8 @@ export interface ImageDropzoneProps {
   mediaPreview?: ImageDropzoneMediaPreview;
   initialPreviewUrl?: string | null;
   initialPreviewName?: string | null;
+  /** Shorter drop target for drawers where vertical space is tight. */
+  dense?: boolean;
 }
 
 const ImageDropzone = ({
@@ -32,6 +34,7 @@ const ImageDropzone = ({
   mediaPreview = "image",
   initialPreviewUrl,
   initialPreviewName,
+  dense = false,
 }: ImageDropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -83,7 +86,7 @@ const ImageDropzone = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={dense ? "space-y-1" : "space-y-2"}>
       <Label>
         {label}
         {required && <span className="text-danger ml-0.5">*</span>}
@@ -108,7 +111,8 @@ const ImageDropzone = ({
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex min-h-[148px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors cursor-pointer",
+          "flex flex-col items-center justify-center rounded-xl border-2 border-dashed text-center transition-colors cursor-pointer",
+          dense ? "min-h-[4.75rem] px-3 py-2" : "min-h-[148px] px-4 py-6",
           dragOver
             ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/50 hover:bg-muted/30",
@@ -192,11 +196,13 @@ const ImageDropzone = ({
         ) : (
           <>
             {mediaPreview === "video" ? (
-              <Play className="h-10 w-10 text-muted-foreground" />
+              <Play className={cn("text-muted-foreground", dense ? "h-6 w-6" : "h-10 w-10")} />
             ) : (
-              <MediaImage className="h-10 w-10 text-muted-foreground" />
+              <MediaImage className={cn("text-muted-foreground", dense ? "h-6 w-6" : "h-10 w-10")} />
             )}
-            <p className="mt-2 text-sm font-medium text-foreground">Click or drag to upload</p>
+            <p className={cn("text-sm font-medium text-foreground", dense ? "mt-1" : "mt-2")}>
+              Click or drag to upload
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
           </>
         )}

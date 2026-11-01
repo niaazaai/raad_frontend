@@ -4,7 +4,7 @@ import { useQueryApi, useMutationApi } from "@/hooks";
 import { callApi } from "@/services";
 import { RequestMethod } from "@/data/constants/methods";
 import { BLOG_ENDPOINTS, BLOG_QUERY_KEYS } from "../data/constants/endpoints";
-import type { Blog, CreateBlogData, UpdateBlogData } from "../data/models";
+import type { Blog, BlogStatus, CreateBlogData, UpdateBlogData } from "../data/models";
 
 export function useBlogs(params?: Record<string, unknown>) {
   return useQueryApi<Blog[]>({
@@ -50,6 +50,26 @@ export function useDeleteBlogMutation() {
         url: BLOG_ENDPOINTS.BY_ID(id),
         method: RequestMethod.DELETE,
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BLOG_QUERY_KEYS.blogs });
+    },
+  });
+}
+
+export function useSetBlogStatusMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: BlogStatus }) => {
+      const res = await callApi({
+        url: BLOG_ENDPOINTS.BY_ID(id),
+        method: RequestMethod.PUT,
+        data: { status },
+      });
+      if (!res.ok) {
+        const message = (res.data as { message?: string } | undefined)?.message;
+        throw new Error(message ?? "Update failed");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: BLOG_QUERY_KEYS.blogs });

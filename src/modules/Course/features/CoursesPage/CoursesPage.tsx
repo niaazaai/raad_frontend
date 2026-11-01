@@ -99,6 +99,10 @@ const CoursesPage = () => {
         },
       ],
       rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
+      onRowDoubleClick: (row) => {
+        const id = Number(row.id);
+        if (!Number.isNaN(id)) navigate(`/course/courses/${id}/view`);
+      },
       searchable: true,
       searchPlaceholder: "Search courses...",
       emptyMessage: "No courses found.",

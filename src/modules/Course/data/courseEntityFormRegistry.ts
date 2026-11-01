@@ -251,6 +251,12 @@ export const COURSE_ENTITY_FORM_REGISTRY: Record<CourseEntitySlug, CourseEntityF
       { name: "class_type", label: "Class type", type: "select", options: CLASS_TYPE },
       { name: "schedule_days", label: "Schedule days", type: "select", options: SCHEDULE_DAYS },
       { name: "class_fee", label: "Class fee", type: "number" },
+      {
+        name: "remark",
+        label: "Remark",
+        type: "textarea",
+        placeholder: "Optional note about this class",
+      },
       { name: "start_date", label: "Start date", type: "date", required: true },
       { name: "end_date", label: "End date", type: "date", required: true },
       { name: "start_time", label: "Start time", type: "time", required: true },

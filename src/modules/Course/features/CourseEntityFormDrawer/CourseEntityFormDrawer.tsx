@@ -727,6 +727,10 @@ const CourseEntityFormDrawer = ({
     const payload = serializeCourseEntityPayload(normalizedValues, fields, {
       clearEmptyFields: slug === "lms-class-students" && mode !== "create",
     });
+    if (slug === "lms-classes") {
+      const remark = String(normalizedValues.remark ?? "").trim();
+      payload.remark = remark === "" ? null : remark.slice(0, 1028);
+    }
     if (slug === "instructors" && mode === "create") {
       payload.status = "active";
     }
@@ -1199,6 +1203,12 @@ const CourseEntityFormDrawer = ({
                   </div>
                 </div>
               </div>
+              <div className="rounded-lg border border-border bg-muted/15 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Remark</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm font-medium">
+                  {String(detail.remark ?? "").trim() || "—"}
+                </p>
+              </div>
             </div>
           ) : null}
 
@@ -1623,6 +1633,16 @@ const CourseEntityFormDrawer = ({
                   step="0.01"
                   {...register("class_fee")}
                   placeholder="e.g. 5000"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cef-class-remark">Remark</Label>
+                <textarea
+                  id="cef-class-remark"
+                  maxLength={1028}
+                  className={cn(inputClass, "min-h-[72px]")}
+                  placeholder="Optional note about this class"
+                  {...register("remark")}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
