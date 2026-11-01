@@ -822,7 +822,7 @@ The app uses a **custom, lightweight i18n system** (no `react-i18next`). It powe
 - **Hook:** `const { t, locale } = useTranslation()` (`src/i18n/useTranslation.ts`). `t("sidebar.dashboard")` resolves a dot path; missing keys fall back to the path string.
 - **Language switcher:** in the admin `Header` (globe dropdown listing `AppLocaleLabels`); the public site has its own `components/website/LanguageSwitcher.tsx`.
 - **Applying the locale (admin):** `MainLayout` calls `applyAdminLocale(locale)` in an effect, which sets `<html lang/dir>`. This flips the **entire dashboard**, including portalled drawers/toasts/dropdowns. (`applyAdminDocumentDefaults()` still exists for the website→admin transition but is superseded by `applyAdminLocale` inside the dashboard.)
-- **Fonts:** Inter for LTR; **Vazirmatn** for RTL via a single rule in `index.css`: `html[dir="rtl"] body { font-family: "Vazirmatn", "Inter", … }`. Both fonts are loaded from Google Fonts in `index.html`. Do not hard-code font families on components.
+- **Fonts:** Plus Jakarta Sans for LTR (self-hosted variable font in `src/assets/fonts`); **Vazirmatn** for RTL via a single rule in `index.css`: `html[dir="rtl"] body { font-family: "Vazirmatn", "Plus Jakarta Sans", … }`. Vazirmatn is loaded from Google Fonts in `index.html`. Do not hard-code font families on components.
 - **RTL layout:** use **logical Tailwind utilities** (`ms`/`me`, `ps`/`pe`, `start`/`end`, `text-start`) instead of physical (`ml`/`left`/`text-left`) so components mirror automatically. The sidebar, header, and `MainLayout` already use logical properties; mobile slide-in uses the `rtl:` variant (e.g. `-translate-x-full rtl:translate-x-full`).
 
 **Localizing a component:**
