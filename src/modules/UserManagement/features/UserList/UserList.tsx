@@ -231,6 +231,7 @@ const UserList = () => {
     pageSizeOptions: [10, 25, 50, 100],
     paginationEnabled: true,
     emptyMessage: t("userManagement.noUsers"),
+    onRowDoubleClick: (user) => openEditDrawer(user),
     actions: [
       {
         key: "edit",
