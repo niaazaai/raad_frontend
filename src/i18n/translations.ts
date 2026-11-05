@@ -1,6 +1,7 @@
 import { AppLocale } from "@/data/enums/locale";
 import { dashboardEn, dashboardPs, dashboardFa } from "./dashboardMessages";
 import { financeV2En, financeV2Fa, financeV2Ps } from "./financeV2Messages";
+import { dataTableEn, dataTableFa, dataTablePs } from "./dataTableMessages";
 
 const en = {
   nav: {
@@ -438,6 +439,7 @@ const en = {
     quizFilesTab: "Quiz files",
     quizFilesEmpty: "No quiz files for this course.",
   },
+  ...dataTableEn,
   ...dashboardEn,
   ...financeV2En,
 } as const;
@@ -874,6 +876,7 @@ const ps = {
     quizFilesTab: "د کوئز فایلونه",
     quizFilesEmpty: "د دې کورس لپاره کوئز فایلونه نشته.",
   },
+  ...dataTablePs,
   ...dashboardPs,
   ...financeV2Ps,
 };
@@ -1309,6 +1312,7 @@ const fa = {
     quizFilesTab: "فایل‌های کوییز",
     quizFilesEmpty: "فایل کوییزی برای این دوره وجود ندارد.",
   },
+  ...dataTableFa,
   ...dashboardFa,
   ...financeV2Fa,
 };

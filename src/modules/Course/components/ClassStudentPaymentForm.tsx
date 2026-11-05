@@ -274,7 +274,9 @@ export function ClassStudentPaymentForm({
         ]
       : [];
   const needsExchangeRate = form.currency === "USD" || form.currency === "GBP";
-  const needsNextDue = dueAfter > 0.009 && form.receivable_status === "pending";
+  // A due date belongs to a cash installment. A discount with no payment does not need one.
+  const needsNextDue =
+    paymentAmount > 0.009 && dueAfter > 0.009 && form.receivable_status === "pending";
   const otherPartyOk =
     form.receivable_status !== "other_party" || form.other_party_name.trim() !== "";
   const classifyRemaining =
@@ -322,9 +324,18 @@ export function ClassStudentPaymentForm({
       0,
       Math.round((nextFee - settledBase - irrecoverable) * 100) / 100
     );
+    const currentPayment = merged.payment_amount.trim() === "" ? 0 : Number(merged.payment_amount);
+    const paymentExceedsRemaining =
+      merged.payment_amount.trim() !== "" && currentPayment > nextRemaining + 0.01;
+
     onFormChange({
       ...merged,
-      payment_amount: nextRemaining > 0 ? String(nextRemaining) : "",
+      // Leave an empty or zero payment alone. Only shrink a typed amount that no longer fits.
+      payment_amount: paymentExceedsRemaining
+        ? nextRemaining > 0
+          ? String(nextRemaining)
+          : ""
+        : merged.payment_amount,
       next_due_date: nextRemaining > 0 ? merged.next_due_date : "",
     });
   };
@@ -648,7 +659,8 @@ export function buildPaymentPayloadFromForm(
     0,
     Math.round((feeAfterDiscount - projectedSettled - irrecoverable) * 100) / 100
   );
-  const needsNextDue = dueAfter > 0.009 && form.receivable_status === "pending";
+  const needsNextDue =
+    paymentAmount > 0.009 && dueAfter > 0.009 && form.receivable_status === "pending";
 
   return {
     discount_type: form.discount_type,

@@ -29,4 +29,11 @@ const Checkbox = React.forwardRef<
 ));
 Checkbox.displayName = CheckboxPrimitive.Root.displayName;
 
+/**
+ * Row selection and the column menu only.
+ * 15% smaller than the previous 18px box, and 10% rounder than the 3px form corner.
+ * The shared Checkbox stays size-3.5 / rounded-[3px].
+ */
+export const tableCheckboxClassName = "size-[15.3px] rounded-[3.3px] [&_svg]:size-[10.2px]";
+
 export { Checkbox };

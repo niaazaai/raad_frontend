@@ -259,24 +259,11 @@ const FinanceReportPage = () => {
         header: t("finance.columns.netReceivable"),
         align: "right",
         render: (row) => (
-          <div className="text-end">
-            <div className="font-semibold tabular-nums text-warning">
-              {formatMoney(row.net_receivable)}
-            </div>
-            {Number(row.mof_receivable_amount) > 0 ? (
-              <div className="text-xs text-auxiliary">
-                MOF {formatMoney(row.mof_receivable_amount)}
-              </div>
-            ) : null}
-            {Number(row.other_receivable_amount) > 0 ? (
-              <div className="text-xs text-info">
-                {row.other_party_name || t("fin.payer.other_party")}{" "}
-                {formatMoney(row.other_receivable_amount)}
-              </div>
-            ) : null}
+          <div className="text-end font-semibold tabular-nums text-warning">
+            {formatMoney(row.student_receivable_amount)}
           </div>
         ),
-        exportValue: (row) => row.net_receivable as number,
+        exportValue: (row) => Number(row.student_receivable_amount ?? 0),
       },
       {
         key: "payment_status",
@@ -603,18 +590,13 @@ const FinanceReportPage = () => {
                 />
                 <SummaryCard
                   label={t("fin.cards.receivable")}
-                  value={summary.net_receivable}
+                  value={summary.student_receivable ?? 0}
                   hint={t("fin.hints.receivable")}
                   icon={<Clock className="h-5 w-5" />}
                   tone="warning"
-                  parts={[
-                    { label: t("fin.cards.studentPart"), value: summary.student_receivable ?? 0 },
-                    { label: t("fin.cards.mofPart"), value: summary.mof_receivable },
-                    { label: t("fin.cards.otherPart"), value: summary.other_receivable },
-                  ]}
                   onClick={() =>
                     openBreakdown(
-                      "receivable",
+                      "student_receivable",
                       t("fin.cards.receivable"),
                       t("fin.hints.receivable")
                     )

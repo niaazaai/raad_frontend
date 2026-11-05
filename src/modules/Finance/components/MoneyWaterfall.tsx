@@ -34,6 +34,10 @@ const MoneyWaterfall = ({ values, currency, className, compact = false }: MoneyW
   const mof = toNumber(values.mof);
   const other = toNumber(values.other);
   const credit = toNumber(values.credit);
+  const studentReceivable = Math.max(
+    0,
+    Math.round((toNumber(values.receivable) - mof - other) * 100) / 100
+  );
 
   const rows: {
     label: string;
@@ -78,13 +82,13 @@ const MoneyWaterfall = ({ values, currency, className, compact = false }: MoneyW
     },
     {
       label: t("fin.cards.receivable"),
-      value: toNumber(values.receivable),
-      sign: "=",
+      value: studentReceivable,
+      sign: mof + other > 0.009 ? undefined : "=",
       tone: "text-warning",
       strong: true,
     },
-    { label: `↳ ${t("fin.cards.mof")}`, value: mof, tone: "text-auxiliary", hidden: mof <= 0 },
-    { label: `↳ ${t("fin.cards.other")}`, value: other, tone: "text-info", hidden: other <= 0 },
+    { label: t("fin.cards.mof"), value: mof, tone: "text-auxiliary", hidden: mof <= 0 },
+    { label: t("fin.cards.other"), value: other, tone: "text-info", hidden: other <= 0 },
     { label: t("fin.details.credit"), value: credit, tone: "text-info", hidden: credit <= 0 },
   ];
 
