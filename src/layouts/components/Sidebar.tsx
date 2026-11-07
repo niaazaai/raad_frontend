@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List, ClipboardList } from "lucide-react";
 import { BookOpen as Learning } from "lucide-react";
 import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
@@ -67,6 +67,8 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Overview: "sidebar.overview",
   Instructors: "sidebar.instructors",
   Students: "sidebar.students",
+  Reports: "sidebar.reports",
+  "Student report": "sidebar.studentReport",
   Finance: "sidebar.finance",
   "Finance report": "sidebar.financeReport",
   Invoices: "sidebar.invoices",
@@ -266,6 +268,19 @@ const Sidebar = () => {
         path: "/students",
         icon: <GraduationCap className={iconLg} />,
         permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+      },
+      {
+        title: "Reports",
+        icon: <ClipboardList className={iconLg} />,
+        permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+        children: [
+          {
+            title: "Student report",
+            path: "/reports/students",
+            icon: <GraduationCap className={iconSm} />,
+            permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+          },
+        ],
       },
       {
         title: "Finance",

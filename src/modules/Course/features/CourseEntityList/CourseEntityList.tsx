@@ -3,6 +3,8 @@ import { useParams, useSearchParams, useLocation, useNavigate } from "react-rout
 import { Ban as Prohibition, CircleCheck as CheckCircle, Eye, Pencil as EditPencil, Plus, Trash2 as Trash, Images as AlbumList, Archive, Users as CommunityIcon, RefreshCcw as RefreshDouble, Calendar, Star, Clock, CircleX as XmarkCircle, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { fetchAllListPages } from "@/lib/fetchAllListPages";
+import { rowMatchesDateRange } from "@/lib/exportSpreadsheet";
 import {
   useCourseEntityList,
   useDeleteCourseEntity,
@@ -722,6 +724,26 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
       columns,
       rowId: (row) => (typeof row.id === "number" ? row.id : String(row.id ?? "")),
       emptyMessage: t("dataTable.noRecords"),
+      exportFilename: resolvedSlug === "lms-class-students" ? "students" : undefined,
+      exportDateKey: resolvedSlug === "lms-class-students" ? "created_at" : undefined,
+      fetchExportRows:
+        resolvedSlug === "lms-class-students"
+          ? async (query) => {
+              const exported = await fetchAllListPages<CourseRow>({
+                url: cfg.apiPath,
+                params: {
+                  search: debouncedSearch || undefined,
+                  status: (params.filters.status as string) || undefined,
+                  sort_by: params.sort_by || undefined,
+                  sort_dir: params.sort_dir || undefined,
+                },
+                query,
+                extractRows: (response) => getCourseListFromResponse(response),
+                extractPagination: getPaginationFromResponse,
+              });
+              return exported.filter((row) => rowMatchesDateRange(row, "created_at", query));
+            }
+          : undefined,
       onRowClick:
         resolvedSlug === "student-subscriptions"
           ? (row: CourseRow) => {
@@ -996,6 +1018,10 @@ const CourseEntityList = ({ forcedSlug }: CourseEntityListProps = {}) => {
     deactivatingSubscription,
     localizedEntityTitle,
     t,
+    debouncedSearch,
+    params.filters.status,
+    params.sort_by,
+    params.sort_dir,
   ]);
 
   if (!resolvedSlug || !cfg) {

@@ -33,7 +33,7 @@ import { AuthStatus } from "@/data/enums";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { cn } from "@/lib/utils";
 import { RequestMethod } from "@/data/constants/methods";
-import { useMutationApi } from "@/hooks";
+import { useMutationApi, useQueryApi } from "@/hooks";
 import {
   getPublicCourseDetailFromResponse,
   getPreviewPlaybackFromResponse,
@@ -75,13 +75,50 @@ function looksLikeHtml(text: string): boolean {
   return /<[a-z][\s\S]*>/i.test(text);
 }
 
+const GENDER_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+] as const;
+
+const ACADEMIC_BACKGROUND_OPTIONS = [
+  { value: "grade_12", label: "12th Grade" },
+  { value: "undergraduate", label: "Undergraduate" },
+  { value: "bachelor", label: "Bachelor" },
+  { value: "master", label: "Master" },
+  { value: "doctorate", label: "Doctorate" },
+  { value: "other", label: "Other" },
+] as const;
+
+const enrollmentFieldClass =
+  "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1";
+
 const EnrollmentSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
+  gender: z.string().optional(),
+  date_of_birth: z.string().optional(),
   phone_number: z.string().min(1, "Phone number is required"),
+  whatsapp_number: z.string().optional(),
   national_id: z.string().min(1, "National ID is required"),
+  academic_background: z.string().optional(),
   email: z.string().email("Valid email is required"),
+  acca_id: z.string().optional(),
 });
+
+interface StudentSelfProfile {
+  id: number;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  whatsapp_number: string | null;
+  email: string | null;
+  national_id: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  acca_id: string | null;
+  academic_background: string | null;
+}
 
 type EnrollmentData = z.infer<typeof EnrollmentSchema>;
 
@@ -187,14 +224,29 @@ const CourseViewPage = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [authRequiredModalOpen]);
 
-  // Prefill form with user data if signed in
-  const defaultFormValues: Partial<EnrollmentData> = useMemo(() => ({
-    first_name: user?.name?.split(" ")[0] || "",
-    last_name: user?.name?.split(" ").slice(1).join(" ") || "",
-    email: user?.email || "",
-    phone_number: "",
-    national_id: "",
-  }), [user]);
+  const profileQuery = useQueryApi<StudentSelfProfile | null>({
+    queryKey: ["me", "student-profile"],
+    url: "/me/student-profile",
+    method: RequestMethod.GET,
+    options: { enabled: Boolean(isAuthenticated) },
+  });
+  const studentProfile = profileQuery.data?.data ?? null;
+
+  const defaultFormValues: EnrollmentData = useMemo(() => {
+    const nameParts = user?.name?.trim().split(/\s+/) ?? [];
+    return {
+      first_name: studentProfile?.first_name || nameParts[0] || "",
+      last_name: studentProfile?.last_name || nameParts.slice(1).join(" ") || "",
+      gender: studentProfile?.gender || "",
+      date_of_birth: studentProfile?.date_of_birth?.slice(0, 10) || "",
+      email: studentProfile?.email || user?.email || "",
+      phone_number: studentProfile?.phone_number || "",
+      whatsapp_number: studentProfile?.whatsapp_number || "",
+      national_id: studentProfile?.national_id || "",
+      academic_background: studentProfile?.academic_background || "",
+      acca_id: studentProfile?.acca_id || "",
+    };
+  }, [studentProfile, user]);
 
   const enrollmentForm = useForm<EnrollmentData>({
     resolver: zodResolver(EnrollmentSchema),
@@ -202,15 +254,16 @@ const CourseViewPage = () => {
   });
 
   useEffect(() => {
-    if (!user) return;
-    enrollmentForm.reset({
-      first_name: user.name?.split(" ")[0] || "",
-      last_name: user.name?.split(" ").slice(1).join(" ") || "",
-      email: user.email || "",
-      phone_number: enrollmentForm.getValues("phone_number") || "",
-      national_id: enrollmentForm.getValues("national_id") || "",
-    });
-  }, [user, enrollmentForm]);
+    if (!user && !studentProfile) return;
+    enrollmentForm.reset(defaultFormValues);
+  }, [user, studentProfile, defaultFormValues, enrollmentForm]);
+
+  const updateProfileMutation = useMutationApi<StudentSelfProfile, EnrollmentData>({
+    url: "/me/student-profile",
+    method: RequestMethod.PUT,
+    shouldPopSuccess: false,
+    shouldPopError: false,
+  });
 
   const createSubscriptionMutation = useMutationApi({
     url: "/student-subscriptions",
@@ -670,8 +723,7 @@ const CourseViewPage = () => {
 
       <Drawer
         open={plansOpen}
-        swipeDirection="down"
-        showSwipeHandle
+        placement="center"
         onClose={() => {
           setPlansOpen(false);
           setShowSuccess(false);
@@ -681,7 +733,7 @@ const CourseViewPage = () => {
         }}
       >
         <DrawerOverlay />
-        <DrawerContent className="mx-auto w-full max-w-5xl">
+        <DrawerContent>
           <DrawerHeader>
             <DrawerTitle>Course Subscription</DrawerTitle>
             <DrawerDescription>
@@ -792,67 +844,71 @@ const CourseViewPage = () => {
                           <User className="h-4 w-4" /> Student Information
                           {isSignedIn && <span className="text-xs text-emerald-600 font-normal">(Prefilled from your profile)</span>}
                         </p>
-                        <form onSubmit={enrollmentForm.handleSubmit(() => {})} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <form onSubmit={enrollmentForm.handleSubmit(() => {})} className="grid grid-cols-1 gap-4 md:grid-cols-4">
                           <div className="space-y-1.5">
                             <Label htmlFor="first_name">First Name <span className="text-destructive">*</span></Label>
-                            <input
-                              id="first_name"
-                              {...enrollmentForm.register("first_name")}
-                              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1"
-                              placeholder="First name"
-                            />
+                            <input id="first_name" {...enrollmentForm.register("first_name")} className={enrollmentFieldClass} placeholder="First name" />
                             {enrollmentForm.formState.errors.first_name && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.first_name.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="last_name">Last Name <span className="text-destructive">*</span></Label>
-                            <input
-                              id="last_name"
-                              {...enrollmentForm.register("last_name")}
-                              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1"
-                              placeholder="Last name"
-                            />
+                            <input id="last_name" {...enrollmentForm.register("last_name")} className={enrollmentFieldClass} placeholder="Last name" />
                             {enrollmentForm.formState.errors.last_name && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.last_name.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
+                            <Label htmlFor="gender">Gender</Label>
+                            <select id="gender" {...enrollmentForm.register("gender")} className={enrollmentFieldClass}>
+                              <option value="">Select</option>
+                              {GENDER_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="date_of_birth">Date of Birth</Label>
+                            <input id="date_of_birth" type="date" {...enrollmentForm.register("date_of_birth")} className={enrollmentFieldClass} />
+                          </div>
+                          <div className="space-y-1.5">
                             <Label htmlFor="phone_number">Phone Number <span className="text-destructive">*</span></Label>
-                            <input
-                              id="phone_number"
-                              {...enrollmentForm.register("phone_number")}
-                              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1"
-                              placeholder="+971 50 123 4567"
-                            />
+                            <input id="phone_number" {...enrollmentForm.register("phone_number")} className={enrollmentFieldClass} placeholder="+93701234567" />
                             {enrollmentForm.formState.errors.phone_number && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.phone_number.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
+                            <Label htmlFor="whatsapp_number">WhatsApp number</Label>
+                            <input id="whatsapp_number" {...enrollmentForm.register("whatsapp_number")} className={enrollmentFieldClass} placeholder="+93701234567" />
+                          </div>
+                          <div className="space-y-1.5">
                             <Label htmlFor="national_id">National ID / Passport <span className="text-destructive">*</span></Label>
-                            <input
-                              id="national_id"
-                              {...enrollmentForm.register("national_id")}
-                              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1"
-                              placeholder="1234567890"
-                            />
+                            <input id="national_id" {...enrollmentForm.register("national_id")} className={enrollmentFieldClass} placeholder="1234567890" />
                             {enrollmentForm.formState.errors.national_id && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.national_id.message}</p>
                             )}
                           </div>
-                          <div className="md:col-span-2 space-y-1.5">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="academic_background">Academic Background</Label>
+                            <select id="academic_background" {...enrollmentForm.register("academic_background")} className={enrollmentFieldClass}>
+                              <option value="">Select</option>
+                              {ACADEMIC_BACKGROUND_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1.5 md:col-span-2">
                             <Label htmlFor="email">Email Address <span className="text-destructive">*</span></Label>
-                            <input
-                              id="email"
-                              type="email"
-                              {...enrollmentForm.register("email")}
-                              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1"
-                              placeholder="your@email.com"
-                            />
+                            <input id="email" type="email" {...enrollmentForm.register("email")} className={enrollmentFieldClass} placeholder="your@email.com" />
                             {enrollmentForm.formState.errors.email && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.email.message}</p>
                             )}
+                          </div>
+                          <div className="space-y-1.5 md:col-span-2">
+                            <Label htmlFor="acca_id">ACCA ID</Label>
+                            <input id="acca_id" {...enrollmentForm.register("acca_id")} className={enrollmentFieldClass} placeholder="If any" />
                           </div>
                         </form>
                       </div>
@@ -874,6 +930,7 @@ const CourseViewPage = () => {
                         className="w-full py-6 text-base font-semibold"
                         disabled={
                           createSubscriptionMutation.isPending ||
+                          updateProfileMutation.isPending ||
                           !selectedPlanId ||
                           !voucherFile ||
                           (selectedPlanId != null && isPlanBlocked(selectedPlanId))
@@ -895,6 +952,13 @@ const CourseViewPage = () => {
                           }
 
                           try {
+                            if (studentProfile?.id) {
+                              try {
+                                await updateProfileMutation.mutateAsync(enrollmentForm.getValues());
+                              } catch {
+                                // Keep the purchase moving if the profile row rejects a field.
+                              }
+                            }
                             await createSubscriptionMutation.mutateAsync({
                               plan_id: String(selectedPlanId),
                               course_id: String(validId),

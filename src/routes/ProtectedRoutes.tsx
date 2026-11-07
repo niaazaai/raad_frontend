@@ -3,6 +3,7 @@ import { ProtectedRouteType } from "@/types/routes";
 import { UserManagementRoutes } from "@/modules/UserManagement";
 import { CourseModuleRoutes } from "@/modules/Course/routes";
 import { FinanceRoutes } from "@/modules/Finance/routes";
+import { ReportRoutes } from "@/modules/Reports";
 
 import { ActivityLogRoutes } from "@/modules/ActivityLog";
 import { BlogRoutes } from "@/modules/Blog/routes";
@@ -45,6 +46,7 @@ const ProtectedRoutes: ProtectedRouteType[] = [
   ...ActivityLogRoutes,
   ...BlogRoutes,
   ...FinanceRoutes,
+  ...ReportRoutes,
   ...CourseModuleRoutes,
 ];
 

@@ -21,7 +21,8 @@ export async function fetchAllListPages<T>({
   const perPage = 250;
   const rows: T[] = [];
   let page = 1;
-  let totalPages = 1;
+  // Safety stop only. 400 pages × 250 rows covers well past the old 250-row cap.
+  const maxPages = 400;
 
   const dateParams = query
     ? query.allTime
@@ -51,9 +52,11 @@ export async function fetchAllListPages<T>({
 
     rows.push(...extractRows(response.data));
     const pagination = extractPagination?.(response.data);
-    totalPages = Math.max(1, pagination?.total_pages ?? 1);
+    const totalPages = Math.max(1, pagination?.total_pages ?? 1);
+    const hasMore = pagination?.has_more_pages === true || page < totalPages;
     page += 1;
-  } while (page <= totalPages && page <= 40);
+    if (!hasMore || page > maxPages) break;
+  } while (page <= maxPages);
 
   return rows;
 }

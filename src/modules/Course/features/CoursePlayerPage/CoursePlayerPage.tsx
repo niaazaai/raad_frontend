@@ -215,15 +215,6 @@ const CoursePlayerPage = () => {
     };
   }, []);
 
-  const unitLabel = useCallback(
-    (moduleId: number | null) => {
-      const index = modules.findIndex((module) => module.id === moduleId);
-      const title = modules[index]?.title?.trim();
-      return title || t("coursePlayer.unitLabel").replace("{n}", String(index + 1));
-    },
-    [modules, t],
-  );
-
   const unitLessons = useCallback(
     (moduleId: number) => lessons.filter((lesson) => lesson.course_module_id === moduleId),
     [lessons],
@@ -233,13 +224,31 @@ const CoursePlayerPage = () => {
     (moduleId: number | null): CourseLearnModule | null => {
       if (moduleId == null || dismissedUnitIds.includes(moduleId)) return null;
       const targetIndex = modules.findIndex((module) => module.id === moduleId);
-      for (let index = 0; index < targetIndex; index += 1) {
+      // Nearest unfinished chapter before this one — never jump back to chapter 1
+      // while a later chapter is still incomplete.
+      for (let index = targetIndex - 1; index >= 0; index -= 1) {
         const earlier = modules[index];
         if (earlier && unitLessons(earlier.id).some((lesson) => !lesson.watched)) return earlier;
       }
       return null;
     },
     [modules, unitLessons, dismissedUnitIds],
+  );
+
+  const chapterLabel = useCallback(
+    (moduleId: number | null) => {
+      const index = modules.findIndex((module) => module.id === moduleId);
+      const number = index >= 0 ? index + 1 : 1;
+      const numbered = t("coursePlayer.chapterLabel").replace("{n}", String(number));
+      const title = index >= 0 ? modules[index]?.title?.trim() : "";
+      if (!title) return numbered;
+      const lowered = title.toLowerCase();
+      if (lowered.includes("chapter") || lowered.includes("فصل") || title.includes(String(number))) {
+        return title;
+      }
+      return `${numbered}: ${title}`;
+    },
+    [modules, t],
   );
 
   const requestOpenModule = useCallback(
@@ -448,8 +457,8 @@ const CoursePlayerPage = () => {
     >
       <UnitOrderModal
         open={unitPrompt != null}
-        firstUnitLabel={unitLabel(unitPrompt?.blockingId ?? null)}
-        targetUnitLabel={unitLabel(unitPrompt?.targetId ?? null)}
+        firstUnitLabel={chapterLabel(unitPrompt?.blockingId ?? null)}
+        targetUnitLabel={chapterLabel(unitPrompt?.targetId ?? null)}
         onStartFirst={startBlockingUnit}
         onContinue={continueToTargetUnit}
         onClose={() => setUnitPrompt(null)}
