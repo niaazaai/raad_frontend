@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 const HEADER_HEIGHT = "calc(154px * 1.15 * 0.9)";
 
 const headerActionClass =
-  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white bg-white/10 px-2.5 text-sm font-medium text-white outline-none backdrop-blur-[2px] transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/80";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-black/10 bg-white px-2.5 text-sm font-medium text-black shadow-sm outline-none transition-colors hover:bg-white/95 focus-visible:ring-2 focus-visible:ring-black/15";
 
 const LanguageSwitcher = () => {
   const locale = useLocaleStore((s) => s.locale);
@@ -28,14 +28,14 @@ const LanguageSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(headerActionClass, "text-white")}
+        className={headerActionClass}
         aria-label={t("language.select")}
       >
-        <Globe className="h-5 w-5 shrink-0 text-white" />
-        <span className="hidden text-white sm:block">{AppLocaleLabels[locale]}</span>
-        <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-white/80" />
+        <Globe className="h-5 w-5 shrink-0 text-black" />
+        <span className="hidden text-black sm:block">{AppLocaleLabels[locale]}</span>
+        <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-black/60" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[9.5rem] bg-white text-black">
+      <DropdownMenuContent align="end" className="min-w-[9.5rem] border-black/10 bg-white text-black">
         {Object.values(AppLocale).map((code) => {
           const active = locale === code;
           return (
@@ -106,23 +106,23 @@ const Header = () => {
         <button
           type="button"
           onClick={toggleTheme}
-          className={cn(headerActionClass, "size-9 px-0 text-white")}
+          className={cn(headerActionClass, "size-9 px-0")}
           aria-label={t("header.toggleTheme")}
         >
           {theme === ThemeMode.DARK ? (
-            <SunLight className="h-5 w-5 text-white" />
+            <SunLight className="h-5 w-5 text-black" />
           ) : (
-            <MoonSat className="h-5 w-5 text-white" />
+            <MoonSat className="h-5 w-5 text-black" />
           )}
         </button>
 
         <button
           type="button"
           onClick={logout}
-          className={cn(headerActionClass, "size-9 px-0 text-white")}
+          className={cn(headerActionClass, "size-9 px-0")}
           aria-label={t("header.signOut")}
         >
-          <LogOutIcon className="h-5 w-5 text-white" />
+          <LogOutIcon className="h-5 w-5 text-black" />
         </button>
       </div>
     </header>
