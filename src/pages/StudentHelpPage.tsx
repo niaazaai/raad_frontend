@@ -235,12 +235,14 @@ function InstructorCard({ person }: { person: HelpPerson }) {
         <p className="max-h-0 overflow-hidden text-sm leading-relaxed text-white/85 opacity-0 transition-all duration-300 group-hover:mt-2 group-hover:max-h-40 group-hover:opacity-100 group-focus-within:mt-2 group-focus-within:max-h-40 group-focus-within:opacity-100">
           {bio}
         </p>
-        <ContactButtons
-          onDark
-          email={person.email ?? undefined}
-          phone={person.phone ?? undefined}
-          whatsapp={person.whatsapp ?? undefined}
-        />
+        <div className="mt-2">
+          <ContactButtons
+            onDark
+            email={person.email ?? undefined}
+            phone={person.phone ?? undefined}
+            whatsapp={person.whatsapp ?? undefined}
+          />
+        </div>
       </div>
     </Card>
   );
