@@ -54,6 +54,8 @@ export const dashboardEn = {
   },
   dashboard: {
     welcomeBack: "Welcome back",
+    goodToSeeYouAgain: "GOOD TO SEE YOU AGAIN",
+    homeSubtitle: "Dedicated home of ACCA and CIA in Afghanistan",
     greeting: "Hope you're having a great day!",
     totalEarnings: "Total Earnings",
     monthlyChange: "{percent}% monthly",
@@ -757,6 +759,8 @@ export const dashboardPs = {
   },
   dashboard: {
     welcomeBack: "بیرته راغلاست",
+    goodToSeeYouAgain: "ښه ده چې بیا مو وینو",
+    homeSubtitle: "په افغانستان کې د ACCA او CIA وقف شوی کور",
     greeting: "امید لرو ښه ورځ ولرئ!",
     totalEarnings: "ټول عاید",
     monthlyChange: "{percent}% میاشتنی",
@@ -1444,6 +1448,8 @@ export const dashboardFa = {
   },
   dashboard: {
     welcomeBack: "خوش آمدید",
+    goodToSeeYouAgain: "خوشحالیم دوباره می‌بینیم‌تان",
+    homeSubtitle: "خانه اختصاصی ACCA و CIA در افغانستان",
     greeting: "امیدواریم روز خوبی داشته باشید!",
     totalEarnings: "کل درآمد",
     monthlyChange: "{percent}% ماهانه",

@@ -15,6 +15,12 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOutIcon } from "@/components/icons/sidebar-icons";
 import { cn } from "@/lib/utils";
 
+/** Banner art is 154px (+15%), then trimmed 10% for a tighter bar. */
+const HEADER_HEIGHT = "calc(154px * 1.15 * 0.9)";
+
+const headerActionClass =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white bg-white/10 px-2.5 text-sm font-medium text-white outline-none backdrop-blur-[2px] transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/80";
+
 const LanguageSwitcher = () => {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
@@ -22,25 +28,28 @@ const LanguageSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/25"
+        className={cn(headerActionClass, "text-white")}
         aria-label={t("language.select")}
       >
-        <Globe className="h-5 w-5 shrink-0" />
-        <span className="hidden sm:block">{AppLocaleLabels[locale]}</span>
-        <NavArrowDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        <Globe className="h-5 w-5 shrink-0 text-white" />
+        <span className="hidden text-white sm:block">{AppLocaleLabels[locale]}</span>
+        <NavArrowDown className="h-3.5 w-3.5 shrink-0 text-white/80" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[9.5rem]">
+      <DropdownMenuContent align="end" className="min-w-[9.5rem] bg-white text-black">
         {Object.values(AppLocale).map((code) => {
           const active = locale === code;
           return (
             <DropdownMenuItem
               key={code}
               onClick={() => setLocale(code)}
-              className={cn("cursor-pointer", active && "bg-primary/10 text-primary")}
+              className={cn(
+                "cursor-pointer text-black focus:bg-black/5 focus:text-black",
+                active && "bg-black/5 font-semibold text-black",
+              )}
             >
-              <span className="flex w-full items-center justify-between gap-3">
+              <span className="flex w-full items-center justify-between gap-3 text-black">
                 {AppLocaleLabels[code]}
-                {active ? <Check className="h-4 w-4 shrink-0" /> : null}
+                {active ? <Check className="h-4 w-4 shrink-0 text-black" /> : null}
               </span>
             </DropdownMenuItem>
           );
@@ -62,38 +71,58 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <SidebarTrigger className="size-9 shrink-0" aria-label={t("header.toggleSidebar")} />
-        <p className="truncate text-sm font-medium text-foreground sm:text-base">
-          <span className="text-muted-foreground">{t("dashboard.welcomeBack")},</span>{" "}
-          <span className="font-semibold">{fullName}</span>
-        </p>
+    <header
+      className="relative sticky top-0 z-40 flex shrink-0 items-center border-b border-border/40 px-4 sm:px-5"
+      style={{
+        height: HEADER_HEIGHT,
+        backgroundImage: "url(/welcome-banner.svg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="flex min-w-0 items-center gap-2 pr-36 sm:gap-3 sm:pr-48">
+        <SidebarTrigger
+          className="size-9 shrink-0 text-[#000000] hover:bg-black/5"
+          aria-label={t("header.toggleSidebar")}
+        />
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-black/55 sm:text-[11px]">
+            {t("dashboard.goodToSeeYouAgain")}
+          </p>
+          <p className="truncate text-lg font-bold leading-tight sm:text-xl md:text-2xl">
+            <span className="text-black">{t("dashboard.welcomeBack")},</span>{" "}
+            <span className="font-extrabold text-[#2373F4]">{fullName}</span>
+          </p>
+          <p className="mt-0.5 truncate text-xs text-black/65 sm:text-sm">
+            {t("dashboard.homeSubtitle")}
+          </p>
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      <div className="absolute top-2 right-3 flex shrink-0 items-center gap-1.5 sm:top-2.5 sm:right-4 sm:gap-2">
         <LanguageSwitcher />
 
         <button
           type="button"
           onClick={toggleTheme}
-          className="rounded-lg p-2 hover:bg-muted"
+          className={cn(headerActionClass, "size-9 px-0 text-white")}
           aria-label={t("header.toggleTheme")}
         >
           {theme === ThemeMode.DARK ? (
-            <SunLight className="h-5 w-5" />
+            <SunLight className="h-5 w-5 text-white" />
           ) : (
-            <MoonSat className="h-5 w-5" />
+            <MoonSat className="h-5 w-5 text-white" />
           )}
         </button>
 
         <button
           type="button"
           onClick={logout}
-          className="rounded-lg p-2 hover:bg-muted"
+          className={cn(headerActionClass, "size-9 px-0 text-white")}
           aria-label={t("header.signOut")}
         >
-          <LogOutIcon className="h-5 w-5" />
+          <LogOutIcon className="h-5 w-5 text-white" />
         </button>
       </div>
     </header>
