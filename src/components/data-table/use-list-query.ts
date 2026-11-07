@@ -35,6 +35,12 @@ export interface UseListQueryOptions {
    */
   syncUrl?: boolean;
   /**
+   * How long to wait after the last keystroke before `search` is sent.
+   * The box itself updates immediately. 300ms is the default; a heavy report can use less
+   * once its request is cheap enough that a shorter wait does not stampede the server.
+   */
+  searchDebounceMs?: number;
+  /**
    * Anything outside this hook that changes which rows match — a screen's own parameters.
    * When it changes, the cursor, the stack and the selection reset, exactly as they do for a
    * filter change here.
@@ -90,6 +96,7 @@ export function useListQuery({
   defaultPerPage = 50,
   syncUrl = true,
   resetKey = '',
+  searchDebounceMs = DEBOUNCE_MS,
 }: UseListQueryOptions = {}): ListQueryControls {
   const [query, setQuery] = useState<ListQuery>(() => readUrl(defaultSort, defaultPerPage, syncUrl));
   const [searchDraft, setSearchDraft] = useState(query.q);
@@ -161,10 +168,9 @@ export function useListQuery({
     setSearchDraft(value);
     clearTimeout(debounce.current);
 
-    // 300ms (06-ui-ux §8). Debouncing the request, not the input: the box updates on every
-    // keystroke, so typing never feels laggy.
-    debounce.current = setTimeout(() => applyNarrowing({ q: value }), DEBOUNCE_MS);
-  }, [applyNarrowing]);
+    // Debouncing the request, not the input: the box updates on every keystroke.
+    debounce.current = setTimeout(() => applyNarrowing({ q: value }), searchDebounceMs);
+  }, [applyNarrowing, searchDebounceMs]);
 
   const setFilter = useCallback((column: string, value: FilterValue | undefined): void => {
     setQuery((current) => {

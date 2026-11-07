@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { GraduationCap, Headphones, Mail, MapPin, Phone } from "lucide-react";
+import { GraduationCap, Headphones, Mail, MapPin, Phone, Presentation } from "lucide-react";
 import { Badge, Button, Card, CardTitle } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
 import { CONTACT_INFO } from "@/components/website/websiteData";
@@ -203,42 +203,55 @@ function InstructorCard({ person }: { person: HelpPerson }) {
   const role = person.roleKey ? t(person.roleKey) : person.role?.trim() || t("studentHelp.instructorFallback");
   const bio = person.bio?.trim() || t("studentHelp.instructorBody");
   const specialization = person.specialization?.trim() || "";
+  const email = person.email?.trim() || "";
+  const cornerBadgeClass = "max-w-full border-white/80 bg-black/40 text-white";
 
   return (
     <Card className="group relative isolate min-h-96 w-full overflow-hidden border-0 bg-neutral-950 p-0 shadow-none">
       {person.image ? (
-        <img src={person.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img
+          src={person.image}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_22%]"
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 text-5xl font-semibold text-white/20">
           {initials(person.name)}
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/[0.765] via-black/[0.468] to-black/[0.212]" />
-      <Badge
-        variant="outline"
-        className="absolute end-3 top-3 z-10 border-neutral-950 bg-black/55 text-white"
-      >
-        {role}
-      </Badge>
       {specialization ? (
         <Badge
           variant="outline"
-          className="absolute start-3 top-3 z-10 max-w-[calc(100%-8rem)] border-white/80 bg-black/40 text-white"
+          className={cn("absolute start-3 top-3 z-10 max-w-[calc(100%-8rem)]", cornerBadgeClass)}
           title={specialization}
         >
           <GraduationCap aria-hidden />
           <span className="truncate">{specialization}</span>
         </Badge>
       ) : null}
-      <div className="relative z-10 flex min-h-96 flex-col justify-end px-5 pb-3 pt-14 text-white">
-        <CardTitle className="translate-y-1 text-[1.2375rem] leading-none text-white">{person.name}</CardTitle>
+      <Badge variant="outline" className={cn("absolute end-3 top-3 z-10", cornerBadgeClass)}>
+        <Presentation aria-hidden />
+        {role}
+      </Badge>
+      <div className="relative z-10 flex min-h-96 flex-col justify-end px-5 pb-4 pt-16 text-white">
+        <div>
+          <CardTitle className="text-[1.2375rem] leading-none text-white">{person.name}</CardTitle>
+          {email ? (
+            <a
+              href={`mailto:${email}`}
+              className="mt-1 block truncate text-xs leading-none text-white/80 hover:text-white"
+            >
+              {email}
+            </a>
+          ) : null}
+        </div>
         <p className="max-h-0 overflow-hidden text-sm leading-relaxed text-white/85 opacity-0 transition-all duration-300 group-hover:mt-2 group-hover:max-h-40 group-hover:opacity-100 group-focus-within:mt-2 group-focus-within:max-h-40 group-focus-within:opacity-100">
           {bio}
         </p>
-        <div className="mt-2">
+        <div className="mt-3">
           <ContactButtons
             onDark
-            email={person.email ?? undefined}
             phone={person.phone ?? undefined}
             whatsapp={person.whatsapp ?? undefined}
           />

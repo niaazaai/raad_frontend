@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useMemo, useRef, useState,
+  useEffect, useMemo, useRef, useState,
   type CSSProperties, type ReactNode, type SyntheticEvent,
 } from 'react';
 import { useTranslation } from './i18n';
@@ -87,13 +87,12 @@ export interface DataTableProps<TData> {
   className?: string;
 
   /**
-   * Pin the header while the body scrolls.
+   * Keep the header and footer still while the body scrolls between them.
    *
-   * On by default: a stock grid is routinely 200 rows, and a column header that has scrolled
-   * away turns every cell into a guess.
+   * On by default. The vertical scrollbar is the body's, so it does not run beside the header.
    */
   stickyHeader?: boolean;
-  /** How tall the scroll container may grow before the body scrolls inside it. */
+  /** How tall the whole frame may grow before the body scrolls between the header and the footer. */
   maxBodyHeight?: string;
 
   /** Shown beside the refetch indicator — "12 of 40 loaded". */
@@ -185,24 +184,18 @@ export function DataTable<TData>({
   const density = prefs.density;
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const headScrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollLock = useRef(false);
+  // The body's vertical scrollbar takes width the header does not have. This spacer keeps
+  // the two tables on the same column grid. Measured, because overlay and classic bars differ.
+  const [scrollGutter, setScrollGutter] = useState(0);
 
-  /*
-   | The header's height, for `.scrollbar-below-header` (index.css): the vertical scrollbar's
-   | track starts under it. Measured rather than assumed — density, browser zoom and a font
-   | still loading all change it — and re-measured whenever it resizes.
-  */
-  const [headHeight, setHeadHeight] = useState(0);
-  const measureHead = useCallback((head: HTMLTableSectionElement | null) => {
-    if (head === null) return undefined;
-
-    const update = (): void => setHeadHeight(head.getBoundingClientRect().height);
-    update();
-
-    const observer = new ResizeObserver(update);
-    observer.observe(head);
-
-    return () => observer.disconnect();
-  }, []);
+  const syncHorizontal = (source: HTMLDivElement | null, target: HTMLDivElement | null): void => {
+    if (scrollLock.current || source === null || target === null || target.scrollLeft === source.scrollLeft) return;
+    scrollLock.current = true;
+    target.scrollLeft = source.scrollLeft;
+    scrollLock.current = false;
+  };
 
   /*
    | A search or filter that settles is announced (06-ui-ux §6): a sighted user sees the rows
@@ -296,6 +289,44 @@ export function DataTable<TData>({
     () => (getRowId ? data.map(getRowId) : []),
     [data, getRowId],
   );
+
+  const showSelect = selection !== undefined && getRowId !== undefined;
+  const leafHeaders = table.getHeaderGroups().at(-1)?.headers ?? [];
+  const layoutCols = [
+    ...(showSelect ? [{ id: 'select', width: 40 }] : []),
+    ...leafHeaders.map((header) => {
+      const meta = header.column.columnDef.meta;
+      return {
+        id: header.column.id,
+        width: prefs.widths[header.column.id] ?? meta?.width?.default ?? 160,
+      };
+    }),
+  ];
+  const tableStyle: CSSProperties = {
+    width: `max(100%, ${layoutCols.reduce((sum, col) => sum + col.width, 0)}px)`,
+  };
+  const columnGroup = (): ReactNode => (
+    <colgroup>
+      {layoutCols.map((col) => (
+        <col key={col.id} style={{ width: col.width }} />
+      ))}
+    </colgroup>
+  );
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el === null) return undefined;
+
+    const update = (): void => {
+      const next = el.offsetWidth - el.clientWidth;
+      setScrollGutter((current) => (current === next ? current : next));
+    };
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [rows.length, density, cards, stickyHeader]);
 
   const allOnPageSelected = pageIds.length > 0
     && selection !== undefined
@@ -414,35 +445,24 @@ export function DataTable<TData>({
       ) : (
       <>
       {/*
-        | Wide content scrolls INSIDE its container; the page never scrolls sideways.
-        |
-        | `maxHeight` plus `overflow-auto` is what makes the header sticky actually work —
-        | `position: sticky` needs a scroll container with a bounded height, and without one
-        | the header simply scrolls away with the page.
+        | Header and footer stay outside the vertical scroll. The bar belongs to the body,
+        | between them. The header follows the body's horizontal scroll, and a spacer the
+        | width of that bar keeps the two tables on one column grid.
         */}
-      <div className="elevated overflow-hidden rounded-xl border bg-card print:border-0 print:shadow-none">
-        {banner ? <div className="print:hidden">{banner}</div> : null}
-        {/*
-          | ONE scroll container for both axes. `Table` wraps itself in an `overflow-x-auto`
-          | div, and any overflow other than visible makes an element a scroll container in
-          | BOTH directions — the sticky header and the pinned columns would then stick to that
-          | inner div, which never scrolls vertically, and scroll away with this one. So the
-          | inner wrapper is made visible here and this div does all the scrolling.
-          */}
-        {/* With a sticky header the body scrolls under it, and its vertical scrollbar starts
-            below the header rather than beside it (`.scrollbar-below-header`, index.css). */}
-        <div
-          ref={scrollRef}
-          className={cn(
-            'scrollbar-themed overflow-auto print:overflow-visible [&>[data-slot=table-container]]:overflow-visible',
-            stickyHeader && 'scrollbar-below-header',
-          )}
-          style={stickyHeader
-            ? { maxHeight: maxBodyHeight, '--table-head': `${headHeight}px` } as CSSProperties
-            : undefined}
-        >
-          <Table>
-            <TableHeader ref={measureHead} className={stickyHeader ? '[&_tr]:border-b-0!' : undefined}>
+      <div
+        className="elevated flex flex-col overflow-hidden rounded-xl border bg-card print:max-h-none print:overflow-visible print:border-0 print:shadow-none"
+        style={stickyHeader ? { maxHeight: maxBodyHeight } : undefined}
+      >
+        {banner ? <div className="shrink-0 print:hidden">{banner}</div> : null}
+        <div className="flex w-full shrink-0">
+          <div
+            ref={headScrollRef}
+            onScroll={(event) => syncHorizontal(event.currentTarget, scrollRef.current)}
+            className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <Table className="table-fixed" style={tableStyle}>
+              {columnGroup()}
+              <TableHeader className="[&_tr]:border-b-0">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {selection !== undefined && getRowId !== undefined ? (
@@ -489,9 +509,7 @@ export function DataTable<TData>({
                           pinned
                             ? [PINNED_END, pinnedHeader(stickyHeader)]
                             : [
-                                'relative bg-muted/40',
-                                // Opaque, or the rows show through as they scroll underneath.
-                                stickyHeader && 'sticky top-0 z-10 border-b border-border bg-muted',
+                                'relative z-10 border-b border-border bg-muted',
                               ],
                           meta?.numeric === true && 'text-end',
                           priorityClass(meta?.priority),
@@ -538,8 +556,21 @@ export function DataTable<TData>({
                   })}
                 </TableRow>
               ))}
-            </TableHeader>
-
+              </TableHeader>
+            </Table>
+          </div>
+          <div aria-hidden className="shrink-0 border-b border-border bg-muted" style={{ width: scrollGutter }} />
+        </div>
+        <div
+          ref={scrollRef}
+          onScroll={(event) => syncHorizontal(event.currentTarget, headScrollRef.current)}
+          className={cn(
+            'scrollbar-themed min-h-0 overflow-x-auto print:overflow-visible',
+            stickyHeader ? 'flex-auto overflow-y-auto overscroll-contain' : 'overflow-y-visible',
+          )}
+        >
+          <Table className="table-fixed" style={tableStyle}>
+            {columnGroup()}
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
@@ -631,7 +662,7 @@ export function DataTable<TData>({
           </Table>
         </div>
 
-        <div className={cn('border-t print:hidden', DENSITY_HEADER[density])}>
+        <div className={cn('shrink-0 border-t print:hidden', DENSITY_HEADER[density])}>
           {footerBar}
         </div>
       </div>

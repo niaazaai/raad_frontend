@@ -87,6 +87,8 @@ export interface UseDataTableOptions<TRow> {
    */
   params?: Record<string, string | undefined>;
   syncUrl?: boolean;
+  /** Passed to the list-state hook. Omit to keep the shared 300ms search debounce. */
+  searchDebounceMs?: number;
   enabled?: boolean;
   /**
    * Per-table opt-in for the capabilities whose server half does not exist yet.
@@ -152,7 +154,7 @@ export function useDataTable<TRow>(options: UseDataTableOptions<TRow>): DataTabl
     select = false, defaultSort = '', defaultPerPage = 50,
     perPageOptions = [25, 50, 100, 200],
     getRowId = (row: TRow) => (row as { id: string }).id,
-    countEndpoint, syncUrl = true, enabled = true,
+    countEndpoint, syncUrl = true, searchDebounceMs, enabled = true,
   } = options;
 
   // Off unless this table has explicitly earned them, endpoint by endpoint.
@@ -163,7 +165,9 @@ export function useDataTable<TRow>(options: UseDataTableOptions<TRow>): DataTabl
   const paramsKey = new URLSearchParams(params).toString();
 
   // A parameter change resets the cursor and the selection inside the list-state hook itself.
-  const controls = useListQuery({ defaultSort, defaultPerPage, syncUrl, resetKey: paramsKey });
+  const controls = useListQuery({
+    defaultSort, defaultPerPage, syncUrl, resetKey: paramsKey, searchDebounceMs,
+  });
   const preferences = useTablePreferences(key);
   const can = usePermissionCheck();
 
