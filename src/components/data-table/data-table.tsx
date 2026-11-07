@@ -457,8 +457,7 @@ export function DataTable<TData>({
         <div className="flex w-full shrink-0">
           <div
             ref={headScrollRef}
-            onScroll={(event) => syncHorizontal(event.currentTarget, scrollRef.current)}
-            className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="min-w-0 flex-1 overflow-hidden"
           >
             <Table className="table-fixed" style={tableStyle}>
               {columnGroup()}
