@@ -255,7 +255,7 @@ const Sidebar = () => {
         title: "Attendance",
         path: "/attendance",
         icon: <ClipboardCheck className={iconLg} />,
-        permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
+        anyPermission: ["attendance.read", "attendance.classes.read"],
       },
       {
         title: "Instructors",
@@ -272,13 +272,13 @@ const Sidebar = () => {
       {
         title: "Reports",
         icon: <ClipboardList className={iconLg} />,
-        permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+        permission: "reports.students.read",
         children: [
           {
             title: "Student report",
             path: "/reports/students",
             icon: <GraduationCap className={iconSm} />,
-            permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
+            permission: "reports.students.read",
           },
         ],
       },
@@ -287,8 +287,11 @@ const Sidebar = () => {
         icon: <DollarCircle className={iconLg} />,
         anyPermission: [
           "finance.read",
-          "course.class_students.payment",
-          "course.class_students.update",
+          "finance.payments.receive",
+          "finance.invoices.read",
+          "finance.dues.read",
+          "finance.service_income.read",
+          "finance.manual_invoices.create",
         ],
         children: [
           {
@@ -301,13 +304,13 @@ const Sidebar = () => {
             title: "Invoices",
             path: "/finance/invoices",
             icon: <PageFlip className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.invoices.read",
           },
           {
             title: "Upcoming dues",
             path: "/finance/upcoming-dues",
             icon: <CalendarArrowDown className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.dues.read",
           },
           {
             title: "Transactions",
@@ -319,23 +322,19 @@ const Sidebar = () => {
             title: "Service income",
             path: "/finance/service-income",
             icon: <Coins className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.service_income.read",
           },
           {
             title: "Manual invoice",
             path: "/finance/manual-invoice",
             icon: <PageEdit className={iconSm} />,
-            anyPermission: [
-              "course.class_students.invoice",
-              "course.class_students.payment",
-              "course.class_students.update",
-            ],
+            anyPermission: ["finance.manual_invoices.create", "finance.service_income.create"],
           },
           {
             title: "Receive payment",
             path: "/finance/receive-payment",
             icon: <HandCash className={iconSm} />,
-            anyPermission: ["course.class_students.payment", "course.class_students.update"],
+            permission: "finance.payments.receive",
           },
         ],
       },

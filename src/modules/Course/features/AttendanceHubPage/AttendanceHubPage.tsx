@@ -35,7 +35,7 @@ const AttendanceHubPage = () => {
   const rows = extractAttendanceOverview(data);
   const pagination = extractAttendanceOverviewPagination(data);
 
-  if (!hasPermission("course.lms_classes.read")) {
+  if (!hasPermission("attendance.read") && !hasPermission("attendance.classes.read")) {
     return <PermissionDeniedCard />;
   }
 

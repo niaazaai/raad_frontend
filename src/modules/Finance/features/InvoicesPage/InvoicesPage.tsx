@@ -142,7 +142,7 @@ const InvoicesPage = () => {
     ],
   };
 
-  if (!hasPermission("finance.read")) {
+  if (!hasPermission("finance.invoices.read")) {
     return <PermissionDeniedCard />;
   }
 

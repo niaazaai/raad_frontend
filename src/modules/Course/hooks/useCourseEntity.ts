@@ -53,6 +53,28 @@ export function getCourseEntityDetailFromResponse(response: unknown): CourseRow 
   return null;
 }
 
+/** Swap one saved row inside a list cache. Detail payloads are left alone. */
+function replaceSavedEntityRow(current: unknown, saved: CourseRow): unknown {
+  if (!current || typeof current !== "object") return current;
+  const rows = (current as { data?: unknown }).data;
+  if (!Array.isArray(rows)) return current;
+
+  const savedId = saved.id;
+  const fields = { ...saved };
+  // The update payload does not reload the online/offline flag, so leave the list value.
+  delete fields.channel;
+
+  return {
+    ...(current as Record<string, unknown>),
+    data: rows.map((row) => {
+      if (!row || typeof row !== "object") return row;
+      const rowId = (row as CourseRow).id;
+      if (rowId !== savedId && String(rowId) !== String(savedId)) return row;
+      return { ...(row as CourseRow), ...fields };
+    }),
+  };
+}
+
 export function useCourseEntityList(
   slug: CourseEntitySlug | null,
   params?: Record<string, unknown>,
@@ -110,6 +132,9 @@ export function useCourseEntityDetail(
     method: RequestMethod.GET,
     options: {
       enabled: options?.enabled !== false && id != null,
+      // The app default is to keep a query for five minutes and not reload it on mount.
+      // An edit form has to show the student that was just saved, including a cleared photo.
+      refetchOnMount: "always",
     },
   });
 }
@@ -162,10 +187,30 @@ export function useUpdateCourseEntity(slug: CourseEntitySlug) {
       }
       return response.data;
     },
-    onSuccess: (_data: unknown, vars: { id: number; body: Record<string, unknown> }) => {
-      queryClient.invalidateQueries({ queryKey: ["course", "entity", slug] });
-      queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: ["course", "entity", slug, "detail", vars.id] });
+    onSuccess: async (data: unknown, vars: { id: number; body: Record<string, unknown> }) => {
+      const saved = getCourseEntityDetailFromResponse(data);
+      const detailKey = ["course", "entity", slug, "detail", vars.id] as const;
+      // A reload started before this save must not finish afterwards and put the old photo back.
+      await queryClient.cancelQueries({ queryKey: detailKey });
+      if (saved) {
+        queryClient.setQueriesData({ queryKey: ["course", "entity", slug] }, (current) =>
+          replaceSavedEntityRow(current, saved),
+        );
+      }
+      queryClient.setQueriesData({ queryKey: detailKey }, data);
+      // Refresh the open list, but not the detail. Closing the form aborts that request
+      // and React Query would restore the student from before the save.
+      void queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key)
+            && key[0] === "course"
+            && key[1] === "entity"
+            && key[2] === slug
+            && key[3] !== "detail";
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: courseQueryKeys.overview });
       if (slug === "lms-class-students") {
         // Student name / phone / ID / email also show on class, finance and dashboard screens.
         FINANCE_RELATED_QUERY_KEYS.forEach((key) =>

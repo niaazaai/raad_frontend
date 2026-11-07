@@ -64,11 +64,10 @@ function enrollmentBalance(row: ClassStudentRow): number {
 
 const ReceivePaymentPage = () => {
   const { t } = useTranslation();
-  const { hasAnyPermission } = useAuth();
-  const canReceive = hasAnyPermission([
-    "course.class_students.payment",
-    "course.class_students.update",
-  ]);
+  const { hasPermission } = useAuth();
+  const canReceive = hasPermission("finance.payments.receive");
+  const canDiscount = hasPermission("finance.discounts.apply");
+  const canWriteOff = hasPermission("finance.debts.writeoff");
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialStudent = Number(searchParams.get("student") ?? "") || null;
@@ -441,6 +440,8 @@ const ReceivePaymentPage = () => {
                 isSubmitting={recordPayment.isPending}
                 submitLabel={t("finance.receivePayment.submit")}
                 classifyOnlyLabel={t("course.classStudents.classifyOnly")}
+                canApplyDiscount={canDiscount}
+                canWriteOff={canWriteOff}
               />
             ) : null}
           </CardContent>

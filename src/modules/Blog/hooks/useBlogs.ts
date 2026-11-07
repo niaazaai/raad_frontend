@@ -77,6 +77,46 @@ export function useSetBlogStatusMutation() {
   });
 }
 
+export function useSaveBlogCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (category: string) => {
+      const res = await callApi<{ value: string; label: string }>({
+        url: BLOG_ENDPOINTS.CATEGORIES,
+        method: RequestMethod.POST,
+        data: { category },
+        shouldPopSuccess: false,
+      });
+      if (!res?.ok) {
+        throw new Error("Could not save category");
+      }
+      const payload = res.data as { data?: { value?: string } } | undefined;
+      return payload?.data?.value ?? category;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BLOG_QUERY_KEYS.blogs });
+    },
+  });
+}
+
+export function useDeleteBlogCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (category: string) => {
+      const res = await callApi({
+        url: BLOG_ENDPOINTS.CATEGORY(category),
+        method: RequestMethod.DELETE,
+      });
+      if (!res?.ok) {
+        throw new Error("Could not remove category");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BLOG_QUERY_KEYS.blogs });
+    },
+  });
+}
+
 export function useToggleBlogPublishedMutation() {
   const queryClient = useQueryClient();
   return useMutation({

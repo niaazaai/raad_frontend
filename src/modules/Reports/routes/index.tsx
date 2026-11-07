@@ -7,6 +7,6 @@ export const ReportRoutes: ProtectedRouteType[] = [
   {
     path: "/reports/students",
     component: <StudentReportPage />,
-    permission: "course.class_students.read",
+    permission: "reports.students.read",
   },
 ];

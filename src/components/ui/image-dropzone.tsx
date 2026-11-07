@@ -20,6 +20,8 @@ export interface ImageDropzoneProps {
   initialPreviewName?: string | null;
   /** Shorter drop target for drawers where vertical space is tight. */
   dense?: boolean;
+  /** Called when the X removes a preview that is already saved, not a file just picked. */
+  onRemove?: () => void;
 }
 
 const ImageDropzone = ({
@@ -35,15 +37,22 @@ const ImageDropzone = ({
   initialPreviewUrl,
   initialPreviewName,
   dense = false,
+  onRemove,
 }: ImageDropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [remotePreviewFailed, setRemotePreviewFailed] = useState(false);
+  const [dismissedExisting, setDismissedExisting] = useState(false);
 
   useEffect(() => {
     setRemotePreviewFailed(false);
-  }, [initialPreviewUrl, value]);
+    setDismissedExisting(false);
+  }, [initialPreviewUrl]);
+
+  useEffect(() => {
+    setRemotePreviewFailed(false);
+  }, [value]);
 
   useLayoutEffect(() => {
     if (!value) {
@@ -102,7 +111,10 @@ const ImageDropzone = ({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("[data-dropzone-remove]")) return;
+          inputRef.current?.click();
+        }}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -119,7 +131,7 @@ const ImageDropzone = ({
           error && "border-danger"
         )}
       >
-        {value || (initialPreviewUrl && !remotePreviewFailed) ? (
+        {value || (initialPreviewUrl && !dismissedExisting) ? (
           <div className="relative">
             {value && value.type === "application/pdf" ? (
               <div className="flex w-full max-w-md flex-col items-center gap-2 rounded-xl border border-border bg-muted/30 px-6 py-6">
@@ -153,6 +165,13 @@ const ImageDropzone = ({
                   previewMode === "square" ? "w-24" : "w-full max-w-md"
                 )}
               />
+            ) : !value && initialPreviewUrl && remotePreviewFailed ? (
+              <div className="flex max-w-md flex-col items-center gap-1 px-2">
+                <Page className="h-8 w-8 text-primary" />
+                <span className="max-w-full truncate text-sm font-medium text-foreground">
+                  {initialPreviewName || "File"}
+                </span>
+              </div>
             ) : initialPreviewUrl && !remotePreviewFailed && mediaPreview === "video" ? (
               <video
                 src={initialPreviewUrl}
@@ -184,11 +203,19 @@ const ImageDropzone = ({
             ) : null}
             <button
               type="button"
+              data-dropzone-remove
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                onSelect(null);
+                if (inputRef.current) inputRef.current.value = "";
+                if (value) {
+                  onSelect(null);
+                  return;
+                }
+                setDismissedExisting(true);
+                onRemove?.();
               }}
-              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white hover:bg-danger-active"
+              className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white hover:bg-danger-active"
             >
               <Xmark className="h-3.5 w-3.5" />
             </button>

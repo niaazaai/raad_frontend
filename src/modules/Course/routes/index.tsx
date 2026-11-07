@@ -10,6 +10,7 @@ const ClassAttendancePage = lazy(() => import("../features/ClassAttendancePage/C
 const AttendanceHubPage = lazy(() => import("../features/AttendanceHubPage/AttendanceHubPage"));
 const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
 const MainCategoriesPage = lazy(() => import("../features/MainCategoriesPage/MainCategoriesPage"));
+const StudentsPage = lazy(() => import("../features/StudentsPage/StudentsPage"));
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
@@ -22,12 +23,12 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
   {
     path: "/classes/:classId/attendance",
     component: <ClassAttendancePage />,
-    permission: "course.lms_classes.read",
+    anyPermission: ["attendance.read", "attendance.classes.read"],
   },
   {
     path: "/attendance",
     component: <AttendanceHubPage />,
-    permission: "course.lms_classes.read",
+    anyPermission: ["attendance.read", "attendance.classes.read"],
   },
   {
     path: "/classes",
@@ -36,7 +37,7 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
   },
   {
     path: "/students",
-    component: <CourseEntityList forcedSlug="lms-class-students" />,
+    component: <StudentsPage />,
     permission: "course.class_students.read",
   },
   {

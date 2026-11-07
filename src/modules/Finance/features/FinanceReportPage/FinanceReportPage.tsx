@@ -305,6 +305,7 @@ const FinanceReportPage = () => {
     emptyMessage: t("finance.empty"),
     onRowDoubleClick: (row) => setDetailsRow(row),
     exportFilename: "finance-class-report",
+    exportEnabled: hasPermission("finance.reports.export"),
     exportDateKey: "payment_date",
     fetchExportRows: (query) =>
       fetchAllListPages({
@@ -384,6 +385,7 @@ const FinanceReportPage = () => {
     emptyMessage: t("finance.empty"),
     onRowDoubleClick: (row) => setDetailsRow(row),
     exportFilename: "finance-course-report",
+    exportEnabled: hasPermission("finance.reports.export"),
     exportDateKey: "purchase_date",
     fetchExportRows: (query) =>
       fetchAllListPages({
@@ -404,10 +406,16 @@ const FinanceReportPage = () => {
     return <PermissionDeniedCard />;
   }
 
-  const canReceivePayment = hasAnyPermission([
-    "course.class_students.payment",
-    "course.class_students.update",
+  const canReceivePayment = hasPermission("finance.payments.receive");
+  const canCreateManualInvoice = hasAnyPermission([
+    "finance.manual_invoices.create",
+    "finance.service_income.create",
   ]);
+  const canSeeFinanceCards = hasPermission("finance.dashboard.read");
+  const canSeeStudentReceivable = hasPermission("finance.receivables.students.read");
+  const canSeeMofReceivable = hasPermission("finance.receivables.mof.read");
+  const canSeeOtherReceivable = hasPermission("finance.receivables.other.read");
+  const canSeeServiceIncome = hasPermission("finance.service_income.read");
   const loadingCards = isLoading || (isFetching && !data);
   const cohortFootnote = `${summary.enrollment_count ?? 0} ${t("fin.cards.enrollments")}${
     summary.free_count ? ` · ${summary.free_count} ${t("fin.cards.freeStudents")}` : ""
@@ -520,7 +528,7 @@ const FinanceReportPage = () => {
                   {t("finance.serviceIncome.title")}
                 </Link>
               </DropdownMenuItem>
-              {canReceivePayment ? (
+              {canCreateManualInvoice ? (
                 <DropdownMenuItem asChild>
                   <Link to="/finance/manual-invoice">
                     <PageEdit className="h-4 w-4" />
@@ -533,6 +541,7 @@ const FinanceReportPage = () => {
         </ButtonGroup>
       </div>
 
+      {canSeeFinanceCards ? (
       <TooltipProvider delayDuration={150}>
         {module === "class" ? (
           <div className="space-y-6">
@@ -588,6 +597,7 @@ const FinanceReportPage = () => {
                     openBreakdown("paid", t("fin.cards.paidToDate"), t("fin.hints.paidToDate"))
                   }
                 />
+                {canSeeStudentReceivable ? (
                 <SummaryCard
                   label={t("fin.cards.receivable")}
                   value={summary.student_receivable ?? 0}
@@ -602,6 +612,7 @@ const FinanceReportPage = () => {
                     )
                   }
                 />
+                ) : null}
                 <SummaryCard
                   label={t("fin.cards.writtenOff")}
                   value={summary.irrecoverable_debt}
@@ -616,6 +627,7 @@ const FinanceReportPage = () => {
                     )
                   }
                 />
+                {canSeeMofReceivable ? (
                 <SummaryCard
                   label={t("fin.cards.mof")}
                   value={summary.mof_receivable}
@@ -624,6 +636,8 @@ const FinanceReportPage = () => {
                   tone="auxiliary"
                   onClick={() => openBreakdown("mof", t("fin.cards.mof"), t("finance.hints.mof"))}
                 />
+                ) : null}
+                {canSeeOtherReceivable ? (
                 <SummaryCard
                   label={t("fin.cards.other")}
                   value={summary.other_receivable}
@@ -634,6 +648,7 @@ const FinanceReportPage = () => {
                     openBreakdown("other", t("fin.cards.other"), t("finance.hints.other"))
                   }
                 />
+                ) : null}
                 <SummaryCard
                   label={t("fin.cards.refunds")}
                   value={summary.refund_amount}
@@ -706,6 +721,7 @@ const FinanceReportPage = () => {
                   icon={<GraphUp className="h-5 w-5" />}
                   tone="success"
                 />
+                {canSeeServiceIncome ? (
                 <SummaryCard
                   label={t("fin.cards.serviceIncome")}
                   value={summary.service_income ?? 0}
@@ -720,6 +736,7 @@ const FinanceReportPage = () => {
                     )
                   }
                 />
+                ) : null}
                 <SummaryCard
                   label={t("fin.cards.serviceCost")}
                   value={summary.service_cost ?? 0}
@@ -757,6 +774,7 @@ const FinanceReportPage = () => {
               hint={t("finance.hints.courseIncome")}
               icon={<GraphUp className="h-5 w-5" />}
             />
+            {canSeeServiceIncome ? (
             <SummaryCard
               label={t("finance.netServiceIncome")}
               value={summary.service_income ?? 0}
@@ -764,6 +782,7 @@ const FinanceReportPage = () => {
               icon={<Coins className="h-5 w-5" />}
               tone="success"
             />
+            ) : null}
             <SummaryCard
               label={t("finance.netServiceCost")}
               value={summary.service_cost ?? 0}
@@ -774,6 +793,7 @@ const FinanceReportPage = () => {
           </div>
         )}
       </TooltipProvider>
+      ) : null}
 
       {module === "class" ? (
         <div className="space-y-3">

@@ -215,6 +215,8 @@ export interface ClassStudentPaymentFormProps {
   isSubmitting?: boolean;
   submitLabel?: string;
   classifyOnlyLabel?: string;
+  canApplyDiscount?: boolean;
+  canWriteOff?: boolean;
 }
 
 export function ClassStudentPaymentForm({
@@ -226,6 +228,8 @@ export function ClassStudentPaymentForm({
   isSubmitting = false,
   submitLabel,
   classifyOnlyLabel,
+  canApplyDiscount = true,
+  canWriteOff = true,
 }: ClassStudentPaymentFormProps) {
   const { t } = useTranslation();
 
@@ -359,6 +363,7 @@ export function ClassStudentPaymentForm({
           <Label>{t("course.classStudents.discountType")}</Label>
           <Select
             value={form.discount_type}
+            disabled={!canApplyDiscount}
             onValueChange={(v) =>
               applyDiscountChange({
                 discount_type: v,
@@ -385,7 +390,7 @@ export function ClassStudentPaymentForm({
             type="number"
             min={0}
             max={form.discount_type === "percentage" ? 100 : undefined}
-            disabled={form.discount_type === "none"}
+            disabled={form.discount_type === "none" || !canApplyDiscount}
             value={form.discount_type === "none" ? "0" : form.discount_amount}
             onChange={(e) => applyDiscountChange({ discount_amount: e.target.value })}
           />
@@ -543,6 +548,8 @@ export function ClassStudentPaymentForm({
           id="irrecoverable-debt"
           type="number"
           min={0}
+          step="0.01"
+          disabled={!canWriteOff}
           value={form.irrecoverable_debt}
           onChange={(e) => onFormChange(clampPaymentToRemaining(e.target.value, form))}
         />

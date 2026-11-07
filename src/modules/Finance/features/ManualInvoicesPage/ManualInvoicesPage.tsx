@@ -167,7 +167,7 @@ const ManualInvoicesPage = () => {
     [t, debouncedSearch, params.sort_by, params.sort_dir, openPdf]
   );
 
-  if (!hasPermission("finance.read")) {
+  if (!hasPermission("finance.service_income.read")) {
     return <PermissionDeniedCard />;
   }
 

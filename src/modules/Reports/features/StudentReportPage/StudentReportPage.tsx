@@ -30,7 +30,7 @@ const FILTER_KEYS = [
   "result",
 ] as const;
 
-const READ = "course.class_students.read";
+const READ = "reports.students.read";
 
 type ReportFilters = UrlFilters<(typeof FILTER_KEYS)[number]>;
 
@@ -282,7 +282,7 @@ function StudentReportList({ filters }: { filters: ReportFilters }) {
     key: "reports.student-progress",
     queryKey: (query) => [...REPORT_QUERY_KEYS.students, query],
     endpoint: "/reports/student-progress",
-    readPermission: READ,
+    readPermission: "reports.students.export",
     columns,
     search: true,
     select: "multi",

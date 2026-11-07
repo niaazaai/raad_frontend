@@ -217,7 +217,7 @@ const UpcomingDuesPage = () => {
     [t, canReceive, navigate]
   );
 
-  if (!hasPermission("finance.read")) {
+  if (!hasPermission("finance.dues.read")) {
     return <PermissionDeniedCard />;
   }
 

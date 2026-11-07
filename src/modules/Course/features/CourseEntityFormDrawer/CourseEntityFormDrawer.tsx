@@ -357,6 +357,8 @@ const CourseEntityFormDrawer = ({
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [studentProfileImage, setStudentProfileImage] = useState<File | null>(null);
   const [studentNationalIdAttachment, setStudentNationalIdAttachment] = useState<File | null>(null);
+  const [removeStudentProfileImage, setRemoveStudentProfileImage] = useState(false);
+  const [removeStudentNationalId, setRemoveStudentNationalId] = useState(false);
 
   const isCreateMode = mode === "create";
   const nextClassCodeQuery = useNextClassCode(slug === "lms-classes" && isCreateMode && !readOnly);
@@ -545,6 +547,8 @@ const CourseEntityFormDrawer = ({
         });
         setVoucherFile(null);
         setStudentProfileImage(null);
+        setRemoveStudentProfileImage(false);
+        setRemoveStudentNationalId(false);
         return;
       }
       if (detail) {
@@ -559,6 +563,8 @@ const CourseEntityFormDrawer = ({
         setVoucherFile(null);
         setStudentProfileImage(null);
         setStudentNationalIdAttachment(null);
+        setRemoveStudentProfileImage(false);
+        setRemoveStudentNationalId(false);
       }
       return;
     }
@@ -568,6 +574,8 @@ const CourseEntityFormDrawer = ({
       setVoucherFile(null);
       setStudentProfileImage(null);
       setStudentNationalIdAttachment(null);
+      setRemoveStudentProfileImage(false);
+      setRemoveStudentNationalId(false);
       return;
     }
     if (detail) {
@@ -576,6 +584,8 @@ const CourseEntityFormDrawer = ({
       setVoucherFile(null);
       setStudentProfileImage(null);
       setStudentNationalIdAttachment(null);
+      setRemoveStudentProfileImage(false);
+      setRemoveStudentNationalId(false);
     }
   }, [mode, slug, detail, reset, def.fields]);
 
@@ -739,9 +749,13 @@ const CourseEntityFormDrawer = ({
     }
     if (slug === "lms-class-students" && studentProfileImage) {
       payload.profile_image_file = studentProfileImage;
+    } else if (slug === "lms-class-students" && removeStudentProfileImage) {
+      payload.remove_profile_image = 1;
     }
     if (slug === "lms-class-students" && studentNationalIdAttachment) {
       payload.national_id_attachment_file = studentNationalIdAttachment;
+    } else if (slug === "lms-class-students" && removeStudentNationalId) {
+      payload.remove_national_id_attachment = 1;
     }
 
     const onSaveError = (e: unknown) => {
@@ -1818,10 +1832,17 @@ const CourseEntityFormDrawer = ({
                   label="Profile picture"
                   hint="Upload student profile image"
                   value={studentProfileImage}
-                  onSelect={setStudentProfileImage}
+                  onSelect={(file) => {
+                    setStudentProfileImage(file);
+                    if (file) setRemoveStudentProfileImage(false);
+                  }}
+                  onRemove={() => {
+                    setStudentProfileImage(null);
+                    setRemoveStudentProfileImage(true);
+                  }}
                   previewMode="square"
                   initialPreviewUrl={
-                    studentProfileImage
+                    removeStudentProfileImage || studentProfileImage
                       ? null
                       : typeof detail?.profile_image_url === "string"
                         ? detail.profile_image_url
@@ -1833,11 +1854,23 @@ const CourseEntityFormDrawer = ({
                   label="National ID attachment"
                   hint="Upload national ID image or PDF"
                   value={studentNationalIdAttachment}
-                  onSelect={setStudentNationalIdAttachment}
+                  onSelect={(file) => {
+                    setStudentNationalIdAttachment(file);
+                    if (file) setRemoveStudentNationalId(false);
+                  }}
+                  onRemove={() => {
+                    setStudentNationalIdAttachment(null);
+                    setRemoveStudentNationalId(true);
+                  }}
                   previewMode="square"
                   mediaPreview="file"
+                  initialPreviewName={
+                    typeof detail?.national_id_attachment === "string"
+                      ? detail.national_id_attachment.split("/").pop() ?? null
+                      : null
+                  }
                   initialPreviewUrl={
-                    studentNationalIdAttachment
+                    removeStudentNationalId || studentNationalIdAttachment
                       ? null
                       : typeof detail?.national_id_attachment_url === "string"
                         ? detail.national_id_attachment_url

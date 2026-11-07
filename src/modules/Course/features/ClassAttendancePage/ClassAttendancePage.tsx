@@ -71,7 +71,7 @@ const ClassAttendancePage = () => {
     syncingRef.current = false;
   }, []);
 
-  if (!hasPermission("course.class_students.read") && !hasPermission("course.lms_classes.read")) {
+  if (!hasPermission("attendance.read") && !hasPermission("attendance.classes.read")) {
     return <PermissionDeniedCard />;
   }
 
@@ -95,7 +95,7 @@ const ClassAttendancePage = () => {
   const classCompleted = classMeta?.status === "completed" || classMeta?.can_edit === false;
   const canEdit =
     !classCompleted &&
-    (hasPermission("course.lms_classes.update") || hasPermission("course.class_students.update"));
+    (hasPermission("attendance.record"));
   const dateRange =
     classMeta?.start_date && classMeta?.end_date
       ? `${classMeta.start_date} → ${classMeta.end_date}`

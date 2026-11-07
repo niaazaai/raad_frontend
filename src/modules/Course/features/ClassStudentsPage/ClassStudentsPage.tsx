@@ -1003,6 +1003,7 @@ function PaymentModal({
   onClose,
 }: PaymentModalProps) {
   const recordPayment = useRecordClassStudentPayment(classId, row?.id ?? 0);
+  const { hasPermission } = useAuth();
   const { t } = useTranslation();
   const fmt = useFormatMessage();
 
@@ -1025,6 +1026,8 @@ function PaymentModal({
             form={form}
             onFormChange={onFormChange}
             isSubmitting={recordPayment.isPending}
+            canApplyDiscount={hasPermission("finance.discounts.apply")}
+            canWriteOff={hasPermission("finance.debts.writeoff")}
             onSubmit={async () => {
               try {
                 await recordPayment.mutateAsync(buildPaymentPayloadFromForm(form, row, classFee));
