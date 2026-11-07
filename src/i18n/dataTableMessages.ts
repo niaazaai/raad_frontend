@@ -116,6 +116,12 @@ export const dataTableEn = {
       emptyBody: "Add the first group so courses have a place to live.",
       new: "New main category",
     },
+    courses: {
+      search: "Search courses",
+      emptyTitle: "No courses yet",
+      emptyBody: "Add a course to publish on the storefront.",
+      new: "New course",
+    },
   },
 } as const;
 
@@ -237,6 +243,12 @@ export const dataTablePs = {
       emptyBody: "لومړۍ ډله زیاته کړئ چې کورسونه ځای ولري.",
       new: "نوې اصلي کټګوري",
     },
+    courses: {
+      search: "کورسونه ولټوئ",
+      emptyTitle: "لا کورس نشته",
+      emptyBody: "د پلورنځي لپاره یو کورس زیات کړئ.",
+      new: "نوی کورس",
+    },
   },
 } as const;
 
@@ -357,6 +369,12 @@ export const dataTableFa = {
       emptyTitle: "هنوز دسته اصلی نیست",
       emptyBody: "اولین گروه را اضافه کنید تا دوره‌ها جا داشته باشند.",
       new: "دسته اصلی جدید",
+    },
+    courses: {
+      search: "جستجوی دوره‌ها",
+      emptyTitle: "هنوز دوره‌ای نیست",
+      emptyBody: "یک دوره برای فروشگاه اضافه کنید.",
+      new: "دوره جدید",
     },
   },
 } as const;
