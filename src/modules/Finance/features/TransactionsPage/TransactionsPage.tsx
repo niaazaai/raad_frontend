@@ -49,7 +49,7 @@ import {
 } from "../../hooks/useFinancialTransactions";
 import FinanceDetailsDrawer from "../FinanceReportPage/FinanceDetailsDrawer";
 
-const FILTER_KEYS = ["type", "payer", "class_id"] as const;
+const FILTER_KEYS = ["type", "payer", "class_id", "source"] as const;
 const READ = "finance.read";
 const EDIT = "finance.transactions.edit";
 const DELETE = "finance.transactions.delete";
@@ -177,23 +177,17 @@ function TransactionsList({
       return;
     }
 
-    const classId = Number(row.class_id ?? 0);
-    const enrollmentId = Number(row.class_student_id ?? 0);
-    const canGenerate =
-      classId > 0 &&
-      enrollmentId > 0 &&
-      (row.type === "payment" || row.type === "refund");
-
-    if (!canGenerate) {
-      toast.error(t("fin.transactions.printInvoice"));
+    const isCash = row.type === "payment" || row.type === "refund";
+    if (!isCash) {
+      toast.error(t("fin.transactions.invoiceUnavailable"));
       return;
     }
 
     try {
+      // Unified endpoint covers class enrollments and online course subscriptions.
       const response = await callApi<{ id: number; pdf_url?: string | null }>({
-        url: `/lms-classes/${classId}/students/${enrollmentId}/invoices`,
+        url: FINANCE_ENDPOINTS.TRANSACTION_INVOICE(row.id),
         method: RequestMethod.POST,
-        data: { transaction_id: row.id },
       });
       if (!response.ok) {
         throw new Error(response.data?.message || "Invoice generation failed");
@@ -210,7 +204,7 @@ function TransactionsList({
         openPdf(invoice.pdf_url);
         return;
       }
-      toast.error(t("fin.transactions.printInvoice"));
+      toast.error(t("fin.transactions.invoiceUnavailable"));
     } catch {
       // error toast is shown by callApi when the API returns an error envelope
     }
@@ -242,6 +236,15 @@ function TransactionsList({
       { value: "student", label: t("fin.payer.student") },
       { value: "mof", label: t("fin.payer.mof") },
       { value: "other_party", label: t("fin.payer.other_party") },
+    ],
+    [t],
+  );
+
+  const sourceOptions = useMemo(
+    () => [
+      { value: "", label: t("fin.transactions.sourceAll") },
+      { value: "class", label: t("fin.transactions.sourceClass") },
+      { value: "course", label: t("fin.transactions.sourceCourse") },
     ],
     [t],
   );
@@ -292,31 +295,36 @@ function TransactionsList({
           </bdi>
         ),
       },
-      {
-        id: "student_name",
-        header: t("finance.columns.name"),
-        meta: {
-          priority: 1,
-          shortLabel: t("finance.columns.name"),
-          plainText: (row) => {
-            const item = row as FinancialTransactionRow;
-            return shown(item.student_name?.trim() || item.service_name);
+      funnel(
+        {
+          id: "student_name",
+          header: t("finance.columns.name"),
+          meta: {
+            priority: 1,
+            shortLabel: t("finance.columns.name"),
+            plainText: (row) => {
+              const item = row as FinancialTransactionRow;
+              return shown(item.student_name?.trim() || item.service_name);
+            },
+            width: { default: 180, min: 140 },
           },
-          width: { default: 180, min: 140 },
-        },
-        cell: ({ row }) => (
-          <div>
-            <div className="font-medium">
-              {shown(row.original.student_name?.trim() || row.original.service_name)}
-            </div>
-            {row.original.student_code ? (
-              <div className="font-mono text-xs text-muted-foreground">
-                <bdi dir="ltr">{row.original.student_code}</bdi>
+          cell: ({ row }) => (
+            <div>
+              <div className="font-medium">
+                {shown(row.original.student_name?.trim() || row.original.service_name)}
               </div>
-            ) : null}
-          </div>
-        ),
-      },
+              {row.original.student_code ? (
+                <div className="font-mono text-xs text-muted-foreground">
+                  <bdi dir="ltr">{row.original.student_code}</bdi>
+                </div>
+              ) : null}
+            </div>
+          ),
+        },
+        "source",
+        t("fin.transactions.sourceAll"),
+        sourceOptions,
+      ),
       funnel(
         {
           id: "class_name",
@@ -496,8 +504,10 @@ function TransactionsList({
           const canPrint =
             Boolean(row.pdf_url) ||
             ((row.type === "payment" || row.type === "refund") &&
-              Number(row.class_id ?? 0) > 0 &&
-              Number(row.class_student_id ?? 0) > 0);
+              (Number(row.class_student_id ?? 0) > 0 ||
+                Number(row.student_subscription_id ?? 0) > 0 ||
+                row.source === "course" ||
+                row.source === "class"));
           if (canPrint) {
             leading.push({
               id: "print",
@@ -535,6 +545,7 @@ function TransactionsList({
     payerOptions,
     printTransactionInvoice,
     removeRow,
+    sourceOptions,
     t,
     typeOptions,
   ]);

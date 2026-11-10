@@ -4,6 +4,8 @@ export const FINANCE_ENDPOINTS = {
   DUES: "/finance/dues",
   INVOICES: "/finance/invoices",
   TRANSACTIONS: "/finance/transactions",
+  TRANSACTION_INVOICE: (transactionId: number) =>
+    `/finance/transactions/${transactionId}/invoice`,
   UPCOMING_INSTALLMENTS: "/finance/upcoming-installments",
   MANUAL_INVOICES: "/finance/manual-invoices",
   MANUAL_INVOICE_NEXT_NUMBER: "/finance/next-invoice-number",

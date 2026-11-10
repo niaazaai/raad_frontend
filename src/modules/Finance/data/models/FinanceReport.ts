@@ -243,11 +243,16 @@ export interface FinanceInvoiceRow {
   payer?: string | null;
   pdf_url?: string | null;
   class_student_id?: number | null;
+  student_subscription_id?: number | null;
+  /** class = offline LMS, course = online subscription, service = walk-in */
+  source?: "class" | "course" | "service" | string | null;
   student_name?: string | null;
   student_code?: string | null;
   father_name?: string | null;
   class_name?: string | null;
   class_code?: string | null;
+  course_title?: string | null;
+  course_label?: string | null;
   service_name?: string | null;
   service_cost?: number | string | null;
   internal_notes?: string | null;
@@ -345,6 +350,9 @@ export interface FinancialTransactionRow {
   id: number;
   class_student_id?: number | null;
   class_id?: number | null;
+  student_subscription_id?: number | null;
+  /** class = offline LMS, course = online subscription, service = walk-in */
+  source?: "class" | "course" | "service" | string | null;
   type?: string | null;
   type_label?: string | null;
   transaction_type?: string | null;

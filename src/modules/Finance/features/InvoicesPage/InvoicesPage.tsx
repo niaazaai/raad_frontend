@@ -6,9 +6,13 @@ import { Button, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
+  ColumnFunnel,
   ServerDataTable,
   actionsColumn,
   useDataTable,
+  useUrlFilters,
+  withHeaderAddon,
+  type UrlFilters,
 } from "@/components/data-table";
 import { useTranslation as useGridTranslation } from "@/components/data-table/i18n";
 import FinancePeriodFilter from "../../components/FinancePeriodFilter";
@@ -23,6 +27,17 @@ import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../../data/constants/endp
 import type { FinanceInvoiceRow } from "../../data/models/FinanceReport";
 
 const READ = "finance.invoices.read";
+const FILTER_KEYS = ["source"] as const;
+type InvoiceFilters = UrlFilters<(typeof FILTER_KEYS)[number]>;
+
+function sourceLabel(
+  source: FinanceInvoiceRow["source"],
+  labels: { class: string; course: string; service: string }
+): string {
+  if (source === "course") return labels.course;
+  if (source === "class") return labels.class;
+  return labels.service;
+}
 
 function shown(value: string | number | null | undefined): string {
   if (value == null) return "—";
@@ -38,9 +53,11 @@ function Ltr({ value }: { value: string }) {
 function InvoicesList({
   period,
   onPeriodChange,
+  filters,
 }: {
   period: PeriodState;
   onPeriodChange: (next: PeriodState) => void;
+  filters: InvoiceFilters;
 }) {
   const { t } = useTranslation();
   const { t: gridT } = useGridTranslation();
@@ -55,6 +72,32 @@ function InvoicesList({
     [range],
   );
 
+  const tableParams = useMemo(
+    () => ({
+      ...filters.params,
+      ...dateParams,
+    }),
+    [filters.params, dateParams],
+  );
+
+  const sourceOptions = useMemo(
+    () => [
+      { value: "", label: t("fin.transactions.sourceAll") },
+      { value: "class", label: t("fin.transactions.sourceClass") },
+      { value: "course", label: t("fin.transactions.sourceCourse") },
+    ],
+    [t],
+  );
+
+  const sourceLabels = useMemo(
+    () => ({
+      class: t("fin.transactions.sourceClass"),
+      course: t("fin.transactions.sourceCourse"),
+      service: t("finance.serviceIncome.title"),
+    }),
+    [t],
+  );
+
   const openInvoice = useCallback((row: FinanceInvoiceRow) => {
     openPdf(row.pdf_url);
   }, []);
@@ -65,10 +108,27 @@ function InvoicesList({
     const issueDateLabel = t("fin.columns.issueDate");
     const nameLabel = t("finance.columns.name");
     const classLabel = t("finance.columns.class");
+    const sourceLabelHeader = t("fin.transactions.sourceAll");
     const customerLabel = t("finance.manualInvoice.customerName");
     const amountLabel = t("finance.columns.amount");
     const notesLabel = t("fin.transactions.internalNotes");
     const printLabel = t("finance.invoices.print");
+
+    const funnel = (
+      column: ColumnDef<FinanceInvoiceRow, unknown>,
+      key: (typeof FILTER_KEYS)[number],
+      label: string,
+      options: { value: string; label: string }[],
+    ): ColumnDef<FinanceInvoiceRow, unknown> =>
+      withHeaderAddon(
+        column,
+        <ColumnFunnel
+          label={label}
+          value={filters.values[key]}
+          onChange={(next) => filters.set(key, next)}
+          options={options}
+        />,
+      );
 
     return [
       {
@@ -130,13 +190,15 @@ function InvoicesList({
           shortLabel: nameLabel,
           plainText: (row) => {
             const item = row as FinanceInvoiceRow;
-            return shown(item.student_name);
+            return shown(item.student_name || item.customer_name);
           },
           width: { default: 180, min: 140 },
         },
         cell: ({ row }) => (
           <div>
-            <div className="font-medium">{shown(row.original.student_name)}</div>
+            <div className="font-medium">
+              {shown(row.original.student_name || row.original.customer_name)}
+            </div>
             {row.original.student_code ? (
               <div className="font-mono text-xs text-muted-foreground">
                 <bdi dir="ltr">{row.original.student_code}</bdi>
@@ -145,6 +207,27 @@ function InvoicesList({
           </div>
         ),
       },
+      funnel(
+        {
+          id: "source",
+          header: sourceLabelHeader,
+          meta: {
+            priority: 2,
+            shortLabel: sourceLabelHeader,
+            plainText: (row) =>
+              sourceLabel((row as FinanceInvoiceRow).source, sourceLabels),
+            width: { default: 150, min: 120 },
+          },
+          cell: ({ row }) => (
+            <span className="text-sm">
+              {sourceLabel(row.original.source, sourceLabels)}
+            </span>
+          ),
+        },
+        "source",
+        sourceLabelHeader,
+        sourceOptions,
+      ),
       {
         id: "class_name",
         header: classLabel,
@@ -153,20 +236,38 @@ function InvoicesList({
           shortLabel: classLabel,
           plainText: (row) => {
             const item = row as FinanceInvoiceRow;
+            if (item.source === "course") {
+              return shown(item.course_label || item.course_title || item.service_name);
+            }
             return shown(item.class_name || item.class_code);
           },
-          width: { default: 160, min: 120 },
+          width: { default: 180, min: 130 },
         },
-        cell: ({ row }) => (
-          <div>
-            <div>{shown(row.original.class_name)}</div>
-            {row.original.class_code ? (
-              <div className="font-mono text-xs text-muted-foreground">
-                <bdi dir="ltr">{row.original.class_code}</bdi>
+        cell: ({ row }) => {
+          const item = row.original;
+          if (item.source === "course") {
+            return (
+              <div>
+                <div>{shown(item.course_label || item.course_title || item.service_name)}</div>
+                {item.class_code ? (
+                  <div className="font-mono text-xs text-muted-foreground">
+                    <bdi dir="ltr">{item.class_code}</bdi>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-        ),
+            );
+          }
+          return (
+            <div>
+              <div>{shown(item.class_name)}</div>
+              {item.class_code ? (
+                <div className="font-mono text-xs text-muted-foreground">
+                  <bdi dir="ltr">{item.class_code}</bdi>
+                </div>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "customer_name",
@@ -235,7 +336,7 @@ function InvoicesList({
             : [],
       ),
     ];
-  }, [gridT, openInvoice, t]);
+  }, [filters, gridT, openInvoice, sourceLabels, sourceOptions, t]);
 
   const table = useDataTable<FinanceInvoiceRow>({
     key: "finance.invoices",
@@ -247,7 +348,7 @@ function InvoicesList({
     select: "multi",
     exports: ["print"],
     exportTitle: title,
-    params: dateParams,
+    params: tableParams,
     syncUrl: true,
     defaultSort: "-transaction_date",
     defaultPerPage: 25,
@@ -262,7 +363,7 @@ function InvoicesList({
       searchPlaceholder={t("dt.invoices.search")}
       emptyTitle={t("dt.invoices.emptyTitle")}
       emptyBody={t("dt.invoices.emptyBody")}
-      narrowed={period.period !== "all"}
+      narrowed={period.period !== "all" || filters.narrowed}
       onRowDoubleClick={openInvoice}
       stickyHeader
       toolsInHeader
@@ -283,6 +384,7 @@ const InvoicesPage = () => {
   const { t } = useTranslation();
   const { hasPermission } = useAuth();
   const [period, setPeriod] = useState<PeriodState>(() => defaultPeriodState("all"));
+  const filters = useUrlFilters(FILTER_KEYS);
 
   if (!hasPermission(READ)) {
     return <PermissionDeniedCard />;
@@ -308,7 +410,7 @@ const InvoicesPage = () => {
           <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
         </Button>
       </div>
-      <InvoicesList period={period} onPeriodChange={setPeriod} />
+      <InvoicesList period={period} onPeriodChange={setPeriod} filters={filters} />
     </div>
   );
 };
