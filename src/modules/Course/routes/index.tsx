@@ -13,6 +13,12 @@ const MainCategoriesPage = lazy(() => import("../features/MainCategoriesPage/Mai
 const ClassesPage = lazy(() => import("../features/ClassesPage/ClassesPage"));
 const StudentsPage = lazy(() => import("../features/StudentsPage/StudentsPage"));
 const InstructorsPage = lazy(() => import("../features/InstructorsPage/InstructorsPage"));
+const StudentSubscriptionsPage = lazy(
+  () => import("../features/StudentSubscriptionsPage/StudentSubscriptionsPage"),
+);
+const SubscriptionPlansPage = lazy(
+  () => import("../features/SubscriptionPlansPage/SubscriptionPlansPage"),
+);
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
@@ -71,6 +77,16 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
     path: "/course/main-categories",
     component: <MainCategoriesPage />,
     permission: "course.main_categories.read",
+  },
+  {
+    path: "/course/student-subscriptions",
+    component: <StudentSubscriptionsPage />,
+    permission: "course.student_subscriptions.read",
+  },
+  {
+    path: "/course/subscription-plans",
+    component: <SubscriptionPlansPage />,
+    permission: "course.subscription_plans.read",
   },
   {
     path: "/course/:slug",

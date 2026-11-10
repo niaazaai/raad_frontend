@@ -128,6 +128,18 @@ export const dataTableEn = {
       emptyBody: "Link the first tutor profile so classes can be assigned.",
       new: "New instructor",
     },
+    studentSubscriptions: {
+      search: "Search subscription ID, student, or course",
+      emptyTitle: "No subscriptions yet",
+      emptyBody: "Add the first student subscription to track course access.",
+      new: "New subscription",
+    },
+    subscriptionPlans: {
+      search: "Search plans by name",
+      emptyTitle: "No subscription plans yet",
+      emptyBody: "Add a billing plan so courses can offer access tiers.",
+      new: "New plan",
+    },
     transactions: {
       search: "Search student, class, invoice, or notes",
       emptyTitle: "No transactions yet",
@@ -288,6 +300,18 @@ export const dataTablePs = {
       emptyBody: "لومړی استاد پروفایل وتړئ ترڅو ټولګي ورته ورکړل شي.",
       new: "نوی استاد",
     },
+    studentSubscriptions: {
+      search: "د ګډون شمېره، زده کوونکی یا کورس ولټوئ",
+      emptyTitle: "لا ګډون نشته",
+      emptyBody: "لومړی زده کوونکی ګډون زیات کړئ ترڅو د کورس لاسرسی وڅارل شي.",
+      new: "نوی ګډون",
+    },
+    subscriptionPlans: {
+      search: "پلانونه د نوم له مخې ولټوئ",
+      emptyTitle: "لا ګډون پلانونه نشته",
+      emptyBody: "یو بلینګ پلان زیات کړئ ترڅو کورسونه د لاسرسي کچې وړاندې کړي.",
+      new: "نوی پلان",
+    },
     transactions: {
       search: "زده کوونکی، ټولګی، بل یا یادښت ولټوئ",
       emptyTitle: "لا معامله نشته",
@@ -447,6 +471,18 @@ export const dataTableFa = {
       emptyTitle: "هنوز استادی نیست",
       emptyBody: "اولین پروفایل استاد را وصل کنید تا صنف‌ها قابل تخصیص شوند.",
       new: "استاد جدید",
+    },
+    studentSubscriptions: {
+      search: "جستجوی شناسه اشتراک، شاگرد یا دوره",
+      emptyTitle: "هنوز اشتراکی نیست",
+      emptyBody: "اولین اشتراک شاگرد را اضافه کنید تا دسترسی دوره پیگیری شود.",
+      new: "اشتراک جدید",
+    },
+    subscriptionPlans: {
+      search: "جستجوی پلن‌ها با نام",
+      emptyTitle: "هنوز پلن اشتراکی نیست",
+      emptyBody: "یک پلن صورتحساب اضافه کنید تا دوره‌ها سطوح دسترسی داشته باشند.",
+      new: "پلن جدید",
     },
     transactions: {
       search: "جستجوی شاگرد، صنف، فاکتور یا یادداشت",

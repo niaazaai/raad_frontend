@@ -27,6 +27,17 @@ function isSubscriptionExpired(endDate: string | null): boolean {
   return diff != null && diff <= 0;
 }
 
+/** Cancelled / deactivated rows never belong on My Learning. */
+function isLearningVisible(row: MyEnrollmentItem): boolean {
+  const status = String(row.subscription_status ?? "").toLowerCase();
+  return status !== "cancelled" && status !== "inactive";
+}
+
+function isExpiredEnrollment(row: MyEnrollmentItem): boolean {
+  const status = String(row.subscription_status ?? "").toLowerCase();
+  return status === "expired" || isSubscriptionExpired(row.subscription_end_date);
+}
+
 function accessLabel(endDate: string | null): string | null {
   const diff = daysUntil(endDate);
   if (diff == null) return null;
@@ -61,7 +72,8 @@ function CourseCard({
   const courseId = Number(row.course_id);
   const title = row.course_title ?? "Course";
   const description = String(row.course_short_description ?? "").trim();
-  const expired = isSubscriptionExpired(row.subscription_end_date);
+  const expired = isExpiredEnrollment(row);
+  const status = String(row.subscription_status ?? "").toLowerCase();
   const learnPath = Number.isFinite(courseId) ? `/learn/course/${courseId}` : "/student";
   const resumeLessonId = Number(row.resume_lesson_id);
   const resumeAt = Math.max(0, Math.floor(Number(row.resume_position_seconds) || 0));
@@ -69,7 +81,7 @@ function CourseCard({
   const resumePath = hasResume
     ? `/learn/course/${courseId}?lesson=${resumeLessonId}${resumeAt > 0 ? `&t=${resumeAt}` : ""}`
     : learnPath;
-  const canLearn = !expired && row.subscription_status !== "pending";
+  const canLearn = !expired && status === "active";
   const access = accessLabel(row.subscription_end_date);
   const level = String(row.course_level ?? "").trim();
   const category = [row.course_main_category, row.course_sub_category].filter(Boolean).join(" - ");
@@ -213,7 +225,7 @@ function CourseGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {rows.map((row) => (
-        <CourseCard key={row.id} row={row} onRenew={onRenew} />
+        <CourseCard key={`${row.course_id}-${row.id}`} row={row} onRenew={onRenew} />
       ))}
     </div>
   );
@@ -221,9 +233,9 @@ function CourseGrid({
 
 const StudentDashboardPage = () => {
   const { data, isLoading, isError } = useMyEnrollments({ page: 1, per_page: 48 });
-  const enrollments = getMyEnrollmentsFromResponse(data);
-  const active = enrollments.filter((row) => !isSubscriptionExpired(row.subscription_end_date));
-  const expired = enrollments.filter((row) => isSubscriptionExpired(row.subscription_end_date));
+  const enrollments = getMyEnrollmentsFromResponse(data).filter(isLearningVisible);
+  const active = enrollments.filter((row) => !isExpiredEnrollment(row));
+  const expired = enrollments.filter((row) => isExpiredEnrollment(row));
   const [renewCourse, setRenewCourse] = useState<{ id: number; title: string } | null>(null);
 
   const openRenew = (courseId: number, title: string) => {
