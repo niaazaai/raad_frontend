@@ -138,6 +138,12 @@ export const dataTableEn = {
       emptyTitle: "No invoices yet",
       emptyBody: "Issued invoices will show here once recorded.",
     },
+    finance: {
+      searchClass: "Search student, class, or invoice",
+      searchCourse: "Search student, course, or plan",
+      emptyTitle: "No finance rows",
+      emptyBody: "Nothing matches this period and filter.",
+    },
     classes: {
       search: "Search classes",
       emptyTitle: "No classes yet",
@@ -292,6 +298,12 @@ export const dataTablePs = {
       emptyTitle: "لا بل نشته",
       emptyBody: "صادر شوي بلونه دلته د ثبت وروسته ښکاري.",
     },
+    finance: {
+      searchClass: "زده کوونکی، ټولګی یا بل ولټوئ",
+      searchCourse: "زده کوونکی، کورس یا پلان ولټوئ",
+      emptyTitle: "مالي قطار نشته",
+      emptyBody: "په دې موده او فلټر کې هیڅ نه دی برابر.",
+    },
     classes: {
       search: "ټولګي ولټوئ",
       emptyTitle: "لا ټولګي نشته",
@@ -445,6 +457,12 @@ export const dataTableFa = {
       search: "جستجوی فاکتور، شاگرد یا صنف",
       emptyTitle: "هنوز فاکتوری نیست",
       emptyBody: "فاکتورهای صادرشده پس از ثبت اینجا دیده می‌شوند.",
+    },
+    finance: {
+      searchClass: "جستجوی شاگرد، صنف یا فاکتور",
+      searchCourse: "جستجوی شاگرد، دوره یا پلن",
+      emptyTitle: "ردیفی در مالی نیست",
+      emptyBody: "چیزی با این دوره و فیلتر جور نیست.",
     },
     classes: {
       search: "جستجوی صنف‌ها",

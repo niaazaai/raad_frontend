@@ -1,10 +1,31 @@
 import { useCallback, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
-import { Landmark as Bank, CalendarArrowDown, ShoppingCart as Cart, CircleCheck as CheckCircle, Clock, Coins, ArrowLeftRight as CoinsSwap, Eye, TrendingUp as GraphUp, Users as Group, HandCoins as HandCash, List, Ellipsis as MoreHoriz, FilePen as PageEdit, BookOpenText as PageFlip, Percent as Percentage, Undo2 as Undo, Wallet, TriangleAlert as WarningTriangle, CircleX as XmarkCircle } from "lucide-react";
+import {
+  Landmark as Bank,
+  CalendarArrowDown,
+  ShoppingCart as Cart,
+  CircleCheck as CheckCircle,
+  Clock,
+  Coins,
+  ArrowLeftRight as CoinsSwap,
+  Eye,
+  TrendingUp as GraphUp,
+  Users as Group,
+  HandCoins as HandCash,
+  List,
+  Ellipsis as MoreHoriz,
+  FilePen as PageEdit,
+  BookOpenText as PageFlip,
+  Percent as Percentage,
+  Undo2 as Undo,
+  Wallet,
+  TriangleAlert as WarningTriangle,
+  CircleX as XmarkCircle,
+} from "lucide-react";
 import {
   Button,
   ButtonGroup,
-  DataTable,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,12 +36,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui";
+import {
+  ColumnFunnel,
+  ServerDataTable,
+  actionsColumn,
+  useDataTable,
+  useUrlFilters,
+  withHeaderAddon,
+  type UrlFilters,
+} from "@/components/data-table";
+import { useTranslation as useGridTranslation } from "@/components/data-table/i18n";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
-import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
-import { fetchAllListPages } from "@/lib/fetchAllListPages";
 import { cn } from "@/lib/utils";
-import type { DataTableConfig } from "@/types/datatable";
 import FinanceBreakdownDrawer, {
   type BreakdownRequest,
 } from "../../components/FinanceBreakdownDrawer";
@@ -29,13 +57,12 @@ import FinanceStatusBadge from "../../components/FinanceStatusBadge";
 import SummaryCard from "../../components/SummaryCard";
 import {
   defaultPeriodState,
-  exportPeriodParams,
   formatMoney,
   periodParams,
   periodRange,
   type PeriodState,
 } from "../../components/financeFormat";
-import { FINANCE_ENDPOINTS } from "../../data/constants/endpoints";
+import { FINANCE_ENDPOINTS, FINANCE_QUERY_KEYS } from "../../data/constants/endpoints";
 import type {
   FinanceBreakdownEnrollmentRow,
   FinanceBreakdownMetric,
@@ -46,8 +73,6 @@ import type {
   FinanceSummary,
 } from "../../data/models/FinanceReport";
 import {
-  extractFinancePagination,
-  extractFinanceRows,
   extractFinanceSummary,
   useFinanceReport,
 } from "../../hooks/useFinanceReport";
@@ -70,9 +95,670 @@ const EMPTY_SUMMARY: FinanceSummary = {
   service_cost: 0,
 };
 
+const CLASS_FILTER_KEYS = ["payment_status"] as const;
+const READ = "finance.read";
+
+type ClassFilters = UrlFilters<(typeof CLASS_FILTER_KEYS)[number]>;
+
+function shown(value: string | number | null | undefined): string {
+  if (value == null) return "—";
+  const text = String(value).trim();
+  return text === "" ? "—" : text;
+}
+
+function Ltr({ value }: { value: string }) {
+  if (value === "—") return value;
+  return <bdi dir="ltr">{value}</bdi>;
+}
+
+function ClassReportList({
+  filters,
+  period,
+  onPeriodChange,
+  scope,
+  onScopeChange,
+  module,
+  onModuleChange,
+  onOpenDetails,
+}: {
+  filters: ClassFilters;
+  period: PeriodState;
+  onPeriodChange: (next: PeriodState) => void;
+  scope: FinanceReportScope;
+  onScopeChange: (next: FinanceReportScope) => void;
+  module: FinanceModule;
+  onModuleChange: (next: FinanceModule) => void;
+  onOpenDetails: (row: FinanceClassRow) => void;
+}) {
+  const { t } = useTranslation();
+  const { t: gridT } = useGridTranslation();
+  const title = t("finance.title");
+  const periodQuery = useMemo(() => periodParams(period), [period]);
+
+  const tableParams = useMemo(() => {
+    const params: Record<string, string | undefined> = {
+      module: "class",
+      scope,
+      period: periodQuery.period,
+      date: periodQuery.date,
+      month: periodQuery.month,
+      year: periodQuery.year != null ? String(periodQuery.year) : undefined,
+      from: periodQuery.from,
+      to: periodQuery.to,
+      ...filters.params,
+    };
+    return params;
+  }, [filters.params, periodQuery, scope]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "", label: t("finance.transactions.filterAll") },
+      { value: "pending", label: t("fin.status.pending") },
+      { value: "paid", label: t("fin.status.paid") },
+      { value: "partial", label: t("fin.status.partial") },
+      { value: "mof_pending", label: t("fin.status.mof_pending") },
+      { value: "other_party", label: t("fin.status.other_party") },
+      { value: "free", label: t("fin.status.free") },
+      { value: "written_off", label: t("fin.status.written_off") },
+      { value: "withdrawn", label: t("fin.status.withdrawn") },
+      { value: "moved", label: t("fin.status.moved") },
+    ],
+    [t],
+  );
+
+  const columns = useMemo<ColumnDef<FinanceClassRow, unknown>[]>(() => {
+    const nameLabel = t("finance.columns.name");
+    const fatherLabel = t("finance.columns.fatherName");
+    const classLabel = t("finance.columns.class");
+    const startLabel = t("finance.columns.classStartDate");
+    const paidInPeriodLabel = t("fin.columns.paidInPeriod");
+    const feesLabel = t("finance.columns.fees");
+    const discountLabel = t("finance.columns.discountAmount");
+    const netLabel = t("finance.columns.net");
+    const totalPaidLabel = t("fin.columns.totalPaid");
+    const refundLabel = t("finance.columns.refund");
+    const irrecoverableLabel = t("finance.columns.irrecoverable");
+    const receivableLabel = t("finance.columns.netReceivable");
+    const statusLabel = t("finance.columns.paymentStatus");
+    const feeDateLabel = t("finance.columns.enrollmentDate");
+    const teacherLabel = t("finance.columns.teacher");
+    const viewLabel = t("finance.details.viewDetails");
+
+    return [
+      {
+        id: "student_name",
+        header: nameLabel,
+        meta: {
+          priority: 1,
+          shortLabel: nameLabel,
+          plainText: (row) => shown((row as FinanceClassRow).student_name),
+          width: { default: 180, min: 140 },
+        },
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{shown(row.original.student_name)}</div>
+            {row.original.student_code ? (
+              <div className="font-mono text-xs text-muted-foreground">
+                <bdi dir="ltr">{row.original.student_code}</bdi>
+              </div>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: "father_name",
+        header: fatherLabel,
+        meta: {
+          priority: 3,
+          shortLabel: fatherLabel,
+          plainText: (row) => shown((row as FinanceClassRow).father_name),
+          width: { default: 140, min: 110 },
+        },
+        cell: ({ row }) => shown(row.original.father_name),
+      },
+      {
+        id: "class_name",
+        header: classLabel,
+        meta: {
+          priority: 1,
+          shortLabel: classLabel,
+          plainText: (row) => {
+            const item = row as FinanceClassRow;
+            return shown(item.class_code ?? item.class_name);
+          },
+          width: { default: 160, min: 120 },
+        },
+        cell: ({ row }) => (
+          <div>
+            <div>{shown(row.original.class_name)}</div>
+            {row.original.class_code ? (
+              <div className="font-mono text-xs text-muted-foreground">
+                <bdi dir="ltr">{row.original.class_code}</bdi>
+              </div>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: "starting_date",
+        header: startLabel,
+        meta: {
+          priority: 3,
+          shortLabel: startLabel,
+          plainText: (row) => shown((row as FinanceClassRow).starting_date),
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap tabular-nums">
+            <Ltr value={shown(row.original.starting_date)} />
+          </span>
+        ),
+      },
+      {
+        id: "paid_in_period",
+        header: paidInPeriodLabel,
+        meta: {
+          priority: 2,
+          shortLabel: paidInPeriodLabel,
+          plainText: (row) => {
+            const item = row as FinanceClassRow;
+            return item.paid_in_period == null ? "—" : formatMoney(item.paid_in_period);
+          },
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => (
+          <span className="font-semibold tabular-nums text-success">
+            {row.original.paid_in_period == null ? (
+              "—"
+            ) : (
+              <bdi dir="ltr">{formatMoney(row.original.paid_in_period)}</bdi>
+            )}
+          </span>
+        ),
+      },
+      {
+        id: "fees_amount",
+        header: feesLabel,
+        meta: {
+          priority: 2,
+          shortLabel: feesLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).fees_amount),
+          width: { default: 110, min: 90 },
+        },
+        cell: ({ row }) => (
+          <bdi dir="ltr">{formatMoney(row.original.fees_amount)}</bdi>
+        ),
+      },
+      {
+        id: "discount_amount",
+        header: discountLabel,
+        meta: {
+          priority: 3,
+          shortLabel: discountLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).discount_amount),
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            <bdi dir="ltr">{formatMoney(row.original.discount_amount)}</bdi>
+            {Number(row.original.discount_percent) > 0 ? (
+              <span className="ms-1 text-xs text-muted-foreground">
+                ({Number(row.original.discount_percent)}%)
+              </span>
+            ) : null}
+          </span>
+        ),
+      },
+      {
+        id: "net_amount",
+        header: netLabel,
+        meta: {
+          priority: 2,
+          shortLabel: netLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).net_amount),
+          width: { default: 110, min: 90 },
+        },
+        cell: ({ row }) => <bdi dir="ltr">{formatMoney(row.original.net_amount)}</bdi>,
+      },
+      {
+        id: "paid_amount",
+        header: totalPaidLabel,
+        meta: {
+          priority: 2,
+          shortLabel: totalPaidLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).paid_amount),
+          width: { default: 110, min: 90 },
+        },
+        cell: ({ row }) => <bdi dir="ltr">{formatMoney(row.original.paid_amount)}</bdi>,
+      },
+      {
+        id: "refund_amount",
+        header: refundLabel,
+        meta: {
+          priority: 3,
+          shortLabel: refundLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).refund_amount),
+          width: { default: 110, min: 90 },
+        },
+        cell: ({ row }) => <bdi dir="ltr">{formatMoney(row.original.refund_amount)}</bdi>,
+      },
+      {
+        id: "irrecoverable_debt",
+        header: irrecoverableLabel,
+        meta: {
+          priority: 3,
+          shortLabel: irrecoverableLabel,
+          plainText: (row) => formatMoney((row as FinanceClassRow).irrecoverable_debt),
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => <bdi dir="ltr">{formatMoney(row.original.irrecoverable_debt)}</bdi>,
+      },
+      {
+        id: "net_receivable",
+        header: receivableLabel,
+        meta: {
+          priority: 1,
+          shortLabel: receivableLabel,
+          plainText: (row) =>
+            formatMoney((row as FinanceClassRow).student_receivable_amount ?? 0),
+          width: { default: 130, min: 110 },
+        },
+        cell: ({ row }) => (
+          <div className="text-end font-semibold tabular-nums text-warning">
+            <bdi dir="ltr">{formatMoney(row.original.student_receivable_amount)}</bdi>
+          </div>
+        ),
+      },
+      withHeaderAddon(
+        {
+          id: "payment_status",
+          header: statusLabel,
+          meta: {
+            priority: 1,
+            sortKey: "payment_status",
+            shortLabel: statusLabel,
+            plainText: (row) => {
+              const item = row as FinanceClassRow;
+              return shown(item.payment_status_label ?? item.payment_status);
+            },
+            width: { default: 130, min: 110 },
+          },
+          cell: ({ row }) => (
+            <FinanceStatusBadge
+              value={row.original.payment_status}
+              fallbackLabel={row.original.payment_status_label}
+            />
+          ),
+        },
+        <ColumnFunnel
+          label={statusLabel}
+          value={filters.values.payment_status}
+          onChange={(next) => filters.set("payment_status", next)}
+          options={statusOptions}
+        />,
+      ),
+      {
+        id: "fee_date",
+        header: feeDateLabel,
+        meta: {
+          priority: 3,
+          sortKey: "fee_date",
+          shortLabel: feeDateLabel,
+          plainText: (row) => shown((row as FinanceClassRow).fee_date),
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => <Ltr value={shown(row.original.fee_date)} />,
+      },
+      {
+        id: "teacher_name",
+        header: teacherLabel,
+        meta: {
+          priority: 3,
+          shortLabel: teacherLabel,
+          plainText: (row) => shown((row as FinanceClassRow).teacher_name),
+          width: { default: 140, min: 110 },
+        },
+        cell: ({ row }) => shown(row.original.teacher_name),
+      },
+      actionsColumn<FinanceClassRow>(
+        gridT,
+        () => [],
+        true,
+        undefined,
+        (row) => [
+          {
+            id: "view",
+            label: viewLabel,
+            icon: <Eye className="size-4" aria-hidden="true" />,
+            permission: READ,
+            onSelect: () => onOpenDetails(row),
+          },
+        ],
+      ),
+    ];
+  }, [filters, gridT, onOpenDetails, statusOptions, t]);
+
+  const table = useDataTable<FinanceClassRow>({
+    key: "finance.report.class",
+    queryKey: (query) => [...FINANCE_QUERY_KEYS.report, "class", query],
+    endpoint: FINANCE_ENDPOINTS.REPORT,
+    readPermission: READ,
+    columns,
+    search: true,
+    select: "multi",
+    exports: ["print"],
+    exportTitle: title,
+    params: tableParams,
+    syncUrl: true,
+    defaultSort: "-payment_date",
+    defaultPerPage: 25,
+    perPageOptions: [25, 50, 100, 200],
+    getRowId: (row) => String(row.id),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t("fin.scope.label")}
+        </span>
+        <div className="inline-flex rounded-lg border border-border bg-card p-1">
+          <TooltipProvider delayDuration={150}>
+            {(["activity", "cohort"] as FinanceReportScope[]).map((value) => (
+              <Tooltip key={value}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={scope === value ? "default" : "ghost"}
+                    onClick={() => onScopeChange(value)}
+                  >
+                    {t(value === "activity" ? "fin.scope.activity" : "fin.scope.cohort")}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  {t(value === "activity" ? "fin.scope.activityHint" : "fin.scope.cohortHint")}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </TooltipProvider>
+        </div>
+      </div>
+
+      <ServerDataTable
+        api={table}
+        entityLabel={title}
+        searchPlaceholder={t("dt.finance.searchClass")}
+        emptyTitle={t("dt.finance.emptyTitle")}
+        emptyBody={t("dt.finance.emptyBody")}
+        narrowed={filters.narrowed || period.period !== "all"}
+        onRowDoubleClick={onOpenDetails}
+        stickyHeader
+        toolsInHeader
+        extra={
+          <div className="flex w-full min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end">
+            <ModuleToggle module={module} onChange={onModuleChange} />
+            <FinancePeriodFilter
+              className="w-full min-w-0 lg:w-auto"
+              value={period}
+              onChange={onPeriodChange}
+              allowAll
+              size="sm"
+              idPrefix="finance-report-period"
+            />
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+function CourseReportList({
+  period,
+  onPeriodChange,
+  module,
+  onModuleChange,
+  onOpenDetails,
+}: {
+  period: PeriodState;
+  onPeriodChange: (next: PeriodState) => void;
+  module: FinanceModule;
+  onModuleChange: (next: FinanceModule) => void;
+  onOpenDetails: (row: FinanceCourseRow) => void;
+}) {
+  const { t } = useTranslation();
+  const { t: gridT } = useGridTranslation();
+  const title = t("finance.title");
+  const periodQuery = useMemo(() => periodParams(period), [period]);
+
+  const tableParams = useMemo(() => {
+    const params: Record<string, string | undefined> = {
+      module: "course",
+      period: periodQuery.period,
+      date: periodQuery.date,
+      month: periodQuery.month,
+      year: periodQuery.year != null ? String(periodQuery.year) : undefined,
+      from: periodQuery.from,
+      to: periodQuery.to,
+    };
+    return params;
+  }, [periodQuery]);
+
+  const columns = useMemo<ColumnDef<FinanceCourseRow, unknown>[]>(() => {
+    const studentLabel = t("finance.columns.student");
+    const courseLabel = t("finance.columns.course");
+    const planLabel = t("finance.columns.plan");
+    const amountLabel = t("finance.columns.amount");
+    const statusLabel = t("finance.columns.paymentStatus");
+    const purchaseLabel = t("finance.columns.purchaseDate");
+    const subscriptionLabel = t("finance.columns.subscriptionStatus");
+    const viewLabel = t("finance.details.viewDetails");
+
+    return [
+      {
+        id: "student_name",
+        header: studentLabel,
+        meta: {
+          priority: 1,
+          shortLabel: studentLabel,
+          plainText: (row) => shown((row as FinanceCourseRow).student_name),
+          width: { default: 180, min: 140 },
+        },
+        cell: ({ row }) => (
+          <span className="font-medium">{shown(row.original.student_name)}</span>
+        ),
+      },
+      {
+        id: "course_title",
+        header: courseLabel,
+        meta: {
+          priority: 1,
+          shortLabel: courseLabel,
+          plainText: (row) => shown((row as FinanceCourseRow).course_title),
+          width: { default: 180, min: 140 },
+        },
+        cell: ({ row }) => shown(row.original.course_title),
+      },
+      {
+        id: "plan_name",
+        header: planLabel,
+        meta: {
+          priority: 2,
+          shortLabel: planLabel,
+          plainText: (row) => shown((row as FinanceCourseRow).plan_name),
+          width: { default: 140, min: 110 },
+        },
+        cell: ({ row }) => shown(row.original.plan_name),
+      },
+      {
+        id: "amount",
+        header: amountLabel,
+        meta: {
+          priority: 1,
+          shortLabel: amountLabel,
+          plainText: (row) => formatMoney((row as FinanceCourseRow).amount),
+          width: { default: 110, min: 90 },
+        },
+        cell: ({ row }) => <bdi dir="ltr">{formatMoney(row.original.amount)}</bdi>,
+      },
+      {
+        id: "payment_status",
+        header: statusLabel,
+        meta: {
+          priority: 2,
+          sortKey: "payment_status",
+          shortLabel: statusLabel,
+          plainText: (row) => {
+            const item = row as FinanceCourseRow;
+            return shown(item.payment_status_label ?? item.payment_status);
+          },
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => (
+          <FinanceStatusBadge
+            value={row.original.payment_status}
+            fallbackLabel={row.original.payment_status_label}
+          />
+        ),
+      },
+      {
+        id: "purchase_date",
+        header: purchaseLabel,
+        meta: {
+          priority: 2,
+          sortKey: "purchase_date",
+          shortLabel: purchaseLabel,
+          plainText: (row) => shown((row as FinanceCourseRow).purchase_date),
+          width: { default: 120, min: 100 },
+        },
+        cell: ({ row }) => <Ltr value={shown(row.original.purchase_date)} />,
+      },
+      {
+        id: "subscription_status",
+        header: subscriptionLabel,
+        meta: {
+          priority: 3,
+          shortLabel: subscriptionLabel,
+          plainText: (row) => {
+            const item = row as FinanceCourseRow;
+            return shown(item.subscription_status_label ?? item.subscription_status);
+          },
+          width: { default: 140, min: 110 },
+        },
+        cell: ({ row }) =>
+          shown(row.original.subscription_status_label ?? row.original.subscription_status),
+      },
+      actionsColumn<FinanceCourseRow>(
+        gridT,
+        () => [],
+        true,
+        undefined,
+        (row) => [
+          {
+            id: "view",
+            label: viewLabel,
+            icon: <Eye className="size-4" aria-hidden="true" />,
+            permission: READ,
+            onSelect: () => onOpenDetails(row),
+          },
+        ],
+      ),
+    ];
+  }, [gridT, onOpenDetails, t]);
+
+  const table = useDataTable<FinanceCourseRow>({
+    key: "finance.report.course",
+    queryKey: (query) => [...FINANCE_QUERY_KEYS.report, "course", query],
+    endpoint: FINANCE_ENDPOINTS.REPORT,
+    readPermission: READ,
+    columns,
+    search: true,
+    select: "multi",
+    exports: ["print"],
+    exportTitle: title,
+    params: tableParams,
+    syncUrl: true,
+    defaultSort: "-purchase_date",
+    defaultPerPage: 25,
+    perPageOptions: [25, 50, 100, 200],
+    getRowId: (row) => String(row.id),
+  });
+
+  return (
+    <ServerDataTable
+      api={table}
+      entityLabel={title}
+      searchPlaceholder={t("dt.finance.searchCourse")}
+      emptyTitle={t("dt.finance.emptyTitle")}
+      emptyBody={t("dt.finance.emptyBody")}
+      narrowed={period.period !== "all"}
+      onRowDoubleClick={onOpenDetails}
+      stickyHeader
+      toolsInHeader
+      extra={
+        <div className="flex w-full min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end">
+          <ModuleToggle module={module} onChange={onModuleChange} />
+          <FinancePeriodFilter
+            className="w-full min-w-0 lg:w-auto"
+            value={period}
+            onChange={onPeriodChange}
+            allowAll
+            size="sm"
+            idPrefix="finance-report-period-course"
+          />
+        </div>
+      }
+    />
+  );
+}
+
+function ModuleToggle({
+  module,
+  onChange,
+}: {
+  module: FinanceModule;
+  onChange: (next: FinanceModule) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <ButtonGroup aria-label={t("finance.classModule")} className="w-full lg:w-auto">
+      <Button
+        type="button"
+        size="sm"
+        aria-pressed={module === "class"}
+        variant={module === "class" ? "default" : "outline"}
+        className={cn(
+          "min-w-0 flex-1 lg:flex-none",
+          module !== "class" && "text-muted-foreground hover:text-foreground",
+        )}
+        onClick={() => onChange("class")}
+      >
+        <Group className="h-4 w-4" />
+        {t("finance.classModule")}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        aria-pressed={module === "course"}
+        variant={module === "course" ? "default" : "outline"}
+        className={cn(
+          "min-w-0 flex-1 lg:flex-none",
+          module !== "course" && "text-muted-foreground hover:text-foreground",
+        )}
+        onClick={() => onChange("course")}
+      >
+        <Cart className="h-4 w-4" />
+        {t("finance.courseModule")}
+      </Button>
+    </ButtonGroup>
+  );
+}
+
 const FinanceReportPage = () => {
   const { t } = useTranslation();
   const { hasPermission, hasAnyPermission } = useAuth();
+  const filters = useUrlFilters(CLASS_FILTER_KEYS);
   const [module, setModule] = useState<FinanceModule>("class");
   const [periodState, setPeriodState] = useState<PeriodState>(() => defaultPeriodState("today"));
   const [scope, setScope] = useState<FinanceReportScope>("activity");
@@ -80,13 +766,6 @@ const FinanceReportPage = () => {
     (Partial<FinanceClassRow> & { id: number }) | FinanceCourseRow | null
   >(null);
   const [breakdown, setBreakdown] = useState<BreakdownRequest | null>(null);
-
-  const { params, debouncedSearch, updateParams } = useDataTableParams({
-    defaultPageSize: 25,
-    defaultSortBy: "payment_date",
-    defaultSortDir: "desc",
-    searchDebounceMs: 400,
-  });
 
   const period = useMemo(() => periodParams(periodState), [periodState]);
   const range = periodRange(periodState);
@@ -96,31 +775,17 @@ const FinanceReportPage = () => {
       : `${range.from} → ${range.to}`
     : t("finance.periodAll");
 
-  const { data, isLoading, isFetching } = useFinanceReport({
+  const summaryQuery = useFinanceReport({
     module,
     ...period,
     scope: module === "class" ? scope : undefined,
-    search: debouncedSearch || undefined,
-    page: params.page,
-    per_page: params.per_page,
-    sort_by: params.sort_by,
-    sort_dir: params.sort_dir,
+    search: undefined,
+    page: 1,
+    per_page: 1,
+    payment_status: module === "class" ? filters.values.payment_status || undefined : undefined,
   });
-
-  const rows = extractFinanceRows(data);
-  const pagination = extractFinancePagination(data);
-  const summary: FinanceSummary = extractFinanceSummary(data) ?? EMPTY_SUMMARY;
-
-  const setModuleAndReset = (next: FinanceModule) => {
-    setModule(next);
-    setDetailsRow(null);
-    updateParams({ page: 1, sort_by: next === "course" ? "purchase_date" : "payment_date" });
-  };
-
-  const onPeriodChange = (next: PeriodState) => {
-    setPeriodState(next);
-    updateParams({ page: 1 });
-  };
+  const summary: FinanceSummary = extractFinanceSummary(summaryQuery.data) ?? EMPTY_SUMMARY;
+  const loadingCards = summaryQuery.isLoading || (summaryQuery.isFetching && !summaryQuery.data);
 
   const openBreakdown = (metric: FinanceBreakdownMetric, label: string, hint: string) =>
     setBreakdown({ metric, label, hint });
@@ -138,271 +803,10 @@ const FinanceReportPage = () => {
     });
   }, []);
 
-  const classConfig: DataTableConfig<FinanceClassRow> = {
-    columns: [
-      {
-        key: "student_name",
-        header: t("finance.columns.name"),
-        render: (row) => (
-          <div>
-            <div className="font-medium">{row.student_name || "—"}</div>
-            {row.student_code ? (
-              <div className="font-mono text-xs text-muted-foreground">{row.student_code}</div>
-            ) : null}
-          </div>
-        ),
-        exportValue: (row) => row.student_name,
-      },
-      {
-        key: "student_code",
-        header: t("finance.columns.studentId"),
-        render: (row) => row.student_code || "—",
-        exportOnly: true,
-      },
-      {
-        key: "father_name",
-        header: t("finance.columns.fatherName"),
-        render: (row) => row.father_name || "—",
-      },
-      {
-        key: "class_name",
-        header: t("finance.columns.class"),
-        render: (row) => (
-          <div>
-            <div>{row.class_name || "—"}</div>
-            {row.class_code ? (
-              <div className="font-mono text-xs text-muted-foreground">{row.class_code}</div>
-            ) : null}
-          </div>
-        ),
-        exportValue: (row) => row.class_code ?? row.class_name,
-      },
-      {
-        key: "class_full_name",
-        header: t("finance.columns.className"),
-        render: (row) => row.class_name || "—",
-        exportValue: (row) => row.class_name,
-        exportOnly: true,
-      },
-      {
-        key: "starting_date",
-        header: t("finance.columns.classStartDate"),
-        sortable: false,
-        render: (row) => (
-          <span className="whitespace-nowrap tabular-nums">{row.starting_date || "—"}</span>
-        ),
-      },
-      {
-        key: "paid_in_period",
-        header: t("fin.columns.paidInPeriod"),
-        align: "right",
-        render: (row) => (
-          <span className="font-semibold tabular-nums text-success">
-            {row.paid_in_period != null ? formatMoney(row.paid_in_period) : "—"}
-          </span>
-        ),
-        exportValue: (row) => row.paid_in_period,
-      },
-      {
-        key: "fees_amount",
-        header: t("finance.columns.fees"),
-        align: "right",
-        render: (row) => formatMoney(row.fees_amount),
-        exportValue: (row) => row.fees_amount as number,
-      },
-      {
-        key: "discount_amount",
-        header: t("finance.columns.discountAmount"),
-        align: "right",
-        render: (row) => (
-          <span className="tabular-nums">
-            {formatMoney(row.discount_amount)}
-            {Number(row.discount_percent) > 0 ? (
-              <span className="ms-1 text-xs text-muted-foreground">
-                ({Number(row.discount_percent)}%)
-              </span>
-            ) : null}
-          </span>
-        ),
-        exportValue: (row) => row.discount_amount as number,
-      },
-      {
-        key: "net_amount",
-        header: t("finance.columns.net"),
-        align: "right",
-        render: (row) => formatMoney(row.net_amount),
-        exportValue: (row) => row.net_amount as number,
-      },
-      {
-        key: "paid_amount",
-        header: t("fin.columns.totalPaid"),
-        align: "right",
-        render: (row) => formatMoney(row.paid_amount),
-        exportValue: (row) => row.paid_amount as number,
-      },
-      {
-        key: "refund_amount",
-        header: t("finance.columns.refund"),
-        align: "right",
-        render: (row) => formatMoney(row.refund_amount),
-        exportValue: (row) => row.refund_amount as number,
-      },
-      {
-        key: "irrecoverable_debt",
-        header: t("finance.columns.irrecoverable"),
-        align: "right",
-        render: (row) => formatMoney(row.irrecoverable_debt),
-        exportValue: (row) => row.irrecoverable_debt as number,
-      },
-      {
-        key: "net_receivable",
-        header: t("finance.columns.netReceivable"),
-        align: "right",
-        render: (row) => (
-          <div className="text-end font-semibold tabular-nums text-warning">
-            {formatMoney(row.student_receivable_amount)}
-          </div>
-        ),
-        exportValue: (row) => Number(row.student_receivable_amount ?? 0),
-      },
-      {
-        key: "payment_status",
-        header: t("finance.columns.paymentStatus"),
-        sortable: true,
-        render: (row) => (
-          <FinanceStatusBadge value={row.payment_status} fallbackLabel={row.payment_status_label} />
-        ),
-        exportValue: (row) => row.payment_status_label ?? row.payment_status,
-      },
-      {
-        key: "fee_date",
-        header: t("finance.columns.enrollmentDate"),
-        sortable: true,
-        render: (row) => row.fee_date || "—",
-      },
-      {
-        key: "teacher_name",
-        header: t("finance.columns.teacher"),
-        render: (row) => row.teacher_name || "—",
-      },
-      {
-        key: "actions",
-        header: t("dataTable.actions"),
-        exportable: false,
-        render: (row) => (
-          <Button type="button" variant="outline" size="sm" onClick={() => setDetailsRow(row)}>
-            <Eye className="h-4 w-4" />
-            {t("finance.details.viewDetails")}
-          </Button>
-        ),
-      },
-    ],
-    rowId: (row) => row.id,
-    searchable: true,
-    searchPlaceholder: t("finance.searchClass"),
-    filtersEnabled: false,
-    paginationEnabled: true,
-    emptyMessage: t("finance.empty"),
-    onRowDoubleClick: (row) => setDetailsRow(row),
-    exportFilename: "finance-class-report",
-    exportEnabled: hasPermission("finance.reports.export"),
-    exportDateKey: "payment_date",
-    fetchExportRows: (query) =>
-      fetchAllListPages({
-        url: FINANCE_ENDPOINTS.REPORT,
-        params: {
-          module: "class",
-          scope,
-          search: debouncedSearch || undefined,
-          sort_by: params.sort_by,
-          sort_dir: params.sort_dir,
-          ...exportPeriodParams(query),
-        },
-        extractRows: (res) => extractFinanceRows(res) as FinanceClassRow[],
-        extractPagination: extractFinancePagination,
-      }),
-  };
+  const openClassDetails = useCallback((row: FinanceClassRow) => setDetailsRow(row), []);
+  const openCourseDetails = useCallback((row: FinanceCourseRow) => setDetailsRow(row), []);
 
-  const courseConfig: DataTableConfig<FinanceCourseRow> = {
-    columns: [
-      {
-        key: "student_name",
-        header: t("finance.columns.student"),
-        render: (row) => <span className="font-medium">{row.student_name || "—"}</span>,
-      },
-      {
-        key: "course_title",
-        header: t("finance.columns.course"),
-        render: (row) => row.course_title || "—",
-      },
-      {
-        key: "plan_name",
-        header: t("finance.columns.plan"),
-        render: (row) => row.plan_name || "—",
-      },
-      {
-        key: "amount",
-        header: t("finance.columns.amount"),
-        align: "right",
-        render: (row) => formatMoney(row.amount),
-      },
-      {
-        key: "payment_status",
-        header: t("finance.columns.paymentStatus"),
-        sortable: true,
-        render: (row) => (
-          <FinanceStatusBadge value={row.payment_status} fallbackLabel={row.payment_status_label} />
-        ),
-      },
-      {
-        key: "purchase_date",
-        header: t("finance.columns.purchaseDate"),
-        sortable: true,
-        render: (row) => row.purchase_date || "—",
-      },
-      {
-        key: "subscription_status",
-        header: t("finance.columns.subscriptionStatus"),
-        render: (row) => row.subscription_status_label || row.subscription_status || "—",
-      },
-      {
-        key: "actions",
-        header: t("dataTable.actions"),
-        exportable: false,
-        render: (row) => (
-          <Button type="button" variant="outline" size="sm" onClick={() => setDetailsRow(row)}>
-            <Eye className="h-4 w-4" />
-            {t("finance.details.viewDetails")}
-          </Button>
-        ),
-      },
-    ],
-    rowId: (row) => row.id,
-    searchable: true,
-    searchPlaceholder: t("finance.searchCourse"),
-    filtersEnabled: false,
-    paginationEnabled: true,
-    emptyMessage: t("finance.empty"),
-    onRowDoubleClick: (row) => setDetailsRow(row),
-    exportFilename: "finance-course-report",
-    exportEnabled: hasPermission("finance.reports.export"),
-    exportDateKey: "purchase_date",
-    fetchExportRows: (query) =>
-      fetchAllListPages({
-        url: FINANCE_ENDPOINTS.REPORT,
-        params: {
-          module: "course",
-          search: debouncedSearch || undefined,
-          sort_by: params.sort_by,
-          sort_dir: params.sort_dir,
-          ...exportPeriodParams(query),
-        },
-        extractRows: (res) => extractFinanceRows(res) as FinanceCourseRow[],
-        extractPagination: extractFinancePagination,
-      }),
-  };
-
-  if (!hasPermission("finance.read")) {
+  if (!hasPermission(READ)) {
     return <PermissionDeniedCard />;
   }
 
@@ -416,56 +820,12 @@ const FinanceReportPage = () => {
   const canSeeMofReceivable = hasPermission("finance.receivables.mof.read");
   const canSeeOtherReceivable = hasPermission("finance.receivables.other.read");
   const canSeeServiceIncome = hasPermission("finance.service_income.read");
-  const loadingCards = isLoading || (isFetching && !data);
   const cohortFootnote = `${summary.enrollment_count ?? 0} ${t("fin.cards.enrollments")}${
     summary.free_count ? ` · ${summary.free_count} ${t("fin.cards.freeStudents")}` : ""
   }`;
 
-  const tableToolbar = (
-    <div className="flex w-full min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end">
-      {isFetching && data ? (
-        <span className="text-xs text-primary">{t("fin.updating")}</span>
-      ) : null}
-      <ButtonGroup aria-label={t("finance.classModule")} className="w-full lg:w-auto">
-        <Button
-          type="button"
-          size="sm"
-          aria-pressed={module === "class"}
-          variant={module === "class" ? "default" : "outline"}
-          className={cn(
-            "min-w-0 flex-1 lg:flex-none",
-            module !== "class" && "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setModuleAndReset("class")}
-        >
-          <Group className="h-4 w-4" />
-          {t("finance.classModule")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          aria-pressed={module === "course"}
-          variant={module === "course" ? "default" : "outline"}
-          className={cn(
-            "min-w-0 flex-1 lg:flex-none",
-            module !== "course" && "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setModuleAndReset("course")}
-        >
-          <Cart className="h-4 w-4" />
-          {t("finance.courseModule")}
-        </Button>
-      </ButtonGroup>
-      <FinancePeriodFilter
-        className="w-full min-w-0 lg:w-auto"
-        value={periodState}
-        onChange={onPeriodChange}
-      />
-    </div>
-  );
-
   return (
-    <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
+    <div className="min-w-0 max-w-full space-y-4 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
@@ -542,309 +902,281 @@ const FinanceReportPage = () => {
       </div>
 
       {canSeeFinanceCards ? (
-      <TooltipProvider delayDuration={150}>
-        {module === "class" ? (
-          <div className="space-y-6">
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">
-                  {t("fin.groups.cohortTitle")}
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  {t("fin.groups.cohortHint")}{" "}
-                  <span className="font-mono">({t("fin.identity")})</span>
-                </p>
-              </div>
-              <div
-                className={cn(
-                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-                  loadingCards && "opacity-60"
-                )}
-              >
-                <SummaryCard
-                  label={t("fin.cards.gross")}
-                  value={summary.gross_amount ?? summary.fees_amount}
-                  hint={t("fin.hints.gross")}
-                  icon={<Wallet className="h-5 w-5" />}
-                  footnote={cohortFootnote}
-                  onClick={() => openBreakdown("gross", t("fin.cards.gross"), t("fin.hints.gross"))}
-                />
-                <SummaryCard
-                  label={t("fin.cards.discount")}
-                  value={summary.discount_amount}
-                  hint={t("fin.hints.discount")}
-                  icon={<Percentage className="h-5 w-5" />}
-                  tone="info"
-                  onClick={() =>
-                    openBreakdown("discount", t("fin.cards.discount"), t("fin.hints.discount"))
-                  }
-                />
-                <SummaryCard
-                  label={t("fin.cards.net")}
-                  value={summary.net_amount}
-                  hint={t("fin.hints.net")}
-                  icon={<GraphUp className="h-5 w-5" />}
-                  tone="auxiliary"
-                  onClick={() => openBreakdown("net", t("fin.cards.net"), t("fin.hints.net"))}
-                />
-                <SummaryCard
-                  label={t("fin.cards.paidToDate")}
-                  value={summary.paid_amount}
-                  hint={t("fin.hints.paidToDate")}
-                  icon={<CheckCircle className="h-5 w-5" />}
-                  tone="success"
-                  onClick={() =>
-                    openBreakdown("paid", t("fin.cards.paidToDate"), t("fin.hints.paidToDate"))
-                  }
-                />
-                {canSeeStudentReceivable ? (
-                <SummaryCard
-                  label={t("fin.cards.receivable")}
-                  value={summary.student_receivable ?? 0}
-                  hint={t("fin.hints.receivable")}
-                  icon={<Clock className="h-5 w-5" />}
-                  tone="warning"
-                  onClick={() =>
-                    openBreakdown(
-                      "student_receivable",
-                      t("fin.cards.receivable"),
-                      t("fin.hints.receivable")
-                    )
-                  }
-                />
-                ) : null}
-                <SummaryCard
-                  label={t("fin.cards.writtenOff")}
-                  value={summary.irrecoverable_debt}
-                  hint={t("fin.hints.writtenOff")}
-                  icon={<WarningTriangle className="h-5 w-5" />}
-                  tone="danger"
-                  onClick={() =>
-                    openBreakdown(
-                      "irrecoverable",
-                      t("fin.cards.writtenOff"),
-                      t("fin.hints.writtenOff")
-                    )
-                  }
-                />
-                {canSeeMofReceivable ? (
-                <SummaryCard
-                  label={t("fin.cards.mof")}
-                  value={summary.mof_receivable}
-                  hint={t("finance.hints.mof")}
-                  icon={<Bank className="h-5 w-5" />}
-                  tone="auxiliary"
-                  onClick={() => openBreakdown("mof", t("fin.cards.mof"), t("finance.hints.mof"))}
-                />
-                ) : null}
-                {canSeeOtherReceivable ? (
-                <SummaryCard
-                  label={t("fin.cards.other")}
-                  value={summary.other_receivable}
-                  hint={t("finance.hints.other")}
-                  icon={<Group className="h-5 w-5" />}
-                  tone="info"
-                  onClick={() =>
-                    openBreakdown("other", t("fin.cards.other"), t("finance.hints.other"))
-                  }
-                />
-                ) : null}
-                <SummaryCard
-                  label={t("fin.cards.refunds")}
-                  value={summary.refund_amount}
-                  hint={t("fin.hints.refunds")}
-                  icon={<Undo className="h-5 w-5" />}
-                  onClick={() =>
-                    openBreakdown("refund", t("fin.cards.refunds"), t("fin.hints.refunds"))
-                  }
-                />
-                {(summary.cancelled_amount ?? 0) > 0 ? (
+        <TooltipProvider delayDuration={150}>
+          {module === "class" ? (
+            <div className="space-y-6">
+              <section className="space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {t("fin.groups.cohortTitle")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {t("fin.groups.cohortHint")}{" "}
+                    <span className="font-mono">({t("fin.identity")})</span>
+                  </p>
+                </div>
+                <div
+                  className={cn(
+                    "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+                    loadingCards && "opacity-60",
+                  )}
+                >
                   <SummaryCard
-                    label={t("fin.cards.cancelled")}
-                    value={summary.cancelled_amount ?? 0}
-                    hint={t("fin.hints.cancelled")}
-                    icon={<XmarkCircle className="h-5 w-5" />}
+                    label={t("fin.cards.gross")}
+                    value={summary.gross_amount ?? summary.fees_amount}
+                    hint={t("fin.hints.gross")}
+                    icon={<Wallet className="h-5 w-5" />}
+                    footnote={cohortFootnote}
+                    onClick={() => openBreakdown("gross", t("fin.cards.gross"), t("fin.hints.gross"))}
+                  />
+                  <SummaryCard
+                    label={t("fin.cards.discount")}
+                    value={summary.discount_amount}
+                    hint={t("fin.hints.discount")}
+                    icon={<Percentage className="h-5 w-5" />}
+                    tone="info"
                     onClick={() =>
-                      openBreakdown("cancelled", t("fin.cards.cancelled"), t("fin.hints.cancelled"))
+                      openBreakdown("discount", t("fin.cards.discount"), t("fin.hints.discount"))
                     }
                   />
-                ) : null}
-              </div>
-            </section>
+                  <SummaryCard
+                    label={t("fin.cards.net")}
+                    value={summary.net_amount}
+                    hint={t("fin.hints.net")}
+                    icon={<GraphUp className="h-5 w-5" />}
+                    tone="auxiliary"
+                    onClick={() => openBreakdown("net", t("fin.cards.net"), t("fin.hints.net"))}
+                  />
+                  <SummaryCard
+                    label={t("fin.cards.paidToDate")}
+                    value={summary.paid_amount}
+                    hint={t("fin.hints.paidToDate")}
+                    icon={<CheckCircle className="h-5 w-5" />}
+                    tone="success"
+                    onClick={() =>
+                      openBreakdown("paid", t("fin.cards.paidToDate"), t("fin.hints.paidToDate"))
+                    }
+                  />
+                  {canSeeStudentReceivable ? (
+                    <SummaryCard
+                      label={t("fin.cards.receivable")}
+                      value={summary.student_receivable ?? 0}
+                      hint={t("fin.hints.receivable")}
+                      icon={<Clock className="h-5 w-5" />}
+                      tone="warning"
+                      onClick={() =>
+                        openBreakdown(
+                          "student_receivable",
+                          t("fin.cards.receivable"),
+                          t("fin.hints.receivable"),
+                        )
+                      }
+                    />
+                  ) : null}
+                  <SummaryCard
+                    label={t("fin.cards.writtenOff")}
+                    value={summary.irrecoverable_debt}
+                    hint={t("fin.hints.writtenOff")}
+                    icon={<WarningTriangle className="h-5 w-5" />}
+                    tone="danger"
+                    onClick={() =>
+                      openBreakdown(
+                        "irrecoverable",
+                        t("fin.cards.writtenOff"),
+                        t("fin.hints.writtenOff"),
+                      )
+                    }
+                  />
+                  {canSeeMofReceivable ? (
+                    <SummaryCard
+                      label={t("fin.cards.mof")}
+                      value={summary.mof_receivable}
+                      hint={t("finance.hints.mof")}
+                      icon={<Bank className="h-5 w-5" />}
+                      tone="auxiliary"
+                      onClick={() => openBreakdown("mof", t("fin.cards.mof"), t("finance.hints.mof"))}
+                    />
+                  ) : null}
+                  {canSeeOtherReceivable ? (
+                    <SummaryCard
+                      label={t("fin.cards.other")}
+                      value={summary.other_receivable}
+                      hint={t("finance.hints.other")}
+                      icon={<Group className="h-5 w-5" />}
+                      tone="info"
+                      onClick={() =>
+                        openBreakdown("other", t("fin.cards.other"), t("finance.hints.other"))
+                      }
+                    />
+                  ) : null}
+                  <SummaryCard
+                    label={t("fin.cards.refunds")}
+                    value={summary.refund_amount}
+                    hint={t("fin.hints.refunds")}
+                    icon={<Undo className="h-5 w-5" />}
+                    onClick={() =>
+                      openBreakdown("refund", t("fin.cards.refunds"), t("fin.hints.refunds"))
+                    }
+                  />
+                  {(summary.cancelled_amount ?? 0) > 0 ? (
+                    <SummaryCard
+                      label={t("fin.cards.cancelled")}
+                      value={summary.cancelled_amount ?? 0}
+                      hint={t("fin.hints.cancelled")}
+                      icon={<XmarkCircle className="h-5 w-5" />}
+                      onClick={() =>
+                        openBreakdown(
+                          "cancelled",
+                          t("fin.cards.cancelled"),
+                          t("fin.hints.cancelled"),
+                        )
+                      }
+                    />
+                  ) : null}
+                </div>
+              </section>
 
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">
-                  {t("fin.groups.cashTitle")}
-                </h2>
-                <p className="text-xs text-muted-foreground">{t("fin.groups.cashHint")}</p>
-              </div>
-              <div
-                className={cn(
-                  "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
-                  loadingCards && "opacity-60"
-                )}
-              >
+              <section className="space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {t("fin.groups.cashTitle")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">{t("fin.groups.cashHint")}</p>
+                </div>
+                <div
+                  className={cn(
+                    "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6",
+                    loadingCards && "opacity-60",
+                  )}
+                >
+                  <SummaryCard
+                    label={t("fin.cards.collected")}
+                    value={summary.cash_collected ?? 0}
+                    hint={t("fin.hints.collected")}
+                    icon={<Coins className="h-5 w-5" />}
+                    tone="success"
+                    onClick={() =>
+                      openBreakdown("collected", t("fin.cards.collected"), t("fin.hints.collected"))
+                    }
+                  />
+                  <SummaryCard
+                    label={t("fin.cards.refunded")}
+                    value={summary.cash_refunded ?? 0}
+                    hint={t("fin.hints.refunded")}
+                    icon={<Undo className="h-5 w-5" />}
+                    onClick={() =>
+                      openBreakdown("refunded", t("fin.cards.refunded"), t("fin.hints.refunded"))
+                    }
+                  />
+                  <SummaryCard
+                    label={t("fin.cards.recovered")}
+                    value={summary.cash_recovered ?? 0}
+                    hint={t("fin.hints.recovered")}
+                    icon={<CoinsSwap className="h-5 w-5" />}
+                    tone="success"
+                    onClick={() =>
+                      openBreakdown("recovered", t("fin.cards.recovered"), t("fin.hints.recovered"))
+                    }
+                  />
+                  <SummaryCard
+                    label={t("fin.cards.netCash")}
+                    value={summary.cash_net ?? summary.class_income}
+                    hint={t("fin.hints.netCash")}
+                    icon={<GraphUp className="h-5 w-5" />}
+                    tone="success"
+                  />
+                  {canSeeServiceIncome ? (
+                    <SummaryCard
+                      label={t("fin.cards.serviceIncome")}
+                      value={summary.service_income ?? 0}
+                      hint={t("fin.hints.serviceIncome")}
+                      icon={<Coins className="h-5 w-5" />}
+                      tone="info"
+                      onClick={() =>
+                        openBreakdown(
+                          "service_income",
+                          t("fin.cards.serviceIncome"),
+                          t("fin.hints.serviceIncome"),
+                        )
+                      }
+                    />
+                  ) : null}
+                  <SummaryCard
+                    label={t("fin.cards.serviceCost")}
+                    value={summary.service_cost ?? 0}
+                    hint={t("fin.hints.serviceCost")}
+                    icon={<Cart className="h-5 w-5" />}
+                    tone="danger"
+                    onClick={() =>
+                      openBreakdown(
+                        "service_cost",
+                        t("fin.cards.serviceCost"),
+                        t("fin.hints.serviceCost"),
+                      )
+                    }
+                  />
+                </div>
+              </section>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
+                loadingCards && "opacity-60",
+              )}
+            >
+              <SummaryCard
+                label={t("finance.courseIncome")}
+                value={summary.course_income}
+                hint={t("finance.hints.courseIncome")}
+                icon={<Wallet className="h-5 w-5" />}
+                tone="success"
+              />
+              <SummaryCard
+                label={t("finance.totalIncome")}
+                value={summary.total_income}
+                hint={t("finance.hints.courseIncome")}
+                icon={<GraphUp className="h-5 w-5" />}
+              />
+              {canSeeServiceIncome ? (
                 <SummaryCard
-                  label={t("fin.cards.collected")}
-                  value={summary.cash_collected ?? 0}
-                  hint={t("fin.hints.collected")}
-                  icon={<Coins className="h-5 w-5" />}
-                  tone="success"
-                  onClick={() =>
-                    openBreakdown("collected", t("fin.cards.collected"), t("fin.hints.collected"))
-                  }
-                />
-                <SummaryCard
-                  label={t("fin.cards.refunded")}
-                  value={summary.cash_refunded ?? 0}
-                  hint={t("fin.hints.refunded")}
-                  icon={<Undo className="h-5 w-5" />}
-                  onClick={() =>
-                    openBreakdown("refunded", t("fin.cards.refunded"), t("fin.hints.refunded"))
-                  }
-                />
-                <SummaryCard
-                  label={t("fin.cards.recovered")}
-                  value={summary.cash_recovered ?? 0}
-                  hint={t("fin.hints.recovered")}
-                  icon={<CoinsSwap className="h-5 w-5" />}
-                  tone="success"
-                  onClick={() =>
-                    openBreakdown("recovered", t("fin.cards.recovered"), t("fin.hints.recovered"))
-                  }
-                />
-                <SummaryCard
-                  label={t("fin.cards.netCash")}
-                  value={summary.cash_net ?? summary.class_income}
-                  hint={t("fin.hints.netCash")}
-                  icon={<GraphUp className="h-5 w-5" />}
-                  tone="success"
-                />
-                {canSeeServiceIncome ? (
-                <SummaryCard
-                  label={t("fin.cards.serviceIncome")}
+                  label={t("finance.netServiceIncome")}
                   value={summary.service_income ?? 0}
-                  hint={t("fin.hints.serviceIncome")}
+                  hint={t("finance.hints.serviceIncome")}
                   icon={<Coins className="h-5 w-5" />}
-                  tone="info"
-                  onClick={() =>
-                    openBreakdown(
-                      "service_income",
-                      t("fin.cards.serviceIncome"),
-                      t("fin.hints.serviceIncome")
-                    )
-                  }
+                  tone="success"
                 />
-                ) : null}
-                <SummaryCard
-                  label={t("fin.cards.serviceCost")}
-                  value={summary.service_cost ?? 0}
-                  hint={t("fin.hints.serviceCost")}
-                  icon={<Cart className="h-5 w-5" />}
-                  tone="danger"
-                  onClick={() =>
-                    openBreakdown(
-                      "service_cost",
-                      t("fin.cards.serviceCost"),
-                      t("fin.hints.serviceCost")
-                    )
-                  }
-                />
-              </div>
-            </section>
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
-              loadingCards && "opacity-60"
-            )}
-          >
-            <SummaryCard
-              label={t("finance.courseIncome")}
-              value={summary.course_income}
-              hint={t("finance.hints.courseIncome")}
-              icon={<Wallet className="h-5 w-5" />}
-              tone="success"
-            />
-            <SummaryCard
-              label={t("finance.totalIncome")}
-              value={summary.total_income}
-              hint={t("finance.hints.courseIncome")}
-              icon={<GraphUp className="h-5 w-5" />}
-            />
-            {canSeeServiceIncome ? (
-            <SummaryCard
-              label={t("finance.netServiceIncome")}
-              value={summary.service_income ?? 0}
-              hint={t("finance.hints.serviceIncome")}
-              icon={<Coins className="h-5 w-5" />}
-              tone="success"
-            />
-            ) : null}
-            <SummaryCard
-              label={t("finance.netServiceCost")}
-              value={summary.service_cost ?? 0}
-              hint={t("finance.hints.serviceCost")}
-              icon={<Cart className="h-5 w-5" />}
-              tone="danger"
-            />
-          </div>
-        )}
-      </TooltipProvider>
+              ) : null}
+              <SummaryCard
+                label={t("finance.netServiceCost")}
+                value={summary.service_cost ?? 0}
+                hint={t("finance.hints.serviceCost")}
+                icon={<Cart className="h-5 w-5" />}
+                tone="danger"
+              />
+            </div>
+          )}
+        </TooltipProvider>
       ) : null}
 
       {module === "class" ? (
-        <div className="space-y-3">
-          <div className="flex max-w-full flex-wrap items-center gap-2 overflow-x-auto">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("fin.scope.label")}
-            </span>
-            <div className="inline-flex rounded-lg border border-border bg-card p-1">
-              <TooltipProvider delayDuration={150}>
-                {(["activity", "cohort"] as FinanceReportScope[]).map((value) => (
-                  <Tooltip key={value}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={scope === value ? "default" : "ghost"}
-                        onClick={() => {
-                          setScope(value);
-                          updateParams({ page: 1 });
-                        }}
-                      >
-                        {t(value === "activity" ? "fin.scope.activity" : "fin.scope.cohort")}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      {t(value === "activity" ? "fin.scope.activityHint" : "fin.scope.cohortHint")}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </TooltipProvider>
-            </div>
-          </div>
-          <DataTable
-            data={rows as FinanceClassRow[]}
-            config={classConfig}
-            params={params}
-            onParamsChange={updateParams}
-            pagination={pagination}
-            isLoading={isLoading}
-            toolbar={tableToolbar}
-          />
-        </div>
+        <ClassReportList
+          filters={filters}
+          period={periodState}
+          onPeriodChange={setPeriodState}
+          scope={scope}
+          onScopeChange={setScope}
+          module={module}
+          onModuleChange={setModule}
+          onOpenDetails={openClassDetails}
+        />
       ) : (
-        <DataTable
-          data={rows as FinanceCourseRow[]}
-          config={courseConfig}
-          params={params}
-          onParamsChange={updateParams}
-          pagination={pagination}
-          isLoading={isLoading}
-          toolbar={tableToolbar}
+        <CourseReportList
+          period={periodState}
+          onPeriodChange={setPeriodState}
+          module={module}
+          onModuleChange={setModule}
+          onOpenDetails={openCourseDetails}
         />
       )}
 

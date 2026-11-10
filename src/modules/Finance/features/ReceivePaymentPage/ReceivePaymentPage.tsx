@@ -218,9 +218,9 @@ const ReceivePaymentPage = () => {
   const recordPayment = useRecordClassStudentPayment(classId, enrollmentId ?? 0);
   const recoverWriteOff = useRecoverWriteOff(classId, enrollmentId ?? 0);
   const transactionsQuery = useEnrollmentTransactions(enrollmentId);
-  const paymentInstallments = useMemo(() => {
+  const ledgerCashRows = useMemo(() => {
     const rows = extractEnrollmentTransactions(transactionsQuery.data).filter(
-      (tx) => tx.type === "payment"
+      (tx) => tx.type === "payment" || tx.type === "refund"
     );
     return [...rows].sort((a, b) => {
       const dateCmp = String(a.transaction_date ?? "").localeCompare(String(b.transaction_date ?? ""));
@@ -228,6 +228,10 @@ const ReceivePaymentPage = () => {
       return (a.id ?? 0) - (b.id ?? 0);
     });
   }, [transactionsQuery.data]);
+  const paymentInstallments = useMemo(
+    () => ledgerCashRows.filter((tx) => tx.type === "payment"),
+    [ledgerCashRows]
+  );
 
   // Prefill the forms whenever a different enrollment is selected (incl. deep links).
   useEffect(() => {
@@ -609,30 +613,53 @@ const ReceivePaymentPage = () => {
                       <Skeleton className="h-7 w-full" />
                       <Skeleton className="h-7 w-full" />
                     </div>
-                  ) : paymentInstallments.length === 0 ? (
+                  ) : ledgerCashRows.length === 0 ? (
                     <p className="text-xs text-muted-foreground">{t("fin.receive.noInstallments")}</p>
                   ) : (
                     <ul className="space-y-0">
-                      {paymentInstallments.map((tx, index) => (
-                        <li
-                          key={tx.id}
-                          className="flex items-center justify-between gap-2 border-b-[1.15px] border-dotted border-foreground/45 px-0.5 py-1.5 text-sm last:border-b-0"
-                        >
-                          <span className="min-w-0 text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {t("fin.receive.installmentN").replace("{n}", String(index + 1))}
-                            </span>
-                            {tx.transaction_date ? (
-                              <span className="ms-1.5 tabular-nums">
-                                · {String(tx.transaction_date).slice(0, 10)}
+                      {(() => {
+                        let paymentIndex = 0;
+                        let refundIndex = 0;
+                        return ledgerCashRows.map((tx) => {
+                          const isRefund = tx.type === "refund";
+                          if (isRefund) refundIndex += 1;
+                          else paymentIndex += 1;
+                          const label = isRefund
+                            ? t("fin.receive.refundN").replace("{n}", String(refundIndex))
+                            : t("fin.receive.installmentN").replace("{n}", String(paymentIndex));
+                          return (
+                            <li
+                              key={tx.id}
+                              className="flex items-center justify-between gap-2 border-b-[1.15px] border-dotted border-foreground/45 px-0.5 py-1.5 text-sm last:border-b-0"
+                            >
+                              <span className="min-w-0 text-muted-foreground">
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    isRefund ? "text-danger" : "text-foreground"
+                                  )}
+                                >
+                                  {label}
+                                </span>
+                                {tx.transaction_date ? (
+                                  <span className="ms-1.5 tabular-nums">
+                                    · {String(tx.transaction_date).slice(0, 10)}
+                                  </span>
+                                ) : null}
                               </span>
-                            ) : null}
-                          </span>
-                          <span className="shrink-0 font-medium tabular-nums text-success">
-                            {formatMoney(tx.amount, tx.currency ?? currency)}
-                          </span>
-                        </li>
-                      ))}
+                              <span
+                                className={cn(
+                                  "shrink-0 font-medium tabular-nums",
+                                  isRefund ? "text-danger" : "text-success"
+                                )}
+                              >
+                                {isRefund ? "−" : ""}
+                                {formatMoney(tx.amount, tx.currency ?? currency)}
+                              </span>
+                            </li>
+                          );
+                        });
+                      })()}
                     </ul>
                   )}
                 </div>

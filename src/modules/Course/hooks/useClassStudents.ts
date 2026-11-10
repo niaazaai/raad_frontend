@@ -218,8 +218,13 @@ export function useRecordClassStudentPayment(classId: number, enrollmentId: numb
 }
 
 export function useRefundClassStudentPayment(classId: number, enrollmentId: number) {
-  return useMutationApi<
-    ClassStudentRow,
+  const queryClient = useQueryClient();
+  const idsRef = useRef({ classId, enrollmentId });
+  idsRef.current = { classId, enrollmentId };
+
+  return useMutation<
+    ApiResponse<RecordPaymentResult>,
+    Error,
     {
       amount: number;
       transaction_date?: string;
@@ -227,13 +232,31 @@ export function useRefundClassStudentPayment(classId: number, enrollmentId: numb
       cancel_remaining?: boolean;
     }
   >({
-    url: `/lms-classes/${classId}/students/${enrollmentId}/refunds`,
-    method: RequestMethod.POST,
-    invalidateKeys: [
-      classStudentsListPrefix(classId),
-      FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
-      ...financeRelatedKeys,
-    ],
+    mutationFn: async (variables) => {
+      const { classId: cid, enrollmentId: eid } = idsRef.current;
+      if (!cid || !eid) {
+        throw new Error("Select a class enrollment before recording a refund.");
+      }
+      const response = await callApi<RecordPaymentResult>({
+        url: `/lms-classes/${cid}/students/${eid}/refunds`,
+        method: RequestMethod.POST,
+        data: variables,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Could not record refund");
+      }
+      return response.data as ApiResponse<RecordPaymentResult>;
+    },
+    onSuccess: () => {
+      const { classId: cid, enrollmentId: eid } = idsRef.current;
+      void queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(cid) });
+      void queryClient.invalidateQueries({
+        queryKey: FINANCE_QUERY_KEYS.enrollmentTransactions(eid),
+      });
+      financeRelatedKeys.forEach((key) => {
+        void queryClient.invalidateQueries({ queryKey: key });
+      });
+    },
   });
 }
 

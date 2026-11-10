@@ -344,6 +344,7 @@ export interface FinancialTransactionTotals {
 export interface FinancialTransactionRow {
   id: number;
   class_student_id?: number | null;
+  class_id?: number | null;
   type?: string | null;
   type_label?: string | null;
   transaction_type?: string | null;

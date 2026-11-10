@@ -2,10 +2,14 @@ import { useCallback, useMemo, useState } from "react";
 import type { UseMutateFunction } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
+import { RequestMethod } from "@/data/constants/methods";
+import { callApi } from "@/services";
+import type { ApiResponse } from "@/types/api";
 import {
   ColumnFunnel,
   ServerDataTable,
@@ -138,7 +142,10 @@ function TransactionsList({
     return name === "—" ? `#${row.id}` : name;
   }, []);
 
-  const openEdit = useCallback((row: FinancialTransactionRow) => setEditing(row), []);
+  const openEdit = useCallback((row: FinancialTransactionRow) => {
+    if (row.type === "refund") return;
+    setEditing(row);
+  }, []);
   const openAccount = useCallback((row: FinancialTransactionRow) => {
     if (!row.class_student_id) {
       openPdf(row.pdf_url);
@@ -153,6 +160,61 @@ function TransactionsList({
       payment_status: row.payment_status,
     });
   }, []);
+  const openRow = useCallback(
+    (row: FinancialTransactionRow) => {
+      if (canEdit && row.type !== "refund") {
+        openEdit(row);
+        return;
+      }
+      openAccount(row);
+    },
+    [canEdit, openAccount, openEdit]
+  );
+
+  const printTransactionInvoice = useCallback(async (row: FinancialTransactionRow) => {
+    if (row.pdf_url) {
+      openPdf(row.pdf_url);
+      return;
+    }
+
+    const classId = Number(row.class_id ?? 0);
+    const enrollmentId = Number(row.class_student_id ?? 0);
+    const canGenerate =
+      classId > 0 &&
+      enrollmentId > 0 &&
+      (row.type === "payment" || row.type === "refund");
+
+    if (!canGenerate) {
+      toast.error(t("fin.transactions.printInvoice"));
+      return;
+    }
+
+    try {
+      const response = await callApi<{ id: number; pdf_url?: string | null }>({
+        url: `/lms-classes/${classId}/students/${enrollmentId}/invoices`,
+        method: RequestMethod.POST,
+        data: { transaction_id: row.id },
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Invoice generation failed");
+      }
+      const payload = response.data as
+        | ApiResponse<{ id: number; pdf_url?: string | null }>
+        | { id: number; pdf_url?: string | null }
+        | undefined;
+      const invoice =
+        payload && typeof payload === "object" && "data" in payload
+          ? payload.data
+          : (payload as { id: number; pdf_url?: string | null } | undefined);
+      if (invoice?.pdf_url) {
+        openPdf(invoice.pdf_url);
+        return;
+      }
+      toast.error(t("fin.transactions.printInvoice"));
+    } catch {
+      // error toast is shown by callApi when the API returns an error envelope
+    }
+  }, [t]);
 
   const bulkActions = useMemo(
     () => [bulkDeleteAction({ t: gridT, permission: DELETE, remove: removeRowAsync })],
@@ -419,7 +481,8 @@ function TransactionsList({
         (row) =>
           editDeleteActions({
             t: gridT,
-            canUpdate: canEdit,
+            // Refunds are ledger-final — never expose edit.
+            canUpdate: canEdit && row.type !== "refund",
             canDelete,
             updatePermission: EDIT,
             deletePermission: DELETE,
@@ -430,13 +493,20 @@ function TransactionsList({
         undefined,
         (row) => {
           const leading = [];
-          if (row.pdf_url) {
+          const canPrint =
+            Boolean(row.pdf_url) ||
+            ((row.type === "payment" || row.type === "refund") &&
+              Number(row.class_id ?? 0) > 0 &&
+              Number(row.class_student_id ?? 0) > 0);
+          if (canPrint) {
             leading.push({
               id: "print",
               label: t("fin.transactions.printInvoice"),
               icon: <Printer className="size-4" aria-hidden="true" />,
               permission: READ,
-              onSelect: () => openPdf(row.pdf_url),
+              onSelect: () => {
+                void printTransactionInvoice(row);
+              },
             });
           }
           if (row.class_student_id) {
@@ -463,6 +533,7 @@ function TransactionsList({
     openAccount,
     openEdit,
     payerOptions,
+    printTransactionInvoice,
     removeRow,
     t,
     typeOptions,
@@ -530,7 +601,7 @@ function TransactionsList({
         emptyTitle={t("dt.transactions.emptyTitle")}
         emptyBody={t("dt.transactions.emptyBody")}
         narrowed={filters.narrowed || period.period !== "all"}
-        onRowDoubleClick={canEdit ? openEdit : openAccount}
+        onRowDoubleClick={openRow}
         stickyHeader
         toolsInHeader
         extra={

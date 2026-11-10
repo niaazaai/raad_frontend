@@ -1156,12 +1156,16 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
             disabled={!canSubmit}
             onClick={async () => {
               try {
-                await refundPayment.mutateAsync({
+                const response = await refundPayment.mutateAsync({
                   amount,
                   transaction_date: form.transaction_date || undefined,
                   reason: form.reason || undefined,
                   cancel_remaining: form.cancel_remaining,
                 });
+                const pdfUrl = response.data?.invoice?.pdf_url;
+                if (pdfUrl) {
+                  window.open(pdfUrl, "_blank", "noopener,noreferrer");
+                }
                 onClose();
               } catch {
                 // error toast is shown by callApi
