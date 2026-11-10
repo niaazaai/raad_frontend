@@ -1,160 +1,231 @@
+import { useCallback, useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { CircleCheck as CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button, DataTable, PageBreadcrumb } from "@/components/ui";
+import { PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
-import { useDataTableParams } from "@/hooks";
 import { useTranslation } from "@/i18n/useTranslation";
-import type { DataTableConfig } from "@/types/datatable";
 import {
-  extractAttendanceOverview,
-  extractAttendanceOverviewPagination,
-  useAttendanceOverview,
-  type AttendanceOverviewClass,
-} from "../../hooks/useClassAttendance";
+  ServerDataTable,
+  actionsColumn,
+  useDataTable,
+} from "@/components/data-table";
+import { useTranslation as useGridTranslation } from "@/components/data-table/i18n";
+import { attendanceOverviewQueryKey, type AttendanceOverviewClass } from "../../hooks/useClassAttendance";
+
+const READ = "attendance.read";
+const READ_CLASSES = "attendance.classes.read";
+
+function rateText(value: number | null | undefined): string {
+  return value == null ? "—" : `${value}%`;
+}
+
+function AttendanceHubList() {
+  const { t } = useTranslation();
+  const { t: gridT } = useGridTranslation();
+  const navigate = useNavigate();
+
+  const openAttendance = useCallback(
+    (row: AttendanceOverviewClass) => navigate(`/classes/${row.id}/attendance`),
+    [navigate],
+  );
+
+  const columns = useMemo<ColumnDef<AttendanceOverviewClass, unknown>[]>(() => {
+    const classCodeLabel = t("course.columns.class_code");
+    const mainCategoryLabel = t("course.columns.main_category_name");
+    const subCategoryLabel = t("course.columns.sub_category_name");
+    const nameLabel = t("course.columns.name");
+    const instructorLabel = t("course.columns.instructor_name");
+    const studentsLabel = t("course.attendance.students");
+    const absentLabel = t("course.attendance.avgAbsent");
+    const presentLabel = t("course.attendance.avgPresent");
+    const openLabel = t("course.attendance.openAttendance");
+
+    return [
+      {
+        id: "class_code",
+        header: classCodeLabel,
+        meta: {
+          priority: 1,
+          sortKey: "class_code",
+          shortLabel: classCodeLabel,
+          plainText: (row) => {
+            const value = row as AttendanceOverviewClass;
+            return value.class_code || String(value.id);
+          },
+          width: { default: 130, min: 100 },
+        },
+        cell: ({ row }) => (
+          <bdi dir="ltr" className="font-mono text-sm font-medium text-primary">
+            {row.original.class_code || row.original.id}
+          </bdi>
+        ),
+      },
+      {
+        id: "main_category_name",
+        header: mainCategoryLabel,
+        meta: {
+          priority: 2,
+          shortLabel: mainCategoryLabel,
+          plainText: (row) => (row as AttendanceOverviewClass).main_category_name || "—",
+          width: { default: 160, min: 120 },
+        },
+        cell: ({ row }) => row.original.main_category_name || "—",
+      },
+      {
+        id: "sub_category_name",
+        header: subCategoryLabel,
+        meta: {
+          priority: 3,
+          shortLabel: subCategoryLabel,
+          plainText: (row) => (row as AttendanceOverviewClass).sub_category_name || "—",
+          width: { default: 160, min: 120 },
+        },
+        cell: ({ row }) => row.original.sub_category_name || "—",
+      },
+      {
+        id: "name",
+        header: nameLabel,
+        meta: {
+          priority: 1,
+          sortKey: "name",
+          shortLabel: nameLabel,
+          plainText: (row) => (row as AttendanceOverviewClass).name,
+          width: { default: 200, min: 140 },
+        },
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      },
+      {
+        id: "instructor_name",
+        header: instructorLabel,
+        meta: {
+          priority: 2,
+          shortLabel: instructorLabel,
+          plainText: (row) => (row as AttendanceOverviewClass).instructor_name || "—",
+          width: { default: 160, min: 120 },
+        },
+        cell: ({ row }) => row.original.instructor_name || "—",
+      },
+      {
+        id: "students_count",
+        header: studentsLabel,
+        meta: {
+          priority: 1,
+          sortKey: "students_count",
+          numeric: true,
+          shortLabel: studentsLabel,
+          plainText: (row) => String((row as AttendanceOverviewClass).students_count ?? 0),
+          width: { default: 110, min: 88 },
+        },
+        cell: ({ row }) => (
+          <bdi dir="ltr" className="font-mono text-sm font-semibold tabular-nums">
+            {row.original.students_count ?? 0}
+          </bdi>
+        ),
+      },
+      {
+        id: "absent_rate",
+        header: absentLabel,
+        meta: {
+          priority: 2,
+          numeric: true,
+          shortLabel: absentLabel,
+          plainText: (row) => rateText((row as AttendanceOverviewClass).absent_rate),
+          width: { default: 120, min: 96 },
+        },
+        cell: ({ row }) => {
+          const value = row.original.absent_rate;
+          if (value == null) return <span className="text-muted-foreground">—</span>;
+          return (
+            <bdi dir="ltr" className="rounded-full bg-danger/10 px-2 text-xs font-medium tabular-nums text-danger">
+              {value}%
+            </bdi>
+          );
+        },
+      },
+      {
+        id: "present_rate",
+        header: presentLabel,
+        meta: {
+          priority: 2,
+          numeric: true,
+          shortLabel: presentLabel,
+          plainText: (row) => rateText((row as AttendanceOverviewClass).present_rate),
+          width: { default: 110, min: 88 },
+        },
+        cell: ({ row }) => {
+          const value = row.original.present_rate;
+          if (value == null) return <span className="text-muted-foreground">—</span>;
+          return (
+            <bdi dir="ltr" className="rounded-full bg-success/10 px-2 text-xs font-medium tabular-nums text-success">
+              {value}%
+            </bdi>
+          );
+        },
+      },
+      actionsColumn<AttendanceOverviewClass>(
+        gridT,
+        () => [],
+        true,
+        undefined,
+        (row) => [
+          {
+            id: "open-attendance",
+            label: openLabel,
+            icon: <CheckCircle className="size-4" aria-hidden="true" />,
+            onSelect: () => openAttendance(row),
+          },
+        ],
+      ),
+    ];
+  }, [gridT, openAttendance, t]);
+
+  const table = useDataTable<AttendanceOverviewClass>({
+    key: "course.attendance-hub",
+    queryKey: (query) => [...attendanceOverviewQueryKey, query],
+    endpoint: "/lms-classes/attendance-overview",
+    readPermission: READ,
+    columns,
+    search: true,
+    select: "multi",
+    exports: ["print"],
+    exportTitle: t("course.attendance.hubTitle"),
+    syncUrl: true,
+    defaultSort: "-created_at",
+    defaultPerPage: 25,
+    perPageOptions: [25, 50, 100, 200],
+    getRowId: (row) => String(row.id),
+  });
+
+  return (
+    <ServerDataTable
+      api={table}
+      entityLabel={t("course.attendance.hubTitle")}
+      searchPlaceholder={t("dt.attendance.search")}
+      emptyTitle={t("dt.attendance.emptyTitle")}
+      emptyBody={t("dt.attendance.emptyBody")}
+      onRowDoubleClick={openAttendance}
+      stickyHeader
+      toolsInHeader
+    />
+  );
+}
 
 const AttendanceHubPage = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
-  const { params, debouncedSearch, updateParams } = useDataTableParams({
-    defaultPageSize: 10,
-    defaultSortBy: "created_at",
-    defaultSortDir: "desc",
-    searchDebounceMs: 400,
-  });
-
-  const { data, isLoading } = useAttendanceOverview({
-    search: debouncedSearch || undefined,
-    page: params.page,
-    per_page: params.per_page,
-    sort_by: params.sort_by,
-    sort_dir: params.sort_dir,
-  });
-
-  const rows = extractAttendanceOverview(data);
-  const pagination = extractAttendanceOverviewPagination(data);
-
-  if (!hasPermission("attendance.read") && !hasPermission("attendance.classes.read")) {
+  if (!hasPermission(READ) && !hasPermission(READ_CLASSES)) {
     return <PermissionDeniedCard />;
   }
 
-  const config: DataTableConfig<AttendanceOverviewClass> = {
-    columns: [
-      {
-        key: "class_code",
-        header: t("course.columns.class_code"),
-        sortable: true,
-        filterable: false,
-        render: (row) => (
-          <span className="font-mono text-sm font-medium text-primary">
-            {row.class_code || row.id}
-          </span>
-        ),
-      },
-      {
-        key: "main_category_name",
-        header: t("course.columns.main_category_name"),
-        sortable: false,
-        filterable: false,
-        render: (row) => row.main_category_name || "—",
-      },
-      {
-        key: "sub_category_name",
-        header: t("course.columns.sub_category_name"),
-        sortable: false,
-        filterable: false,
-        render: (row) => row.sub_category_name || "—",
-      },
-      {
-        key: "name",
-        header: t("course.columns.name"),
-        sortable: true,
-        filterable: false,
-        render: (row) => <span className="font-medium">{row.name}</span>,
-      },
-      {
-        key: "instructor_name",
-        header: t("course.columns.instructor_name"),
-        sortable: false,
-        filterable: false,
-        render: (row) => row.instructor_name || "—",
-      },
-      {
-        key: "students_count",
-        header: t("course.attendance.students"),
-        sortable: true,
-        filterable: false,
-        align: "center",
-        render: (row) => (
-          <span className="font-mono text-sm font-semibold tabular-nums">
-            {row.students_count ?? 0}
-          </span>
-        ),
-      },
-      {
-        key: "absent_rate",
-        header: t("course.attendance.avgAbsent"),
-        sortable: false,
-        filterable: false,
-        align: "center",
-        render: (row) =>
-          row.absent_rate == null ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium tabular-nums text-danger">
-              {row.absent_rate}%
-            </span>
-          ),
-      },
-      {
-        key: "present_rate",
-        header: t("course.attendance.avgPresent"),
-        sortable: false,
-        filterable: false,
-        align: "center",
-        render: (row) =>
-          row.present_rate == null ? (
-            <span className="text-muted-foreground">—</span>
-          ) : (
-            <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium tabular-nums text-success">
-              {row.present_rate}%
-            </span>
-          ),
-      },
-      {
-        key: "action",
-        header: t("dataTable.actions"),
-        sortable: false,
-        filterable: false,
-        align: "right",
-        render: (row) => (
-          <Button
-            type="button"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => navigate(`/classes/${row.id}/attendance`)}
-          >
-            <CheckCircle className="h-4 w-4" />
-            {t("course.attendance.openAttendance")}
-          </Button>
-        ),
-      },
-    ],
-    rowId: (row) => row.id,
-    searchable: true,
-    searchPlaceholder: t("course.attendance.searchPlaceholder"),
-    filtersEnabled: false,
-    paginationEnabled: true,
-    emptyMessage: t("course.attendance.empty"),
-    onRowDoubleClick: (row) => navigate(`/classes/${row.id}/attendance`),
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">{t("course.attendance.hubTitle")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("course.attendance.hubSubtitle")}</p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("course.attendance.hubTitle")}</h1>
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+          {t("course.attendance.hubSubtitle")}
+        </p>
         <div className="mt-2">
           <PageBreadcrumb
             items={[
@@ -164,14 +235,7 @@ const AttendanceHubPage = () => {
           />
         </div>
       </div>
-      <DataTable
-        data={rows}
-        config={config}
-        params={params}
-        onParamsChange={updateParams}
-        pagination={pagination}
-        isLoading={isLoading}
-      />
+      <AttendanceHubList />
     </div>
   );
 };

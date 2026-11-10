@@ -417,6 +417,7 @@ const FinanceDetailsDrawer = ({
                       receivable: classRow.net_receivable,
                       mof: classRow.mof_receivable_amount,
                       other: classRow.other_receivable_amount,
+                      studentReceivable: classRow.student_receivable_amount,
                       credit: classRow.credit_amount,
                     }}
                   />

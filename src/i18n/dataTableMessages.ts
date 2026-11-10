@@ -75,7 +75,7 @@ export const dataTableEn = {
       back: "Back",
       clearFilters: "Clear filters",
     },
-    status: { active: "Active", inactive: "Inactive" },
+    status: { active: "Active", inactive: "Inactive", archived: "Archived", completed: "Completed" },
     dialog: {
       confirmDelete: 'Delete "{{name}}"?',
       confirmDeleteBody: "This cannot be undone.",
@@ -121,6 +121,33 @@ export const dataTableEn = {
       emptyTitle: "No courses yet",
       emptyBody: "Add a course to publish on the storefront.",
       new: "New course",
+    },
+    instructors: {
+      search: "Search instructors",
+      emptyTitle: "No instructors yet",
+      emptyBody: "Link the first tutor profile so classes can be assigned.",
+      new: "New instructor",
+    },
+    transactions: {
+      search: "Search student, class, invoice, or notes",
+      emptyTitle: "No transactions yet",
+      emptyBody: "Payments and ledger entries will show here once recorded.",
+    },
+    invoices: {
+      search: "Search invoice, student, or class",
+      emptyTitle: "No invoices yet",
+      emptyBody: "Issued invoices will show here once recorded.",
+    },
+    classes: {
+      search: "Search classes",
+      emptyTitle: "No classes yet",
+      emptyBody: "Schedule the first class cohort to get started.",
+      new: "New class",
+    },
+    attendance: {
+      search: "Search classes",
+      emptyTitle: "No active classes",
+      emptyBody: "There are no active classes to take attendance for.",
     },
   },
 } as const;
@@ -202,7 +229,7 @@ export const dataTablePs = {
       back: "شاته",
       clearFilters: "چاڼونه پاک کړئ",
     },
-    status: { active: "فعال", inactive: "غیرفعال" },
+    status: { active: "فعال", inactive: "غیرفعال", archived: "آرشیف", completed: "بشپړ" },
     dialog: {
       confirmDelete: '«{{name}}» ړنګ کړئ؟',
       confirmDeleteBody: "دا بېرته نه راځي.",
@@ -248,6 +275,33 @@ export const dataTablePs = {
       emptyTitle: "لا کورس نشته",
       emptyBody: "د پلورنځي لپاره یو کورس زیات کړئ.",
       new: "نوی کورس",
+    },
+    instructors: {
+      search: "استادان ولټوئ",
+      emptyTitle: "لا استاد نشته",
+      emptyBody: "لومړی استاد پروفایل وتړئ ترڅو ټولګي ورته ورکړل شي.",
+      new: "نوی استاد",
+    },
+    transactions: {
+      search: "زده کوونکی، ټولګی، بل یا یادښت ولټوئ",
+      emptyTitle: "لا معامله نشته",
+      emptyBody: "تادیې او د دفتر ثبتونه دلته د ثبت وروسته ښکاري.",
+    },
+    invoices: {
+      search: "بل، زده کوونکی یا ټولګی ولټوئ",
+      emptyTitle: "لا بل نشته",
+      emptyBody: "صادر شوي بلونه دلته د ثبت وروسته ښکاري.",
+    },
+    classes: {
+      search: "ټولګي ولټوئ",
+      emptyTitle: "لا ټولګي نشته",
+      emptyBody: "د پیل لپاره لومړی ټولګی مهال‌ویش کړئ.",
+      new: "نوی ټولګی",
+    },
+    attendance: {
+      search: "ټولګي ولټوئ",
+      emptyTitle: "فعال ټولګي نشته",
+      emptyBody: "د حاضرۍ لپاره هیڅ فعال ټولګی نشته.",
     },
   },
 } as const;
@@ -329,7 +383,7 @@ export const dataTableFa = {
       back: "بازگشت",
       clearFilters: "پاک کردن فیلترها",
     },
-    status: { active: "فعال", inactive: "غیرفعال" },
+    status: { active: "فعال", inactive: "غیرفعال", archived: "بایگانی", completed: "تمام‌شده" },
     dialog: {
       confirmDelete: '«{{name}}» حذف شود؟',
       confirmDeleteBody: "این کار برگشت‌پذیر نیست.",
@@ -375,6 +429,33 @@ export const dataTableFa = {
       emptyTitle: "هنوز دوره‌ای نیست",
       emptyBody: "یک دوره برای فروشگاه اضافه کنید.",
       new: "دوره جدید",
+    },
+    instructors: {
+      search: "جستجوی استادان",
+      emptyTitle: "هنوز استادی نیست",
+      emptyBody: "اولین پروفایل استاد را وصل کنید تا صنف‌ها قابل تخصیص شوند.",
+      new: "استاد جدید",
+    },
+    transactions: {
+      search: "جستجوی شاگرد، صنف، فاکتور یا یادداشت",
+      emptyTitle: "هنوز معامله‌ای نیست",
+      emptyBody: "پرداخت‌ها و ثبت‌های دفتر پس از ثبت اینجا دیده می‌شوند.",
+    },
+    invoices: {
+      search: "جستجوی فاکتور، شاگرد یا صنف",
+      emptyTitle: "هنوز فاکتوری نیست",
+      emptyBody: "فاکتورهای صادرشده پس از ثبت اینجا دیده می‌شوند.",
+    },
+    classes: {
+      search: "جستجوی صنف‌ها",
+      emptyTitle: "هنوز صنفی نیست",
+      emptyBody: "اولین گروه صنف را زمان‌بندی کنید.",
+      new: "صنف جدید",
+    },
+    attendance: {
+      search: "جستجوی صنف‌ها",
+      emptyTitle: "صنف فعالی نیست",
+      emptyBody: "صنف فعالی برای حضور و غیاب وجود ندارد.",
     },
   },
 } as const;

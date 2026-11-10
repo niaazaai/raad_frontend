@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useMutationApi, useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
 import {
@@ -6,6 +7,7 @@ import {
   FINANCE_RELATED_QUERY_KEYS,
 } from "@/modules/Finance/data/constants/endpoints";
 import { callApi } from "@/services";
+import type { ApiResponse } from "@/types/api";
 
 export interface ClassStudentRow {
   id: number;
@@ -163,8 +165,15 @@ export function useDisableClassStudent(classId: number, enrollmentId: number) {
 }
 
 export function useRecordClassStudentPayment(classId: number, enrollmentId: number) {
-  return useMutationApi<
-    RecordPaymentResult,
+  const queryClient = useQueryClient();
+  // Always post with the latest ids — static useMutationApi urls can stay on 0/0
+  // after a deep-link load and return HTTP 405 Method not allowed.
+  const idsRef = useRef({ classId, enrollmentId });
+  idsRef.current = { classId, enrollmentId };
+
+  return useMutation<
+    ApiResponse<RecordPaymentResult>,
+    Error,
     {
       discount_type: string;
       discount_amount?: number;
@@ -180,13 +189,31 @@ export function useRecordClassStudentPayment(classId: number, enrollmentId: numb
       payer?: string;
     }
   >({
-    url: `/lms-classes/${classId}/students/${enrollmentId}/payments`,
-    method: RequestMethod.POST,
-    invalidateKeys: [
-      classStudentsListPrefix(classId),
-      FINANCE_QUERY_KEYS.enrollmentTransactions(enrollmentId),
-      ...financeRelatedKeys,
-    ],
+    mutationFn: async (variables) => {
+      const { classId: cid, enrollmentId: eid } = idsRef.current;
+      if (!cid || !eid) {
+        throw new Error("Select a class enrollment before recording a payment.");
+      }
+      const response = await callApi<RecordPaymentResult>({
+        url: `/lms-classes/${cid}/students/${eid}/payments`,
+        method: RequestMethod.POST,
+        data: variables,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Could not record payment");
+      }
+      return response.data as ApiResponse<RecordPaymentResult>;
+    },
+    onSuccess: () => {
+      const { classId: cid, enrollmentId: eid } = idsRef.current;
+      void queryClient.invalidateQueries({ queryKey: classStudentsListPrefix(cid) });
+      void queryClient.invalidateQueries({
+        queryKey: FINANCE_QUERY_KEYS.enrollmentTransactions(eid),
+      });
+      financeRelatedKeys.forEach((key) => {
+        void queryClient.invalidateQueries({ queryKey: key });
+      });
+    },
   });
 }
 

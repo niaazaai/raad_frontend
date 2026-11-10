@@ -10,7 +10,9 @@ const ClassAttendancePage = lazy(() => import("../features/ClassAttendancePage/C
 const AttendanceHubPage = lazy(() => import("../features/AttendanceHubPage/AttendanceHubPage"));
 const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
 const MainCategoriesPage = lazy(() => import("../features/MainCategoriesPage/MainCategoriesPage"));
+const ClassesPage = lazy(() => import("../features/ClassesPage/ClassesPage"));
 const StudentsPage = lazy(() => import("../features/StudentsPage/StudentsPage"));
+const InstructorsPage = lazy(() => import("../features/InstructorsPage/InstructorsPage"));
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
@@ -32,7 +34,7 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
   },
   {
     path: "/classes",
-    component: <CourseEntityList forcedSlug="lms-classes" />,
+    component: <ClassesPage />,
     permission: "course.lms_classes.read",
   },
   {
@@ -42,7 +44,12 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
   },
   {
     path: "/instructors",
-    component: <CourseEntityList forcedSlug="instructors" />,
+    component: <InstructorsPage />,
+    permission: "course.instructors.read",
+  },
+  {
+    path: "/course/instructors",
+    component: <InstructorsPage />,
     permission: "course.instructors.read",
   },
   {

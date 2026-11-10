@@ -93,16 +93,28 @@ const ACADEMIC_BACKGROUND_OPTIONS = [
 const enrollmentFieldClass =
   "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1";
 
+const PHONE_NUMBER = /^\+?[0-9]{7,15}$/;
+
 const EnrollmentSchema = z.object({
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
+  first_name: z.string().trim().min(1, "First name is required"),
+  last_name: z.string().trim().min(1, "Last name is required"),
   gender: z.string().optional(),
   date_of_birth: z.string().optional(),
-  phone_number: z.string().min(1, "Phone number is required"),
-  whatsapp_number: z.string().optional(),
-  national_id: z.string().min(1, "National ID is required"),
+  phone_number: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .regex(PHONE_NUMBER, "Enter a valid phone number (7–15 digits, optional +)."),
+  whatsapp_number: z
+    .string()
+    .optional()
+    .refine((value) => {
+      const phone = (value ?? "").trim();
+      return phone === "" || PHONE_NUMBER.test(phone);
+    }, { message: "Enter a valid WhatsApp number (7–15 digits, optional +)." }),
+  national_id: z.string().trim().min(1, "National ID is required"),
   academic_background: z.string().optional(),
-  email: z.string().email("Valid email is required"),
+  email: z.string().trim().email("Valid email is required"),
   acca_id: z.string().optional(),
 });
 
@@ -874,14 +886,33 @@ const CourseViewPage = () => {
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="phone_number">Phone Number <span className="text-destructive">*</span></Label>
-                            <input id="phone_number" {...enrollmentForm.register("phone_number")} className={enrollmentFieldClass} placeholder="+93701234567" />
+                            <input
+                              id="phone_number"
+                              type="tel"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              {...enrollmentForm.register("phone_number")}
+                              className={enrollmentFieldClass}
+                              placeholder="+93701234567"
+                            />
                             {enrollmentForm.formState.errors.phone_number && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.phone_number.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="whatsapp_number">WhatsApp number</Label>
-                            <input id="whatsapp_number" {...enrollmentForm.register("whatsapp_number")} className={enrollmentFieldClass} placeholder="+93701234567" />
+                            <input
+                              id="whatsapp_number"
+                              type="tel"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              {...enrollmentForm.register("whatsapp_number")}
+                              className={enrollmentFieldClass}
+                              placeholder="+93701234567"
+                            />
+                            {enrollmentForm.formState.errors.whatsapp_number && (
+                              <p className="text-xs text-destructive">{enrollmentForm.formState.errors.whatsapp_number.message}</p>
+                            )}
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="national_id">National ID / Passport <span className="text-destructive">*</span></Label>
@@ -952,12 +983,9 @@ const CourseViewPage = () => {
                           }
 
                           try {
+                            const profilePayload = enrollmentForm.getValues();
                             if (studentProfile?.id) {
-                              try {
-                                await updateProfileMutation.mutateAsync(enrollmentForm.getValues());
-                              } catch {
-                                // Keep the purchase moving if the profile row rejects a field.
-                              }
+                              await updateProfileMutation.mutateAsync(profilePayload);
                             }
                             await createSubscriptionMutation.mutateAsync({
                               plan_id: String(selectedPlanId),

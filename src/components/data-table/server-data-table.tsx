@@ -25,6 +25,7 @@ import { isFieldQueryError, type BulkAction, type DataTableApi } from './use-dat
 export function ServerDataTable<TRow>({
   api, extra, entityLabel, searchPlaceholder,
   emptyTitle, emptyBody, emptyAction, searchClassName, onRowClick, onRowDoubleClick, className, stickyHeader,
+  maxBodyHeight,
   narrowed: screenNarrowed = false,
   toolsInHeader = false,
 }: {
@@ -44,6 +45,8 @@ export function ServerDataTable<TRow>({
   onRowDoubleClick?: (row: TRow) => void;
   className?: string;
   stickyHeader?: boolean;
+  /** Caps the frame so header and footer stay put while the body scrolls. */
+  maxBodyHeight?: string;
   /**
    * True when a filter the SCREEN owns (see `params`) is narrowing the list.
    *
@@ -147,6 +150,7 @@ export function ServerDataTable<TRow>({
         narrowed={api.narrowed || screenNarrowed}
         preferences={preferences}
         stickyHeader={stickyHeader}
+        maxBodyHeight={maxBodyHeight}
         selection={options.select === false ? undefined : selection}
         getRowId={options.getRowId ?? ((row: TRow) => (row as { id: string }).id)}
         toolbar={(

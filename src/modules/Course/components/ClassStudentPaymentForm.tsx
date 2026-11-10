@@ -1,5 +1,7 @@
+import { Info } from "lucide-react";
 import {
   Button,
+  DatePicker,
   Input,
   Label,
   Select,
@@ -7,15 +9,25 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui";
 import { useTranslation } from "@/i18n/useTranslation";
-import FinanceStatusBadge from "@/modules/Finance/components/FinanceStatusBadge";
+import { cn } from "@/lib/utils";
 import { localIsoDate } from "@/modules/Finance/components/financeFormat";
 import type { ClassStudentRow } from "../hooks/useClassStudents";
 
 export const DISCOUNT_TYPES = ["none", "percentage", "fixed"] as const;
 export const CURRENCIES = ["AFN", "USD", "GBP"] as const;
 export const RECEIVABLE_STATUSES = ["pending", "mof_pending", "other_party"] as const;
+
+const notesTextareaClass = cn(
+  "flex min-h-[96px] w-full min-w-0 resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none",
+  "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+  "md:text-sm"
+);
 
 export type PaymentFormState = {
   discount_type: string;
@@ -28,6 +40,7 @@ export type PaymentFormState = {
   receivable_status: string;
   other_party_name: string;
   irrecoverable_debt: string;
+  notes: string;
   /** Who is paying: the student, or MOF / the other party settling their classified balance. */
   payer: string;
 };
@@ -47,6 +60,7 @@ export function defaultPaymentFormState(): PaymentFormState {
     receivable_status: "pending",
     other_party_name: "",
     irrecoverable_debt: "",
+    notes: "",
     payer: "student",
   };
 }
@@ -114,6 +128,7 @@ export function buildPaymentFormStateFromEnrollment(
     | "next_due_date"
     | "other_party_name"
     | "irrecoverable_debt"
+    | "notes"
   >,
   classFee = 0
 ): PaymentFormState {
@@ -140,6 +155,8 @@ export function buildPaymentFormStateFromEnrollment(
     receivable_status: receivableStatus,
     other_party_name: String(enrollment.other_party_name ?? ""),
     irrecoverable_debt: irrecoverable > 0 ? String(irrecoverable) : "",
+    // Carry the last internal note forward for the next installment.
+    notes: enrollment.notes != null ? String(enrollment.notes) : "",
     payer: "student",
   };
 }
@@ -176,6 +193,16 @@ export function computeFeeAfterDiscount(
     return Math.max(0, Math.round((classFee - Math.max(0, discountAmount)) * 100) / 100);
   }
   return Math.max(0, classFee);
+}
+
+/** Money amount of the discount — same as invoice / EnrollmentBalanceCalculator.discountFor. */
+export function computeDiscountValue(
+  classFee: number,
+  discountType: string,
+  discountAmount: number
+): number {
+  const fee = Math.max(0, classFee);
+  return Math.max(0, Math.round((fee - computeFeeAfterDiscount(fee, discountType, discountAmount)) * 100) / 100);
 }
 
 export function resolvePaymentPreviewStatus(
@@ -236,7 +263,6 @@ export function ClassStudentPaymentForm({
   const feeSource = enrollment.class_fee != null ? Number(enrollment.class_fee) : classFee;
   const discountAmount = form.discount_amount ? Number(form.discount_amount) : 0;
   const paymentAmount = form.payment_amount ? Number(form.payment_amount) : 0;
-  const alreadyPaid = Number(enrollment.paid_amount ?? 0);
   // Refunds never re-open the balance and cancelled fees are closed, so both count as settled.
   const settledBase = settledBaseOf(enrollment);
   const irrecoverable = form.irrecoverable_debt ? Number(form.irrecoverable_debt) : 0;
@@ -251,12 +277,6 @@ export function ClassStudentPaymentForm({
     Math.round((feeAfterDiscount - projectedSettled - irrecoverable) * 100) / 100
   );
   const discounted = form.discount_type !== "none" && discountAmount > 0;
-  const previewStatus = resolvePaymentPreviewStatus(
-    feeAfterDiscount - irrecoverable,
-    projectedSettled,
-    dueAfter > 0.009 ? form.receivable_status : undefined,
-    { discounted, writtenOff: irrecoverable }
-  );
   const currentClassification = ["mof_pending", "other_party"].includes(
     String(enrollment.payment_status ?? "")
   )
@@ -281,14 +301,17 @@ export function ClassStudentPaymentForm({
   // A due date belongs to a cash installment. A discount with no payment does not need one.
   const needsNextDue =
     paymentAmount > 0.009 && dueAfter > 0.009 && form.receivable_status === "pending";
+  const sameTransactionAndNextDue =
+    needsNextDue &&
+    form.transaction_date !== "" &&
+    form.next_due_date !== "" &&
+    form.transaction_date === form.next_due_date;
   const otherPartyOk =
     form.receivable_status !== "other_party" || form.other_party_name.trim() !== "";
   const classifyRemaining =
     form.receivable_status === "mof_pending" || form.receivable_status === "other_party";
   const existingIrrecoverable = Number(enrollment.irrecoverable_debt ?? 0);
   const irrecoverableChanged = Math.abs(irrecoverable - existingIrrecoverable) > 0.009;
-  const mofAfter = form.receivable_status === "mof_pending" ? dueAfter : 0;
-  const otherAfter = form.receivable_status === "other_party" ? dueAfter : 0;
   const canSubmit =
     otherPartyOk &&
     paymentAmount <= remainingBefore + 0.01 &&
@@ -483,53 +506,84 @@ export function ClassStudentPaymentForm({
         </div>
       ) : null}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="transaction-date">{t("course.classStudents.transactionDate")}</Label>
-        <Input
-          id="transaction-date"
-          type="date"
-          value={form.transaction_date}
-          onChange={(e) => onFormChange({ ...form, transaction_date: e.target.value })}
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="transaction-date">{t("course.classStudents.transactionDate")}</Label>
+          <DatePicker
+            id="transaction-date"
+            value={form.transaction_date}
+            onChange={(value) => onFormChange({ ...form, transaction_date: value })}
+            placeholder={t("course.classStudents.transactionDate")}
+            className="w-full"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Label>{t("course.classStudents.receivable")}</Label>
+            <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={t("course.classStudents.receivableHint")}
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  sideOffset={4}
+                  className="max-w-[16rem] animate-none duration-0"
+                >
+                  {t("course.classStudents.receivableHint")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Select
+            value={form.receivable_status}
+            onValueChange={(v) => {
+              onFormChange({
+                ...form,
+                receivable_status: v,
+              });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RECEIVABLE_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {t(`course.paymentStatus.${status}` as "course.paymentStatus.pending")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {needsNextDue ? (
         <div className="space-y-1.5">
           <Label htmlFor="next-due-date">{t("course.classStudents.nextDueDate")}</Label>
-          <Input
+          <DatePicker
             id="next-due-date"
-            type="date"
-            min={new Date().toISOString().slice(0, 10)}
             value={form.next_due_date}
-            onChange={(e) => onFormChange({ ...form, next_due_date: e.target.value })}
+            onChange={(value) => onFormChange({ ...form, next_due_date: value })}
+            placeholder={t("course.classStudents.nextDueDate")}
+            className="w-full"
           />
+          {sameTransactionAndNextDue ? (
+            <p
+              role="status"
+              className="rounded-lg border border-warning/25 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-warning"
+            >
+              {t("fin.receive.sameDatesHint")}
+            </p>
+          ) : null}
         </div>
       ) : null}
-
-      <div className="space-y-1.5">
-        <Label>{t("course.classStudents.receivable")}</Label>
-        <Select
-          value={form.receivable_status}
-          onValueChange={(v) => {
-            onFormChange({
-              ...form,
-              receivable_status: v,
-            });
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {RECEIVABLE_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {t(`course.paymentStatus.${status}` as "course.paymentStatus.pending")}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">{t("course.classStudents.receivableHint")}</p>
-      </div>
 
       {form.receivable_status === "other_party" ? (
         <div className="space-y-1.5">
@@ -555,81 +609,20 @@ export function ClassStudentPaymentForm({
         />
       </div>
 
-      <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">{t("course.classStudents.afterDiscount")}</span>
-          <span className="font-medium tabular-nums">
-            {formatMoney(feeAfterDiscount)} {form.currency}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">{t("course.classStudents.alreadyPaid")}</span>
-          <span className="font-medium tabular-nums">
-            {formatMoney(alreadyPaid)} {form.currency}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">{t("course.columns.payment_status")}</span>
-          <FinanceStatusBadge value={previewStatus} />
-        </div>
-        {paymentAmount > 0.009 ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">{t("course.classStudents.cashThisSave")}</span>
-            <span className="font-medium tabular-nums">
-              {formatMoney(paymentAmount)} {form.currency}
-            </span>
-          </div>
-        ) : null}
-        {mofAfter > 0.009 ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">{t("finance.mofReceivable")}</span>
-            <span className="font-medium tabular-nums text-warning">
-              {formatMoney(mofAfter)} {form.currency}
-            </span>
-          </div>
-        ) : null}
-        {otherAfter > 0.009 ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">{t("finance.otherReceivable")}</span>
-            <span className="font-medium tabular-nums text-warning">
-              {formatMoney(otherAfter)} {form.currency}
-            </span>
-          </div>
-        ) : null}
-        {irrecoverable > 0.009 ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">
-              {t("course.classStudents.irrecoverableDebt")}
-            </span>
-            <span className="font-medium tabular-nums">
-              {formatMoney(irrecoverable)} {form.currency}
-            </span>
-          </div>
-        ) : null}
-        {previewStatus === "partial" ||
-        previewStatus === "pending" ||
-        previewStatus === "mof_pending" ||
-        previewStatus === "other_party" ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">{t("course.columns.due_amount")}</span>
-            <span className="font-medium tabular-nums text-warning">
-              {formatMoney(dueAfter)} {form.currency}
-            </span>
-          </div>
-        ) : null}
-        {remainingBefore <= 0 &&
-        !irrecoverableChanged &&
-        paymentAmount <= 0 &&
-        !classifyRemaining &&
-        !discountChanged ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            {t("course.classStudents.fullyPaidHint")}
-          </p>
-        ) : null}
-        {paymentAmount <= 0 && discountChanged ? (
-          <p className="mt-3 text-xs text-info">{t("fin.receive.discountOnlyHint")}</p>
-        ) : null}
+      <div className="space-y-1.5">
+        <Label htmlFor="payment-notes">{t("fin.transactions.internalNotes")}</Label>
+        <textarea
+          id="payment-notes"
+          value={form.notes}
+          onChange={(e) => onFormChange({ ...form, notes: e.target.value })}
+          className={notesTextareaClass}
+          placeholder={t("fin.transactions.internalNotes")}
+        />
       </div>
+
+      {paymentAmount <= 0 && discountChanged ? (
+        <p className="text-xs text-info">{t("fin.receive.discountOnlyHint")}</p>
+      ) : null}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button
@@ -669,6 +662,8 @@ export function buildPaymentPayloadFromForm(
   const needsNextDue =
     paymentAmount > 0.009 && dueAfter > 0.009 && form.receivable_status === "pending";
 
+  const notes = form.notes.trim();
+
   return {
     discount_type: form.discount_type,
     discount_amount: form.discount_type === "none" ? 0 : discountAmount,
@@ -681,6 +676,7 @@ export function buildPaymentPayloadFromForm(
     other_party_name:
       form.receivable_status === "other_party" ? form.other_party_name.trim() : undefined,
     irrecoverable_debt: irrecoverable,
+    notes: notes !== "" ? notes : undefined,
     payer: paymentAmount > 0 ? form.payer || "student" : undefined,
   };
 }

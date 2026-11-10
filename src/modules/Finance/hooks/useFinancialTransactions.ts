@@ -22,11 +22,17 @@ export interface FinancialTransactionListParams {
   per_page?: number;
   sort_by?: string;
   sort_dir?: string;
-  filter?: FinancialTransactionFilter;
+  /** Legacy single category; prefer `type` (comma-joined). */
+  filter?: FinancialTransactionFilter | string;
+  /** Comma-joined category keys (`payment,refund`). */
+  type?: string;
+  /** Comma-joined LMS class ids. */
+  class_id?: string;
   from?: string;
   to?: string;
-  all_time?: 0 | 1;
-  payer?: TransactionPayer;
+  all_time?: 0 | 1 | string;
+  /** Single payer or comma-joined (`student,mof`). */
+  payer?: TransactionPayer | string;
 }
 
 export function useFinancialTransactions(params: FinancialTransactionListParams) {
@@ -36,6 +42,43 @@ export function useFinancialTransactions(params: FinancialTransactionListParams)
     method: RequestMethod.GET,
     params,
     options: { staleTime: FINANCE_STALE_TIME, refetchOnMount: "always" },
+  });
+}
+
+export interface UpdateFinancialTransactionBody {
+  amount?: number;
+  currency?: string;
+  exchange_rate?: number | null;
+  transaction_date?: string;
+  next_installment_date?: string | null;
+  payer?: string | null;
+  notes?: string | null;
+  internal_notes?: string | null;
+  service_name?: string | null;
+  service_cost?: number | null;
+}
+
+export function useUpdateFinancialTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: UpdateFinancialTransactionBody }) => {
+      const response = await callApi({
+        url: `${FINANCE_ENDPOINTS.TRANSACTIONS}/${id}`,
+        method: RequestMethod.PUT,
+        data: body,
+        shouldPopError: false,
+      });
+      if (!response.ok) {
+        throw new Error(response.data?.message || "Update failed");
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      FINANCE_RELATED_QUERY_KEYS.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: [...key] });
+      });
+    },
   });
 }
 

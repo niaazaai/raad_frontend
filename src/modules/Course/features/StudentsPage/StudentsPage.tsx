@@ -64,6 +64,7 @@ interface StudentRow {
   notes: string | null;
   status: string;
   channel: string | null;
+  channels?: string[] | null;
   success_stories_count?: number;
   classes_taken?: ClassTaken[] | null;
   created_at: string | null;
@@ -170,10 +171,23 @@ function StudentsList({ filters }: { filters: StudentFilters }) {
       if (value === "other") return t("studentDirectory.other");
       return shown(value);
     };
-    const channelText = (value: string | null): string => {
-      if (value === "online") return t("studentDirectory.online");
-      if (value === "offline") return t("studentDirectory.offline");
-      return "—";
+    const channelText = (row: StudentRow): string => {
+      if (row.channel === "both") return t("studentDirectory.both");
+      const parts = Array.isArray(row.channels) && row.channels.length > 0
+        ? row.channels
+        : row.channel
+          ? [row.channel]
+          : [];
+      if (parts.includes("online") && parts.includes("offline")) {
+        return t("studentDirectory.both");
+      }
+      const labels = parts.map((part) => {
+        if (part === "online") return t("studentDirectory.online");
+        if (part === "offline") return t("studentDirectory.offline");
+        return part;
+      });
+      if (labels.length === 0) return "—";
+      return labels.join(" · ");
     };
     const statusText = (value: string): string =>
       value === "active" || value === "inactive" ? gridT(`common:status.${value}`) : shown(value);
@@ -230,7 +244,7 @@ function StudentsList({ filters }: { filters: StudentFilters }) {
         width: 180,
       }),
       funnel(
-        text("channel", t("studentDirectory.type"), 1, (row) => channelText(row.channel), { width: 120 }),
+        text("channel", t("studentDirectory.type"), 1, (row) => channelText(row), { width: 140 }),
         "channel",
         t("studentDirectory.type"),
         [
@@ -441,6 +455,7 @@ function StudentsList({ filters }: { filters: StudentFilters }) {
         narrowed={filters.narrowed}
         onRowDoubleClick={canUpdate ? openEdit : openView}
         stickyHeader
+        maxBodyHeight="calc(100dvh - 11.5rem)"
         toolsInHeader
         extra={<NewButton show={canCreate} onNew={openNew} label={newLabel} />}
       />
