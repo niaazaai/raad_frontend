@@ -9,6 +9,16 @@ const ClassStudentsPage = lazy(() => import("../features/ClassStudentsPage/Class
 const ClassAttendancePage = lazy(() => import("../features/ClassAttendancePage/ClassAttendancePage"));
 const AttendanceHubPage = lazy(() => import("../features/AttendanceHubPage/AttendanceHubPage"));
 const CoursesPage = lazy(() => import("../features/CoursesPage/CoursesPage"));
+const MainCategoriesPage = lazy(() => import("../features/MainCategoriesPage/MainCategoriesPage"));
+const ClassesPage = lazy(() => import("../features/ClassesPage/ClassesPage"));
+const StudentsPage = lazy(() => import("../features/StudentsPage/StudentsPage"));
+const InstructorsPage = lazy(() => import("../features/InstructorsPage/InstructorsPage"));
+const StudentSubscriptionsPage = lazy(
+  () => import("../features/StudentSubscriptionsPage/StudentSubscriptionsPage"),
+);
+const SubscriptionPlansPage = lazy(
+  () => import("../features/SubscriptionPlansPage/SubscriptionPlansPage"),
+);
 
 const CourseWizardPage = lazy(() => import("../features/CourseWizardPage/CourseWizardPage"));
 
@@ -21,26 +31,31 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
   {
     path: "/classes/:classId/attendance",
     component: <ClassAttendancePage />,
-    permission: "course.lms_classes.read",
+    anyPermission: ["attendance.read", "attendance.classes.read"],
   },
   {
     path: "/attendance",
     component: <AttendanceHubPage />,
-    permission: "course.lms_classes.read",
+    anyPermission: ["attendance.read", "attendance.classes.read"],
   },
   {
     path: "/classes",
-    component: <CourseEntityList forcedSlug="lms-classes" />,
+    component: <ClassesPage />,
     permission: "course.lms_classes.read",
   },
   {
     path: "/students",
-    component: <CourseEntityList forcedSlug="lms-class-students" />,
+    component: <StudentsPage />,
     permission: "course.class_students.read",
   },
   {
     path: "/instructors",
-    component: <CourseEntityList forcedSlug="instructors" />,
+    component: <InstructorsPage />,
+    permission: "course.instructors.read",
+  },
+  {
+    path: "/course/instructors",
+    component: <InstructorsPage />,
     permission: "course.instructors.read",
   },
   {
@@ -57,6 +72,21 @@ export const CourseModuleRoutes: ProtectedRouteType[] = [
     path: "/course/courses/:courseId/edit",
     component: <CourseWizardPage />,
     permission: "course.courses.update",
+  },
+  {
+    path: "/course/main-categories",
+    component: <MainCategoriesPage />,
+    permission: "course.main_categories.read",
+  },
+  {
+    path: "/course/student-subscriptions",
+    component: <StudentSubscriptionsPage />,
+    permission: "course.student_subscriptions.read",
+  },
+  {
+    path: "/course/subscription-plans",
+    component: <SubscriptionPlansPage />,
+    permission: "course.subscription_plans.read",
   },
   {
     path: "/course/:slug",

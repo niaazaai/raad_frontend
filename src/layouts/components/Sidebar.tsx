@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List } from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Settings, CircleUser as UserCircle, Crown as UserCrown, Lock, BookOpen as OpenBook, ChevronDown as NavArrowDown, ClipboardCheck, Activity, UserCheck as UserBadgeCheck, GraduationCap, Presentation, Newspaper as Post, CircleDollarSign as DollarCircle, ChartColumn as StatsReport, BookOpenText as PageFlip, CalendarArrowDown, Coins, FilePen as PageEdit, HandCoins as HandCash, List, ClipboardList } from "lucide-react";
 import { BookOpen as Learning } from "lucide-react";
 import { ShieldUserIcon } from "@/components/icons/sidebar-icons";
 import { useAuth } from "@/features/auth";
@@ -67,6 +67,8 @@ const NAV_TITLE_KEYS: Record<string, TranslationKey> = {
   Overview: "sidebar.overview",
   Instructors: "sidebar.instructors",
   Students: "sidebar.students",
+  Reports: "sidebar.reports",
+  "Student report": "sidebar.studentReport",
   Finance: "sidebar.finance",
   "Finance report": "sidebar.financeReport",
   Invoices: "sidebar.invoices",
@@ -253,7 +255,7 @@ const Sidebar = () => {
         title: "Attendance",
         path: "/attendance",
         icon: <ClipboardCheck className={iconLg} />,
-        permission: COURSE_ENTITY_REGISTRY["lms-classes"].permission,
+        anyPermission: ["attendance.read", "attendance.classes.read"],
       },
       {
         title: "Instructors",
@@ -268,12 +270,28 @@ const Sidebar = () => {
         permission: COURSE_ENTITY_REGISTRY["lms-class-students"].permission,
       },
       {
+        title: "Reports",
+        icon: <ClipboardList className={iconLg} />,
+        permission: "reports.students.read",
+        children: [
+          {
+            title: "Student report",
+            path: "/reports/students",
+            icon: <GraduationCap className={iconSm} />,
+            permission: "reports.students.read",
+          },
+        ],
+      },
+      {
         title: "Finance",
         icon: <DollarCircle className={iconLg} />,
         anyPermission: [
           "finance.read",
-          "course.class_students.payment",
-          "course.class_students.update",
+          "finance.payments.receive",
+          "finance.invoices.read",
+          "finance.dues.read",
+          "finance.service_income.read",
+          "finance.manual_invoices.create",
         ],
         children: [
           {
@@ -286,13 +304,13 @@ const Sidebar = () => {
             title: "Invoices",
             path: "/finance/invoices",
             icon: <PageFlip className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.invoices.read",
           },
           {
             title: "Upcoming dues",
             path: "/finance/upcoming-dues",
             icon: <CalendarArrowDown className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.dues.read",
           },
           {
             title: "Transactions",
@@ -304,23 +322,19 @@ const Sidebar = () => {
             title: "Service income",
             path: "/finance/service-income",
             icon: <Coins className={iconSm} />,
-            permission: "finance.read",
+            permission: "finance.service_income.read",
           },
           {
             title: "Manual invoice",
             path: "/finance/manual-invoice",
             icon: <PageEdit className={iconSm} />,
-            anyPermission: [
-              "course.class_students.invoice",
-              "course.class_students.payment",
-              "course.class_students.update",
-            ],
+            anyPermission: ["finance.manual_invoices.create", "finance.service_income.create"],
           },
           {
             title: "Receive payment",
             path: "/finance/receive-payment",
             icon: <HandCash className={iconSm} />,
-            anyPermission: ["course.class_students.payment", "course.class_students.update"],
+            permission: "finance.payments.receive",
           },
         ],
       },

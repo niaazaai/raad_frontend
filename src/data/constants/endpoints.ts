@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     REGISTER: "/auth/register",
     EMAIL_RESEND: "/auth/email/resend",
     PREFERENCES: "/auth/preferences",
+    PROFILE: "/auth/profile",
   },
 
   NOTIFICATIONS: {

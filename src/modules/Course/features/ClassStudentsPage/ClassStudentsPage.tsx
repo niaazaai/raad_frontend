@@ -1003,6 +1003,7 @@ function PaymentModal({
   onClose,
 }: PaymentModalProps) {
   const recordPayment = useRecordClassStudentPayment(classId, row?.id ?? 0);
+  const { hasPermission } = useAuth();
   const { t } = useTranslation();
   const fmt = useFormatMessage();
 
@@ -1025,6 +1026,8 @@ function PaymentModal({
             form={form}
             onFormChange={onFormChange}
             isSubmitting={recordPayment.isPending}
+            canApplyDiscount={hasPermission("finance.discounts.apply")}
+            canWriteOff={hasPermission("finance.debts.writeoff")}
             onSubmit={async () => {
               try {
                 await recordPayment.mutateAsync(buildPaymentPayloadFromForm(form, row, classFee));
@@ -1153,12 +1156,16 @@ function RefundModal({ open, row, classId, form, onFormChange, onClose }: Refund
             disabled={!canSubmit}
             onClick={async () => {
               try {
-                await refundPayment.mutateAsync({
+                const response = await refundPayment.mutateAsync({
                   amount,
                   transaction_date: form.transaction_date || undefined,
                   reason: form.reason || undefined,
                   cancel_remaining: form.cancel_remaining,
                 });
+                const pdfUrl = response.data?.invoice?.pdf_url;
+                if (pdfUrl) {
+                  window.open(pdfUrl, "_blank", "noopener,noreferrer");
+                }
                 onClose();
               } catch {
                 // error toast is shown by callApi

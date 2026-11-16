@@ -47,7 +47,7 @@ All tokens live in `src/assets/css/index.css` as CSS custom properties and are e
 
 ## 2. Typography
 
-Font family: **Inter** (system fallback: `system-ui, -apple-system, sans-serif`).
+Font family: **Plus Jakarta Sans** (system fallback: `system-ui, -apple-system, sans-serif`). RTL (Dari/Pashto) stays **Vazirmatn**.
 
 | Role | Tailwind classes |
 |---|---|

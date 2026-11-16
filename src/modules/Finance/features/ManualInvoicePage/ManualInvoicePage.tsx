@@ -97,9 +97,8 @@ const ManualInvoicePage = () => {
   const { t } = useTranslation();
   const { hasAnyPermission } = useAuth();
   const canCreate = hasAnyPermission([
-    "course.class_students.invoice",
-    "course.class_students.payment",
-    "course.class_students.update",
+    "finance.manual_invoices.create",
+    "finance.service_income.create",
   ]);
 
   const [studentId, setStudentId] = useState<number | null>(null);

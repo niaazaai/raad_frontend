@@ -480,7 +480,7 @@ Use the `extractList` / `extractPagination` helper pattern (see List Page exampl
 - Locales: `en` (LTR) | `fa` Dari (RTL) | `ps` Pashto (RTL), in `useLocaleStore` (persist `raad-lms-locale`).
 - Add keys to **`en` first** in `src/i18n/translations.ts` (it types `TranslationKey`), then mirror in `ps` + `fa`.
 - Admin locale/direction is applied by `MainLayout` via `applyAdminLocale(locale)` → sets `<html lang/dir>` (covers portalled drawers/toasts). Language switcher lives in the admin `Header`.
-- Fonts: Inter (LTR) / **Vazirmatn** (RTL) via `html[dir="rtl"] body` in `index.css` — never hard-code font families.
+- Fonts: Plus Jakarta Sans (LTR) / **Vazirmatn** (RTL) via `html[dir="rtl"] body` in `index.css` — never hard-code font families.
 - Use **logical** Tailwind utilities (`ms`/`me`, `ps`/`pe`, `start`/`end`, `text-start`) so components mirror in RTL; mobile transforms use the `rtl:` variant.
 
 ## DO

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeftRight as CoinsSwap, Wallet } from "lucide-react";
 import {
+  Badge,
   Button,
   Card,
   CardContent,
+  DatePicker,
   Input,
   Label,
   PageBreadcrumb,
@@ -20,6 +22,7 @@ import {
   buildPaymentFormStateFromEnrollment,
   buildPaymentPayloadFromForm,
   ClassStudentPaymentForm,
+  computeDiscountValue,
   defaultPaymentFormState,
   isEnrollmentFullyPaid,
   type PaymentFormState,
@@ -33,9 +36,13 @@ import {
   getCourseListFromResponse,
 } from "@/modules/Course/hooks/useCourseEntity";
 import FinanceStatusBadge from "../../components/FinanceStatusBadge";
-import MoneyWaterfall from "../../components/MoneyWaterfall";
+import MoneyWaterfall, { type WaterfallValues } from "../../components/MoneyWaterfall";
 import { formatMoney, localIsoDate, openPdf, toNumber } from "../../components/financeFormat";
 import { useRecoverWriteOff } from "../../hooks/useEnrollmentActions";
+import {
+  extractEnrollmentTransactions,
+  useEnrollmentTransactions,
+} from "../../hooks/useEnrollmentTransactions";
 import {
   extractStudentEnrollments,
   useStudentActiveEnrollments,
@@ -62,13 +69,84 @@ function enrollmentBalance(row: ClassStudentRow): number {
   return toNumber(row.receivable_amount ?? row.due_amount);
 }
 
+/** Saved ledger waterfall — mirrors invoice PDF / EnrollmentBalanceCalculator. */
+function buildSavedAccountSummary(
+  enrollment: ClassStudentRow,
+  classFee: number
+): WaterfallValues {
+  const discount =
+    enrollment.discount_value != null
+      ? toNumber(enrollment.discount_value)
+      : computeDiscountValue(
+          classFee,
+          String(enrollment.discount_type ?? "none"),
+          Number(enrollment.discount_amount ?? 0)
+        );
+  const net =
+    enrollment.net_amount != null
+      ? toNumber(enrollment.net_amount)
+      : toNumber(enrollment.fee_amount) || Math.max(0, classFee - discount);
+
+  return {
+    gross: classFee,
+    discount,
+    net,
+    paid: enrollment.paid_amount,
+    refunds: enrollment.refund_amount,
+    cancelled: enrollment.cancelled_amount,
+    writtenOff: enrollment.irrecoverable_debt,
+    receivable: enrollment.receivable_amount ?? enrollment.due_amount,
+    mof: enrollment.mof_receivable_amount,
+    other: enrollment.other_receivable_amount,
+    studentReceivable: enrollment.student_receivable_amount,
+    credit: enrollment.credit_amount,
+  };
+}
+
+/**
+ * Recover preview only — does not project an unsaved payment into Paid.
+ * Payment mode always uses the saved ledger (prefilled remaining must not look like paid).
+ */
+function buildRecoverPreviewSummary(
+  enrollment: ClassStudentRow,
+  classFee: number,
+  recoverAmount: number
+): WaterfallValues {
+  const gross = Math.max(0, classFee);
+  const refunds = toNumber(enrollment.refund_amount);
+  const cancelled = toNumber(enrollment.cancelled_amount);
+  const paymentsAlready = toNumber(enrollment.paid_amount) + refunds;
+  const recover = Math.max(0, recoverAmount);
+  const writtenOff = Math.max(0, toNumber(enrollment.irrecoverable_debt) - recover);
+  const payments = paymentsAlready + recover;
+  const discount = toNumber(enrollment.discount_value);
+  const net =
+    toNumber(enrollment.net_amount ?? enrollment.fee_amount) || Math.max(0, gross - discount);
+  const open = Math.round((net - payments - cancelled - writtenOff) * 100) / 100;
+  const receivable = Math.max(0, open);
+
+  return {
+    gross,
+    discount,
+    net,
+    paid: Math.max(0, payments - refunds),
+    refunds,
+    cancelled,
+    writtenOff,
+    receivable,
+    mof: 0,
+    other: 0,
+    studentReceivable: receivable,
+    credit: Math.max(0, -open),
+  };
+}
+
 const ReceivePaymentPage = () => {
   const { t } = useTranslation();
-  const { hasAnyPermission } = useAuth();
-  const canReceive = hasAnyPermission([
-    "course.class_students.payment",
-    "course.class_students.update",
-  ]);
+  const { hasPermission } = useAuth();
+  const canReceive = hasPermission("finance.payments.receive");
+  const canDiscount = hasPermission("finance.discounts.apply");
+  const canWriteOff = hasPermission("finance.debts.writeoff");
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialStudent = Number(searchParams.get("student") ?? "") || null;
@@ -139,6 +217,21 @@ const ReceivePaymentPage = () => {
   const writtenOff = toNumber(selectedEnrollment?.irrecoverable_debt);
   const recordPayment = useRecordClassStudentPayment(classId, enrollmentId ?? 0);
   const recoverWriteOff = useRecoverWriteOff(classId, enrollmentId ?? 0);
+  const transactionsQuery = useEnrollmentTransactions(enrollmentId);
+  const ledgerCashRows = useMemo(() => {
+    const rows = extractEnrollmentTransactions(transactionsQuery.data).filter(
+      (tx) => tx.type === "payment" || tx.type === "refund"
+    );
+    return [...rows].sort((a, b) => {
+      const dateCmp = String(a.transaction_date ?? "").localeCompare(String(b.transaction_date ?? ""));
+      if (dateCmp !== 0) return dateCmp;
+      return (a.id ?? 0) - (b.id ?? 0);
+    });
+  }, [transactionsQuery.data]);
+  const paymentInstallments = useMemo(
+    () => ledgerCashRows.filter((tx) => tx.type === "payment"),
+    [ledgerCashRows]
+  );
 
   // Prefill the forms whenever a different enrollment is selected (incl. deep links).
   useEffect(() => {
@@ -151,6 +244,16 @@ const ReceivePaymentPage = () => {
     if (writtenOff <= 0) setMode("payment");
     else if (isEnrollmentFullyPaid(selectedEnrollment, classFee)) setMode("recover");
   }, [classFee, hydratedFor, selectedEnrollment, writtenOff]);
+
+  // Older enrollments only stored the note on the payment row — pull it into the form once txs load.
+  useEffect(() => {
+    if (!selectedEnrollment || hydratedFor !== selectedEnrollment.id) return;
+    if (String(selectedEnrollment.notes ?? "").trim() !== "") return;
+    const latest = paymentInstallments[paymentInstallments.length - 1];
+    const fromTx = String(latest?.internal_notes ?? latest?.notes ?? "").trim();
+    if (!fromTx) return;
+    setPaymentForm((prev) => (prev.notes.trim() !== "" ? prev : { ...prev, notes: fromTx }));
+  }, [hydratedFor, paymentInstallments, selectedEnrollment]);
 
   const enrollmentOptions = useMemo(
     () =>
@@ -226,7 +329,7 @@ const ReceivePaymentPage = () => {
 
   const refreshAfterSave = async () => {
     setHydratedFor(null);
-    await enrollmentsQuery.refetch();
+    await Promise.all([enrollmentsQuery.refetch(), transactionsQuery.refetch()]);
   };
 
   const handleSubmit = async () => {
@@ -263,6 +366,18 @@ const ReceivePaymentPage = () => {
   const currency = String(selectedEnrollment?.currency ?? "AFN");
   const recoverValue = Number(recoverAmount) || 0;
   const recoverValid = recoverValue > 0 && recoverValue <= writtenOff + 0.01;
+
+  const accountSummary = useMemo((): WaterfallValues | null => {
+    if (!selectedEnrollment) return null;
+
+    // Recover tab can preview an unsaved recovery amount; payment mode stays on saved ledger
+    // so the prefilled remaining balance is never mistaken for money already paid.
+    if (mode === "recover" && writtenOff > 0 && hydratedFor === selectedEnrollment.id) {
+      return buildRecoverPreviewSummary(selectedEnrollment, classFee, recoverValue);
+    }
+
+    return buildSavedAccountSummary(selectedEnrollment, classFee);
+  }, [selectedEnrollment, classFee, mode, recoverValue, writtenOff, hydratedFor]);
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
@@ -396,11 +511,12 @@ const ReceivePaymentPage = () => {
                     <Label htmlFor="recover-date">
                       {t("course.classStudents.transactionDate")}
                     </Label>
-                    <Input
+                    <DatePicker
                       id="recover-date"
-                      type="date"
                       value={recoverDate}
-                      onChange={(e) => setRecoverDate(e.target.value)}
+                      onChange={setRecoverDate}
+                      placeholder={t("course.classStudents.transactionDate")}
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -441,62 +557,112 @@ const ReceivePaymentPage = () => {
                 isSubmitting={recordPayment.isPending}
                 submitLabel={t("finance.receivePayment.submit")}
                 classifyOnlyLabel={t("course.classStudents.classifyOnly")}
+                canApplyDiscount={canDiscount}
+                canWriteOff={canWriteOff}
               />
             ) : null}
           </CardContent>
         </Card>
 
         <Card className={cn("min-w-0 self-start", !selectedEnrollment && "hidden lg:block")}>
-          <CardContent className="space-y-4 p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardContent className="space-y-3 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-1.5">
               <h2 className="text-sm font-semibold text-foreground">
                 {t("fin.details.waterfall")}
               </h2>
               {selectedEnrollment ? (
-                <FinanceStatusBadge
-                  value={selectedEnrollment.payment_status}
-                  fallbackLabel={selectedEnrollment.payment_status_label}
-                />
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <FinanceStatusBadge
+                    value={selectedEnrollment.payment_status}
+                    fallbackLabel={selectedEnrollment.payment_status_label}
+                  />
+                  {selectedEnrollment.next_due_date ? (
+                    <Badge variant="outline" className="font-normal tabular-nums">
+                      {t("fin.columns.dueDate")}: {String(selectedEnrollment.next_due_date).slice(0, 10)}
+                    </Badge>
+                  ) : null}
+                </div>
               ) : null}
             </div>
-            {selectedEnrollment ? (
+            {selectedEnrollment && accountSummary ? (
               <>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">
+                <div className="space-y-0.5">
+                  <p className="text-lg font-semibold tracking-tight text-foreground">
                     {[selectedEnrollment.first_name, selectedEnrollment.last_name]
                       .filter(Boolean)
-                      .join(" ")}
-                  </span>
-                  {" · "}
-                  {[selectedEnrollment.class_code, selectedEnrollment.class_name]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
+                      .join(" ") || "—"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {[selectedEnrollment.class_code, selectedEnrollment.class_name]
+                      .filter(Boolean)
+                      .join(" · ") || t("finance.receivePayment.unknownClass")}
+                  </p>
+                </div>
                 <MoneyWaterfall
                   currency={currency}
-                  values={{
-                    gross: selectedEnrollment.class_fee,
-                    discount: selectedEnrollment.discount_value,
-                    net: selectedEnrollment.net_amount ?? selectedEnrollment.fee_amount,
-                    paid: selectedEnrollment.paid_amount,
-                    refunds: selectedEnrollment.refund_amount,
-                    cancelled: selectedEnrollment.cancelled_amount,
-                    writtenOff: selectedEnrollment.irrecoverable_debt,
-                    receivable:
-                      selectedEnrollment.receivable_amount ?? selectedEnrollment.due_amount,
-                    mof: selectedEnrollment.mof_receivable_amount,
-                    other: selectedEnrollment.other_receivable_amount,
-                    credit: selectedEnrollment.credit_amount,
-                  }}
+                  values={accountSummary}
+                  variant="receipt"
+                  compact
                 />
-                {selectedEnrollment.next_due_date ? (
-                  <p className="text-xs text-muted-foreground">
-                    {t("fin.columns.dueDate")}:{" "}
-                    <span className="font-medium text-foreground">
-                      {selectedEnrollment.next_due_date}
-                    </span>
-                  </p>
-                ) : null}
+                <div className="space-y-1.5 border-t-[1.15px] border-dotted border-foreground/45 pt-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t("fin.receive.installments")}
+                  </h3>
+                  {transactionsQuery.isLoading ? (
+                    <div className="space-y-1">
+                      <Skeleton className="h-7 w-full" />
+                      <Skeleton className="h-7 w-full" />
+                    </div>
+                  ) : ledgerCashRows.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">{t("fin.receive.noInstallments")}</p>
+                  ) : (
+                    <ul className="space-y-0">
+                      {(() => {
+                        let paymentIndex = 0;
+                        let refundIndex = 0;
+                        return ledgerCashRows.map((tx) => {
+                          const isRefund = tx.type === "refund";
+                          if (isRefund) refundIndex += 1;
+                          else paymentIndex += 1;
+                          const label = isRefund
+                            ? t("fin.receive.refundN").replace("{n}", String(refundIndex))
+                            : t("fin.receive.installmentN").replace("{n}", String(paymentIndex));
+                          return (
+                            <li
+                              key={tx.id}
+                              className="flex items-center justify-between gap-2 border-b-[1.15px] border-dotted border-foreground/45 px-0.5 py-1.5 text-sm last:border-b-0"
+                            >
+                              <span className="min-w-0 text-muted-foreground">
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    isRefund ? "text-danger" : "text-foreground"
+                                  )}
+                                >
+                                  {label}
+                                </span>
+                                {tx.transaction_date ? (
+                                  <span className="ms-1.5 tabular-nums">
+                                    · {String(tx.transaction_date).slice(0, 10)}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 font-medium tabular-nums",
+                                  isRefund ? "text-danger" : "text-success"
+                                )}
+                              >
+                                {isRefund ? "−" : ""}
+                                {formatMoney(tx.amount, tx.currency ?? currency)}
+                              </span>
+                            </li>
+                          );
+                        });
+                      })()}
+                    </ul>
+                  )}
+                </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">

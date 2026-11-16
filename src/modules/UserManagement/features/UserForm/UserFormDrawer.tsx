@@ -146,7 +146,7 @@ export const UserFormDrawer = ({ user, onSuccess }: UserFormDrawerProps) => {
 
   return (
     <>
-      <DrawerHeader>
+      <DrawerHeader className="px-4 py-3">
         <DrawerTitle>{isEdit ? "Edit User" : "Create User"}</DrawerTitle>
         <DrawerDescription>
           {isEdit
@@ -155,133 +155,132 @@ export const UserFormDrawer = ({ user, onSuccess }: UserFormDrawerProps) => {
         </DrawerDescription>
       </DrawerHeader>
 
-      <form id="user-form" onSubmit={handleSubmit(onSubmit)}>
-        <DrawerBody className="space-y-5">
-          <div className="rounded-xl border border-border bg-muted/20 p-4">
-            <ImageDropzone
-              accept="image/jpeg,image/png,image/webp,image/jpg"
-              label="Profile picture"
-              hint="Drag and drop or click to upload (JPG, PNG, max 2MB)"
-              value={avatarFile}
-              onSelect={setAvatarFile}
-              previewMode="square"
-              initialPreviewUrl={avatarFile ? null : avatarPreviewUrl}
+      <form
+        id="user-form"
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <DrawerBody className="min-h-0 flex-1 space-y-3 overflow-y-auto scroll-smooth px-4 py-3 [scrollbar-color:#94a3b8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/50">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Full Name <span className="text-danger">*</span>
+            </label>
+            <input
+              {...register("name")}
+              className={cn(
+                "w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
+                errors.name ? "border-danger" : "border-input"
+              )}
+              placeholder="Enter full name"
+            />
+            {errors.name && (
+              <p className="mt-1 text-xs text-danger">
+                {(errors as Record<string, { message?: string }>).name?.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Email <span className="text-danger">*</span>
+            </label>
+            <input
+              {...register("email")}
+              type="email"
+              className={cn(
+                "w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
+                errors.email ? "border-danger" : "border-input"
+              )}
+              placeholder="user@example.com"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-danger">
+                {(errors as Record<string, { message?: string }>).email?.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">User type</label>
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <select
+                  {...field}
+                  value={field.value ?? "student"}
+                  className="border-input bg-background w-full rounded-md border px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50"
+                >
+                  <option value="student">Student</option>
+                  <option value="instructor">Instructor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              )}
             />
           </div>
 
-          <div className="space-y-4 rounded-xl border border-border p-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Full Name <span className="text-danger">*</span>
-              </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Password {isEdit && "(leave blank to keep current)"}
+            </label>
+            <div className="relative">
               <input
-                {...register("name")}
-                className={cn(
-                  "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
-                  errors.name ? "border-danger" : "border-input"
-                )}
-                placeholder="Enter full name"
-              />
-              {errors.name && (
-                <p className="mt-1 text-xs text-danger">
-                  {(errors as Record<string, { message?: string }>).name?.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Email <span className="text-danger">*</span>
-              </label>
-              <input
-                {...register("email")}
-                type="email"
-                className={cn(
-                  "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
-                  errors.email ? "border-danger" : "border-input"
-                )}
-                placeholder="user@example.com"
-              />
-              {errors.email && (
-                <p className="mt-1 text-xs text-danger">
-                  {(errors as Record<string, { message?: string }>).email?.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">User type</label>
-              <Controller
-                name="type"
-                control={control}
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    value={field.value ?? "student"}
-                    className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50"
-                  >
-                    <option value="student">Student</option>
-                    <option value="instructor">Instructor</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4 rounded-xl border border-border p-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Password {isEdit && "(leave blank to keep current)"}
-              </label>
-              <div className="relative">
-                <input
-                  {...register("password")}
-                  type={showPassword ? "text" : "password"}
-                  className={cn(
-                    "w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
-                    errors.password ? "border-danger" : "border-input"
-                  )}
-                  placeholder="Enter password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeClosed className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-xs text-danger">
-                  {(errors as Record<string, { message?: string }>).password?.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                Confirm Password
-              </label>
-              <input
-                {...register("password_confirmation")}
+                {...register("password")}
                 type={showPassword ? "text" : "password"}
                 className={cn(
-                  "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
-                  errors.password_confirmation ? "border-danger" : "border-input"
+                  "w-full rounded-md border bg-background px-3 py-1.5 pe-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
+                  errors.password ? "border-danger" : "border-input"
                 )}
-                placeholder="Confirm password"
+                placeholder="Enter password"
               />
-              {errors.password_confirmation && (
-                <p className="mt-1 text-xs text-danger">
-                  {(errors as Record<string, { message?: string }>).password_confirmation?.message}
-                </p>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeClosed className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-xs text-danger">
+                {(errors as Record<string, { message?: string }>).password?.message}
+              </p>
+            )}
           </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">
+              Confirm Password
+            </label>
+            <input
+              {...register("password_confirmation")}
+              type={showPassword ? "text" : "password"}
+              className={cn(
+                "w-full rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-ring/50",
+                errors.password_confirmation ? "border-danger" : "border-input"
+              )}
+              placeholder="Confirm password"
+            />
+            {errors.password_confirmation && (
+              <p className="mt-1 text-xs text-danger">
+                {(errors as Record<string, { message?: string }>).password_confirmation?.message}
+              </p>
+            )}
+          </div>
+
+          <ImageDropzone
+            accept="image/jpeg,image/png,image/webp,image/jpg"
+            label="Profile picture"
+            hint="JPG or PNG, max 2MB"
+            value={avatarFile}
+            onSelect={setAvatarFile}
+            previewMode="square"
+            initialPreviewUrl={avatarFile ? null : avatarPreviewUrl}
+            dense
+          />
         </DrawerBody>
 
-        <DrawerFooter>
+        <DrawerFooter className="px-4 py-3">
           <Button type="submit" form="user-form" disabled={isSubmitting}>
             {isSubmitting ? (
               <>

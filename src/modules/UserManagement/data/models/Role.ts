@@ -18,6 +18,7 @@ export const RoleUserSchema = z.object({
   id: z.number(),
   name: z.string(),
   email: z.string(),
+  avatar: z.string().nullable().optional(),
 });
 export type RoleUser = z.infer<typeof RoleUserSchema>;
 

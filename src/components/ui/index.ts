@@ -133,3 +133,5 @@ export { default as SearchableSelect } from "./searchable-select";
 export type { SearchableSelectProps, SearchableSelectOption } from "./searchable-select";
 export { default as MultiImageDropzone } from "./multi-image-dropzone";
 export type { MultiImageDropzoneProps } from "./multi-image-dropzone";
+export { default as TagInput } from "./tag-input";
+export type { TagInputProps } from "./tag-input";

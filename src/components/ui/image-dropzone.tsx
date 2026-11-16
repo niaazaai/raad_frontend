@@ -18,6 +18,10 @@ export interface ImageDropzoneProps {
   mediaPreview?: ImageDropzoneMediaPreview;
   initialPreviewUrl?: string | null;
   initialPreviewName?: string | null;
+  /** Shorter drop target for drawers where vertical space is tight. */
+  dense?: boolean;
+  /** Called when the X removes a preview that is already saved, not a file just picked. */
+  onRemove?: () => void;
 }
 
 const ImageDropzone = ({
@@ -32,15 +36,23 @@ const ImageDropzone = ({
   mediaPreview = "image",
   initialPreviewUrl,
   initialPreviewName,
+  dense = false,
+  onRemove,
 }: ImageDropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [remotePreviewFailed, setRemotePreviewFailed] = useState(false);
+  const [dismissedExisting, setDismissedExisting] = useState(false);
 
   useEffect(() => {
     setRemotePreviewFailed(false);
-  }, [initialPreviewUrl, value]);
+    setDismissedExisting(false);
+  }, [initialPreviewUrl]);
+
+  useEffect(() => {
+    setRemotePreviewFailed(false);
+  }, [value]);
 
   useLayoutEffect(() => {
     if (!value) {
@@ -83,7 +95,7 @@ const ImageDropzone = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={dense ? "space-y-1" : "space-y-2"}>
       <Label>
         {label}
         {required && <span className="text-danger ml-0.5">*</span>}
@@ -99,7 +111,10 @@ const ImageDropzone = ({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("[data-dropzone-remove]")) return;
+          inputRef.current?.click();
+        }}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -108,14 +123,15 @@ const ImageDropzone = ({
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex min-h-[148px] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors cursor-pointer",
+          "flex flex-col items-center justify-center rounded-xl border-2 border-dashed text-center transition-colors cursor-pointer",
+          dense ? "min-h-[4.75rem] px-3 py-2" : "min-h-[148px] px-4 py-6",
           dragOver
             ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/50 hover:bg-muted/30",
           error && "border-danger"
         )}
       >
-        {value || (initialPreviewUrl && !remotePreviewFailed) ? (
+        {value || (initialPreviewUrl && !dismissedExisting) ? (
           <div className="relative">
             {value && value.type === "application/pdf" ? (
               <div className="flex w-full max-w-md flex-col items-center gap-2 rounded-xl border border-border bg-muted/30 px-6 py-6">
@@ -149,6 +165,13 @@ const ImageDropzone = ({
                   previewMode === "square" ? "w-24" : "w-full max-w-md"
                 )}
               />
+            ) : !value && initialPreviewUrl && remotePreviewFailed ? (
+              <div className="flex max-w-md flex-col items-center gap-1 px-2">
+                <Page className="h-8 w-8 text-primary" />
+                <span className="max-w-full truncate text-sm font-medium text-foreground">
+                  {initialPreviewName || "File"}
+                </span>
+              </div>
             ) : initialPreviewUrl && !remotePreviewFailed && mediaPreview === "video" ? (
               <video
                 src={initialPreviewUrl}
@@ -180,11 +203,19 @@ const ImageDropzone = ({
             ) : null}
             <button
               type="button"
+              data-dropzone-remove
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                onSelect(null);
+                if (inputRef.current) inputRef.current.value = "";
+                if (value) {
+                  onSelect(null);
+                  return;
+                }
+                setDismissedExisting(true);
+                onRemove?.();
               }}
-              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white hover:bg-danger-active"
+              className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white hover:bg-danger-active"
             >
               <Xmark className="h-3.5 w-3.5" />
             </button>
@@ -192,11 +223,13 @@ const ImageDropzone = ({
         ) : (
           <>
             {mediaPreview === "video" ? (
-              <Play className="h-10 w-10 text-muted-foreground" />
+              <Play className={cn("text-muted-foreground", dense ? "h-6 w-6" : "h-10 w-10")} />
             ) : (
-              <MediaImage className="h-10 w-10 text-muted-foreground" />
+              <MediaImage className={cn("text-muted-foreground", dense ? "h-6 w-6" : "h-10 w-10")} />
             )}
-            <p className="mt-2 text-sm font-medium text-foreground">Click or drag to upload</p>
+            <p className={cn("text-sm font-medium text-foreground", dense ? "mt-1" : "mt-2")}>
+              Click or drag to upload
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
           </>
         )}

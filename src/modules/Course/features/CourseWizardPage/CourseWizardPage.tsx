@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Resolver } from "react-hook-form";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Paperclip as Attachment, Check, CreditCard, Download, Pencil as EditPencil, ExternalLink, Folder, File as Page, FilePen as PageEdit, Play, Plus, Search, Timer, Trash2 as Trash } from "lucide-react";
@@ -122,6 +122,15 @@ type StepConfig = {
   title: string;
   hint: string;
 };
+
+const DOWNLOADABLE_RESOURCE_MAX_BYTES = 50 * 1024 * 1024;
+
+function wizardStepFromState(state: unknown): number {
+  if (!state || typeof state !== "object" || !("wizardStep" in state)) return 0;
+  const step = Number((state as { wizardStep?: unknown }).wizardStep);
+  if (Number.isInteger(step) && step >= 0 && step < steps.length) return step;
+  return 0;
+}
 
 const steps: StepConfig[] = [
   {
@@ -501,6 +510,7 @@ const CourseWizardPage = () => {
     "border-input bg-background ring-offset-background focus-visible:ring-ring min-h-[88px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60";
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { courseId } = useParams<{ courseId: string }>();
   const [searchParams] = useSearchParams();
   const viewMode = searchParams.get("mode") === "view";
@@ -512,7 +522,7 @@ const CourseWizardPage = () => {
     }
   }, [viewMode, editId, navigate]);
 
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(() => wizardStepFromState(location.state));
   /** Persisted course id before route includes `:courseId` (create flow). */
   const [draftCourseId, setDraftCourseId] = useState<number | null>(null);
   const effectiveCourseId = editId ?? draftCourseId;
@@ -906,7 +916,17 @@ const CourseWizardPage = () => {
         return;
       }
       if (currentStep === 1 && !viewMode) {
-        await ensureCoursePersisted();
+        const createdNow = editId == null && draftCourseId == null;
+        const nid = await ensureCoursePersisted();
+        if (createdNow) {
+          const nextStep = Math.min(currentStep + 1, steps.length - 1);
+          setCurrentStep(nextStep);
+          navigate(`/course/courses/${nid}/edit`, {
+            replace: true,
+            state: { wizardStep: nextStep },
+          });
+          return;
+        }
       }
       if (currentStep === 2 && !viewMode) {
         const cid = editId ?? draftCourseId ?? effectiveCourseId;
@@ -932,10 +952,16 @@ const CourseWizardPage = () => {
   const goToStep = async (index: number) => {
     if (index > currentStep && index >= 2 && !editId && draftCourseId == null && !viewMode) {
       try {
-        await ensureCoursePersisted();
+        const nid = await ensureCoursePersisted();
+        setCurrentStep(index);
+        navigate(`/course/courses/${nid}/edit`, {
+          replace: true,
+          state: { wizardStep: index },
+        });
       } catch {
         return;
       }
+      return;
     }
     setCurrentStep(index);
   };
@@ -1103,7 +1129,9 @@ const CourseWizardPage = () => {
       </div>
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={(event) => {
+          event.preventDefault();
+        }}
         className={cn(
           "grid min-h-0 w-full gap-8 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]",
           currentStep === 0
@@ -2286,7 +2314,7 @@ const CourseWizardPage = () => {
                       <ImageDropzone
                         accept="*/*"
                         label="File"
-                        hint="Drag and drop or click to choose — PDF, ZIP, documents…"
+                        hint="PDF, ZIP, or documents — up to 50 MB"
                         value={resourceDraft.file}
                         onSelect={(file) => setResourceDraft((d) => ({ ...d, file }))}
                         previewMode="square"
@@ -2320,6 +2348,13 @@ const CourseWizardPage = () => {
                       onClick={() => {
                         const cid = effectiveCourseId;
                         if (!cid) return;
+                        if (
+                          resourceDraft.file &&
+                          resourceDraft.file.size > DOWNLOADABLE_RESOURCE_MAX_BYTES
+                        ) {
+                          toast.error("Downloadable files must be 50 MB or smaller.");
+                          return;
+                        }
                         const title =
                           resourceDraft.title.trim() ||
                           (resourceDraft.file?.name ? resourceDraft.file.name : "Untitled");
@@ -2733,6 +2768,7 @@ const CourseWizardPage = () => {
               </Button>
               {currentStep < steps.length - 1 ? (
                 <Button
+                  key="wizard-next"
                   type="button"
                   onClick={() => void advanceStep()}
                   disabled={
@@ -2749,8 +2785,10 @@ const CourseWizardPage = () => {
                 </Button>
               ) : (
                 <Button
-                  type="submit"
+                  key="wizard-save"
+                  type="button"
                   disabled={createMutation.isPending || updateMutation.isPending}
+                  onClick={() => void handleSubmit(onSubmit)()}
                 >
                   {createMutation.isPending || updateMutation.isPending ? (
                     <Spinner className="h-4 w-4" />

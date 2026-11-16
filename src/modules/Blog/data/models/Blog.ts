@@ -51,7 +51,7 @@ export const BlogSchema = z.object({
   author: z.string(),
   author_id: z.number().nullable().optional(),
   author_name: z.string().nullable().optional(),
-  category: z.nativeEnum(BlogCategory),
+  category: z.string(),
   category_label: z.string().optional(),
   status: z.nativeEnum(BlogStatus),
   status_label: z.string().optional(),
@@ -70,7 +70,7 @@ export type Blog = z.infer<typeof BlogSchema>;
 export const CreateBlogSchema = z.object({
   title: z.string().min(1, "Title is required").max(255),
   description: z.string().min(1, "Description is required").max(50000),
-  category: z.nativeEnum(BlogCategory),
+  category: z.string().min(1, "Enter a category name.").max(80, "Category name is too long."),
   status: z.nativeEnum(BlogStatus).optional(),
   language: z.nativeEnum(BlogLanguage).optional(),
   meta_keywords: z.string().max(500).optional(),

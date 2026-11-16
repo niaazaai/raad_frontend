@@ -71,7 +71,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+      "group relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted data-[highlighted]:text-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       variant === "danger" && "text-danger focus:bg-danger/10 focus:text-danger",
       variant === "success" && "text-success focus:bg-success/10 focus:text-success",
       className
@@ -150,6 +150,18 @@ const DropdownMenuSeparator = React.forwardRef<
 ));
 DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
 
+const DropdownMenuShortcut = ({ className, ...props }: React.ComponentProps<"span">) => (
+  <span
+    className={cn(
+      "ms-auto text-xs tracking-widest text-muted-foreground",
+      "group-data-[highlighted]:text-foreground",
+      "group-data-[state=checked]:text-primary",
+      className,
+    )}
+    {...props}
+  />
+);
+
 export {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -165,4 +177,5 @@ export {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
+  DropdownMenuShortcut,
 };

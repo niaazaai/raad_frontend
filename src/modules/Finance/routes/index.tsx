@@ -18,12 +18,12 @@ export const FinanceRoutes: ProtectedRouteType[] = [
   {
     path: "/finance/invoices",
     component: <InvoicesPage />,
-    permission: "finance.read",
+    permission: "finance.invoices.read",
   },
   {
     path: "/finance/upcoming-dues",
     component: <UpcomingDuesPage />,
-    permission: "finance.read",
+    permission: "finance.dues.read",
   },
   {
     path: "/finance/transactions",
@@ -33,26 +33,22 @@ export const FinanceRoutes: ProtectedRouteType[] = [
   {
     path: "/finance/service-income",
     component: <ManualInvoicesPage />,
-    permission: "finance.read",
+    permission: "finance.service_income.read",
   },
   {
     path: "/finance/manual-invoices",
     component: <ManualInvoicesPage />,
-    permission: "finance.read",
+    permission: "finance.service_income.read",
   },
   {
     path: "/finance/manual-invoice",
     component: <ManualInvoicePage />,
-    anyPermission: [
-      "course.class_students.invoice",
-      "course.class_students.payment",
-      "course.class_students.update",
-    ],
+    anyPermission: ["finance.manual_invoices.create", "finance.service_income.create"],
   },
   {
     path: "/finance/receive-payment",
     component: <ReceivePaymentPage />,
-    anyPermission: ["course.class_students.payment", "course.class_students.update"],
+    permission: "finance.payments.receive",
   },
 ];
 

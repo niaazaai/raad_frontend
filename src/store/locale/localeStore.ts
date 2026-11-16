@@ -7,7 +7,7 @@ export interface LocaleState {
   setLocale: (locale: AppLocale) => void;
 }
 
-/** Admin/dashboard shell — always LTR + Inter */
+/** Admin/dashboard shell — always LTR + Plus Jakarta Sans */
 export function applyAdminDocumentDefaults(): void {
   const root = document.documentElement;
   root.lang = "en";

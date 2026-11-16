@@ -1,15 +1,6 @@
 import type { ReactNode } from "react";
-import { Headphones, Mail, MapPin, Phone } from "lucide-react";
-import {
-  Badge,
-  Button,
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui";
+import { GraduationCap, Headphones, Mail, MapPin, Phone, Presentation } from "lucide-react";
+import { Badge, Button, Card, CardTitle } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
 import { CONTACT_INFO } from "@/components/website/websiteData";
 import { useQueryApi } from "@/hooks";
@@ -18,10 +9,13 @@ import { useTranslation, type TranslationKey } from "@/i18n/useTranslation";
 import { cn } from "@/lib/utils";
 
 type HelpPerson = {
+  id?: number | string;
   name: string;
   roleKey?: TranslationKey;
   role?: string | null;
   bio?: string | null;
+  specialization?: string | null;
+  courses?: string[];
   email?: string | null;
   phone?: string | null;
   whatsapp?: string | null;
@@ -88,10 +82,12 @@ function ContactButtons({
   email,
   phone,
   whatsapp,
+  onDark = false,
 }: {
   email?: string;
   phone?: string;
   whatsapp?: string;
+  onDark?: boolean;
 }) {
   const emailValue = email?.trim() || "";
   const phoneValue = phone?.trim() || "";
@@ -109,7 +105,7 @@ function ContactButtons({
           icon={<Mail className="size-4 shrink-0" />}
           label={emailValue}
           variant="default"
-          className="w-full justify-center"
+          className={cn("w-full justify-center", onDark && "bg-white text-neutral-950 hover:bg-white/90")}
         />
       ) : null}
       {phoneValue && phoneHref && whatsappValue && whatsappHref ? (
@@ -119,7 +115,7 @@ function ContactButtons({
             icon={<Phone className="size-4 shrink-0" />}
             label={phoneValue}
             variant="outline"
-            className="w-full justify-center"
+            className={cn("w-full justify-center", onDark && "border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white")}
           />
           <ContactLinkButton
             href={whatsappHref}
@@ -127,7 +123,10 @@ function ContactButtons({
             label={whatsappValue}
             variant="outline"
             external
-            className="w-full justify-center border-[#25D366] bg-transparent text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]"
+            className={cn(
+              "w-full justify-center border-[#25D366] bg-transparent text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]",
+              onDark && "text-[#b7f7c8] hover:text-[#b7f7c8]"
+            )}
           />
         </div>
       ) : phoneValue && phoneHref ? (
@@ -136,7 +135,7 @@ function ContactButtons({
           icon={<Phone className="size-4 shrink-0" />}
           label={phoneValue}
           variant="outline"
-          className="w-full justify-center"
+          className={cn("w-full justify-center", onDark && "border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white")}
         />
       ) : whatsappValue && whatsappHref ? (
         <ContactLinkButton
@@ -145,7 +144,10 @@ function ContactButtons({
           label={whatsappValue}
           variant="outline"
           external
-          className="w-full justify-center border-[#25D366] bg-transparent text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]"
+          className={cn(
+            "w-full justify-center border-[#25D366] bg-transparent text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#25D366]",
+            onDark && "text-[#b7f7c8] hover:text-[#b7f7c8]"
+          )}
         />
       ) : null}
     </div>
@@ -199,41 +201,62 @@ function SupportSection() {
 function InstructorCard({ person }: { person: HelpPerson }) {
   const { t } = useTranslation();
   const role = person.roleKey ? t(person.roleKey) : person.role?.trim() || t("studentHelp.instructorFallback");
-  const bio = person.bio?.trim() || "";
+  const bio = person.bio?.trim() || t("studentHelp.instructorBody");
+  const specialization = person.specialization?.trim() || "";
+  const email = person.email?.trim() || "";
+  const cornerBadgeClass = "max-w-full border-white/80 bg-black/40 text-white";
 
   return (
-    <Card className="relative w-full overflow-hidden pt-0">
+    <Card className="group relative isolate min-h-96 w-full overflow-hidden border-0 bg-neutral-950 p-0 shadow-none">
       {person.image ? (
-        <div className="flex aspect-video w-full items-center justify-center bg-muted">
-          <img
-            src={person.image}
-            alt=""
-            className="max-h-full max-w-full object-contain object-center"
-          />
-        </div>
+        <img
+          src={person.image}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_22%]"
+        />
       ) : (
-        <div className="flex aspect-video w-full items-center justify-center bg-muted text-2xl font-semibold text-muted-foreground">
+        <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 text-5xl font-semibold text-white/20">
           {initials(person.name)}
         </div>
       )}
-      <CardHeader>
-        <CardAction>
-          <Badge variant="secondary">{role}</Badge>
-        </CardAction>
-        <CardTitle className="text-base">{person.name}</CardTitle>
-        {bio ? (
-          <CardDescription className="line-clamp-3">{bio}</CardDescription>
-        ) : (
-          <CardDescription className="line-clamp-3">{t("studentHelp.instructorBody")}</CardDescription>
-        )}
-      </CardHeader>
-      <CardFooter className="flex-col gap-2">
-        <ContactButtons
-          email={person.email ?? undefined}
-          phone={person.phone ?? undefined}
-          whatsapp={person.whatsapp ?? undefined}
-        />
-      </CardFooter>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/[0.765] via-black/[0.468] to-black/[0.212]" />
+      {specialization ? (
+        <Badge
+          variant="outline"
+          className={cn("absolute start-3 top-3 z-10 max-w-[calc(100%-8rem)]", cornerBadgeClass)}
+          title={specialization}
+        >
+          <GraduationCap aria-hidden />
+          <span className="truncate">{specialization}</span>
+        </Badge>
+      ) : null}
+      <Badge variant="outline" className={cn("absolute end-3 top-3 z-10", cornerBadgeClass)}>
+        <Presentation aria-hidden />
+        {role}
+      </Badge>
+      <div className="relative z-10 flex min-h-96 flex-col justify-end px-5 pb-4 pt-16 text-white">
+        <div>
+          <CardTitle className="text-[1.2375rem] leading-none text-white">{person.name}</CardTitle>
+          {email ? (
+            <a
+              href={`mailto:${email}`}
+              className="mt-1 block truncate text-xs leading-none text-white/80 hover:text-white"
+            >
+              {email}
+            </a>
+          ) : null}
+        </div>
+        <p className="max-h-0 overflow-hidden text-sm leading-relaxed text-white/85 opacity-0 transition-all duration-300 group-hover:mt-2 group-hover:max-h-40 group-hover:opacity-100 group-focus-within:mt-2 group-focus-within:max-h-40 group-focus-within:opacity-100">
+          {bio}
+        </p>
+        <div className="mt-3">
+          <ContactButtons
+            onDark
+            phone={person.phone ?? undefined}
+            whatsapp={person.whatsapp ?? undefined}
+          />
+        </div>
+      </div>
     </Card>
   );
 }
@@ -269,7 +292,7 @@ const StudentHelpPage = () => {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {instructors.map((person) => (
-              <InstructorCard key={person.name} person={person} />
+              <InstructorCard key={String(person.id ?? person.name)} person={person} />
             ))}
           </div>
         )}

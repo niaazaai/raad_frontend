@@ -2,6 +2,22 @@
 @plugin "tailwindcss-animate";
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("../fonts/PlusJakartaSans-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("../fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
   scrollbar-width: thin;
@@ -10,13 +26,13 @@
 
 body,
 html {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 }
 
 /* RTL locales (Dari/Pashto) use Vazirmatn across the whole admin shell —
    including portalled drawers, dropdowns and toasts rendered under <body>. */
 html[dir="rtl"] body {
-  font-family: "Vazirmatn", "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Vazirmatn", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
 }
 
 html {
@@ -41,6 +57,7 @@ html.lenis body {
 }
 
 @theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --breakpoint-3xl: 120rem;
 }
 

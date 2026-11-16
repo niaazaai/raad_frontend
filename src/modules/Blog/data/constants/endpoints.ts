@@ -2,6 +2,8 @@ export const BLOG_ENDPOINTS = {
   BASE: "/blogs",
   BY_ID: (id: number) => `/blogs/${id}`,
   TOGGLE_PUBLISHED: (id: number) => `/blogs/${id}/toggle-published`,
+  CATEGORIES: "/blog-categories",
+  CATEGORY: (category: string) => `/blog-categories/${encodeURIComponent(category)}`,
 } as const;
 
 export const BLOG_QUERY_KEYS = {
