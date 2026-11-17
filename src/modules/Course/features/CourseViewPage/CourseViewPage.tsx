@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { courseLevelLabel } from "@/data/enums/courseWizard";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Library as BookStack, CircleCheck as CheckCircle, Clock, Coins, GraduationCap, Hash as Hashtag, Info as InfoCircle, Languages as Language, Medal, Phone, Play, ShoppingBag, User, LayoutGrid as ViewGrid } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   AccordionTrigger,
   Button,
   Card,
+  Input,
   CardContent,
   CardHeader,
   CardTitle,
@@ -90,28 +91,37 @@ const ACADEMIC_BACKGROUND_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
-const enrollmentFieldClass =
-  "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:ring-1";
+const enrollmentFieldClass = "h-8 rounded-lg px-3 text-sm shadow-none";
+const enrollmentSelectClass =
+  "h-8 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
-const PHONE_NUMBER = /^\+?[0-9]{7,15}$/;
+/** Afghanistan mobile: +93, then 7 and eight more digits. Example +93701234567. */
+const AF_MOBILE = /^\+937\d{8}$/;
+
+function keepPhoneChars(value: string): string {
+  const cleaned = value.replace(/[^\d+]/g, "");
+  const digits = cleaned.replace(/\+/g, "");
+  return `${cleaned.startsWith("+") ? "+" : ""}${digits}`;
+}
 
 const EnrollmentSchema = z.object({
   first_name: z.string().trim().min(1, "First name is required"),
   last_name: z.string().trim().min(1, "Last name is required"),
+  father_name: z.string().optional(),
   gender: z.string().optional(),
   date_of_birth: z.string().optional(),
   phone_number: z
     .string()
     .trim()
     .min(1, "Phone number is required")
-    .regex(PHONE_NUMBER, "Enter a valid phone number (7–15 digits, optional +)."),
+    .regex(AF_MOBILE, "Enter an Afghanistan mobile number, like +93701234567."),
   whatsapp_number: z
     .string()
     .optional()
     .refine((value) => {
       const phone = (value ?? "").trim();
-      return phone === "" || PHONE_NUMBER.test(phone);
-    }, { message: "Enter a valid WhatsApp number (7–15 digits, optional +)." }),
+      return phone === "" || AF_MOBILE.test(phone);
+    }, { message: "Enter an Afghanistan WhatsApp number, like +93701234567." }),
   national_id: z.string().trim().min(1, "National ID is required"),
   academic_background: z.string().optional(),
   email: z.string().trim().email("Valid email is required"),
@@ -122,14 +132,27 @@ interface StudentSelfProfile {
   id: number;
   first_name: string | null;
   last_name: string | null;
+  father_name: string | null;
   phone_number: string | null;
   whatsapp_number: string | null;
   email: string | null;
   national_id: string | null;
+  national_id_attachment_url: string | null;
+  profile_image_url: string | null;
   gender: string | null;
   date_of_birth: string | null;
   acca_id: string | null;
   academic_background: string | null;
+}
+
+function profileAlreadySaved(profile: StudentSelfProfile | null, emailFallback?: string | null): boolean {
+  if (!profile) return false;
+  const filled = (value: string | null | undefined) => Boolean(value && value.trim());
+  return filled(profile.first_name)
+    && filled(profile.last_name)
+    && filled(profile.phone_number)
+    && filled(profile.national_id)
+    && filled(profile.email || emailFallback);
 }
 
 type EnrollmentData = z.infer<typeof EnrollmentSchema>;
@@ -215,6 +238,8 @@ const CourseViewPage = () => {
   const [authRequiredModalOpen, setAuthRequiredModalOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
@@ -249,6 +274,7 @@ const CourseViewPage = () => {
     return {
       first_name: studentProfile?.first_name || nameParts[0] || "",
       last_name: studentProfile?.last_name || nameParts.slice(1).join(" ") || "",
+      father_name: studentProfile?.father_name || "",
       gender: studentProfile?.gender || "",
       date_of_birth: studentProfile?.date_of_birth?.slice(0, 10) || "",
       email: studentProfile?.email || user?.email || "",
@@ -270,11 +296,19 @@ const CourseViewPage = () => {
     enrollmentForm.reset(defaultFormValues);
   }, [user, studentProfile, defaultFormValues, enrollmentForm]);
 
-  const updateProfileMutation = useMutationApi<StudentSelfProfile, EnrollmentData>({
+  const profilePending = Boolean(isSignedIn && profileQuery.isLoading);
+  const profileReady = profileAlreadySaved(studentProfile, user?.email);
+
+  const updateProfileMutation = useMutationApi<StudentSelfProfile, EnrollmentData & {
+    profile_image_file?: File | null;
+    national_id_attachment_file?: File | null;
+  }>({
     url: "/me/student-profile",
     method: RequestMethod.PUT,
+    hasFiles: true,
     shouldPopSuccess: false,
     shouldPopError: false,
+    invalidateKeys: [["me", "student-profile"]],
   });
 
   const createSubscriptionMutation = useMutationApi({
@@ -851,49 +885,55 @@ const CourseViewPage = () => {
 
                   {selectedPlanId && (
                     <div className="space-y-8 border-t border-border pt-8">
+                      {profilePending ? (
+                        <p className="text-sm text-muted-foreground">Checking your saved profile…</p>
+                      ) : null}
+                      {!profilePending && !profileReady ? (
                       <div>
-                        <p className="mb-4 text-sm font-medium text-foreground flex items-center gap-2">
+                        <p className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
                           <User className="h-4 w-4" /> Student Information
-                          {isSignedIn && <span className="text-xs text-emerald-600 font-normal">(Prefilled from your profile)</span>}
                         </p>
-                        <form onSubmit={enrollmentForm.handleSubmit(() => {})} className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <form onSubmit={enrollmentForm.handleSubmit(() => {})} className="grid grid-cols-1 gap-3 md:grid-cols-4">
                           <div className="space-y-1.5">
                             <Label htmlFor="first_name">First Name <span className="text-destructive">*</span></Label>
-                            <input id="first_name" {...enrollmentForm.register("first_name")} className={enrollmentFieldClass} placeholder="First name" />
+                            <Input id="first_name" {...enrollmentForm.register("first_name")} className={enrollmentFieldClass} placeholder="First name" />
                             {enrollmentForm.formState.errors.first_name && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.first_name.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="last_name">Last Name <span className="text-destructive">*</span></Label>
-                            <input id="last_name" {...enrollmentForm.register("last_name")} className={enrollmentFieldClass} placeholder="Last name" />
+                            <Input id="last_name" {...enrollmentForm.register("last_name")} className={enrollmentFieldClass} placeholder="Last name" />
                             {enrollmentForm.formState.errors.last_name && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.last_name.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
-                            <Label htmlFor="gender">Gender</Label>
-                            <select id="gender" {...enrollmentForm.register("gender")} className={enrollmentFieldClass}>
-                              <option value="">Select</option>
-                              {GENDER_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
+                            <Label htmlFor="father_name">Father name</Label>
+                            <Input id="father_name" {...enrollmentForm.register("father_name")} className={enrollmentFieldClass} placeholder="Father name" />
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="date_of_birth">Date of Birth</Label>
-                            <input id="date_of_birth" type="date" {...enrollmentForm.register("date_of_birth")} className={enrollmentFieldClass} />
+                            <Input id="date_of_birth" type="date" {...enrollmentForm.register("date_of_birth")} className={enrollmentFieldClass} />
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="phone_number">Phone Number <span className="text-destructive">*</span></Label>
-                            <input
-                              id="phone_number"
-                              type="tel"
-                              inputMode="tel"
-                              autoComplete="tel"
-                              {...enrollmentForm.register("phone_number")}
-                              className={enrollmentFieldClass}
-                              placeholder="+93701234567"
+                            <Controller
+                              name="phone_number"
+                              control={enrollmentForm.control}
+                              render={({ field }) => (
+                                <Input
+                                  id="phone_number"
+                                  type="tel"
+                                  inputMode="tel"
+                                  autoComplete="tel"
+                                  className={enrollmentFieldClass}
+                                  placeholder="+93701234567"
+                                  value={field.value}
+                                  onBlur={field.onBlur}
+                                  onChange={(event) => field.onChange(keepPhoneChars(event.target.value))}
+                                />
+                              )}
                             />
                             {enrollmentForm.formState.errors.phone_number && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.phone_number.message}</p>
@@ -901,14 +941,22 @@ const CourseViewPage = () => {
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="whatsapp_number">WhatsApp number</Label>
-                            <input
-                              id="whatsapp_number"
-                              type="tel"
-                              inputMode="tel"
-                              autoComplete="tel"
-                              {...enrollmentForm.register("whatsapp_number")}
-                              className={enrollmentFieldClass}
-                              placeholder="+93701234567"
+                            <Controller
+                              name="whatsapp_number"
+                              control={enrollmentForm.control}
+                              render={({ field }) => (
+                                <Input
+                                  id="whatsapp_number"
+                                  type="tel"
+                                  inputMode="tel"
+                                  autoComplete="tel"
+                                  className={enrollmentFieldClass}
+                                  placeholder="+93701234567"
+                                  value={field.value ?? ""}
+                                  onBlur={field.onBlur}
+                                  onChange={(event) => field.onChange(keepPhoneChars(event.target.value))}
+                                />
+                              )}
                             />
                             {enrollmentForm.formState.errors.whatsapp_number && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.whatsapp_number.message}</p>
@@ -916,44 +964,85 @@ const CourseViewPage = () => {
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="national_id">National ID / Passport <span className="text-destructive">*</span></Label>
-                            <input id="national_id" {...enrollmentForm.register("national_id")} className={enrollmentFieldClass} placeholder="1234567890" />
+                            <Input id="national_id" {...enrollmentForm.register("national_id")} className={enrollmentFieldClass} placeholder="1234567890" />
                             {enrollmentForm.formState.errors.national_id && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.national_id.message}</p>
                             )}
                           </div>
                           <div className="space-y-1.5">
-                            <Label htmlFor="academic_background">Academic Background</Label>
-                            <select id="academic_background" {...enrollmentForm.register("academic_background")} className={enrollmentFieldClass}>
+                            <Label htmlFor="gender">Gender</Label>
+                            <select id="gender" {...enrollmentForm.register("gender")} className={enrollmentSelectClass}>
                               <option value="">Select</option>
-                              {ACADEMIC_BACKGROUND_OPTIONS.map((option) => (
+                              {GENDER_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                               ))}
                             </select>
                           </div>
                           <div className="space-y-1.5 md:col-span-2">
                             <Label htmlFor="email">Email Address <span className="text-destructive">*</span></Label>
-                            <input id="email" type="email" {...enrollmentForm.register("email")} className={enrollmentFieldClass} placeholder="your@email.com" />
+                            <Input id="email" type="email" {...enrollmentForm.register("email")} className={enrollmentFieldClass} placeholder="your@email.com" />
                             {enrollmentForm.formState.errors.email && (
                               <p className="text-xs text-destructive">{enrollmentForm.formState.errors.email.message}</p>
                             )}
                           </div>
-                          <div className="space-y-1.5 md:col-span-2">
-                            <Label htmlFor="acca_id">ACCA ID</Label>
-                            <input id="acca_id" {...enrollmentForm.register("acca_id")} className={enrollmentFieldClass} placeholder="If any" />
+                          <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-3">
+                            <div className="space-y-1.5 md:col-span-2">
+                              <Label htmlFor="acca_id">ACCA ID</Label>
+                              <Input id="acca_id" {...enrollmentForm.register("acca_id")} className={enrollmentFieldClass} placeholder="If any" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="academic_background">Academic Background</Label>
+                              <select id="academic_background" {...enrollmentForm.register("academic_background")} className={enrollmentSelectClass}>
+                                <option value="">Select</option>
+                                {ACADEMIC_BACKGROUND_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         </form>
                       </div>
+                      ) : null}
 
-                      <div>
+                      <div className={cn("grid grid-cols-1 gap-3", profileReady ? "md:grid-cols-1" : "md:grid-cols-3")}>
                         <ImageDropzone
+                          dense
+                          zoneClassName="rounded-lg"
                           accept="image/*,application/pdf"
                           label="Upload bank voucher (image or PDF)"
-                          hint="JPG, PNG, or PDF · max 10 MB · proof of payment"
+                          hint="JPG, PNG, or PDF · max 10 MB"
                           value={voucherFile}
                           onSelect={setVoucherFile}
                           previewMode="wide"
                           mediaPreview="file"
                         />
+                        {!profileReady ? (
+                          <>
+                            <ImageDropzone
+                              dense
+                              zoneClassName="rounded-lg"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              label="Profile picture"
+                              hint="JPG, PNG, or WebP"
+                              value={profileImageFile}
+                              onSelect={setProfileImageFile}
+                              previewMode="square"
+                              initialPreviewUrl={studentProfile?.profile_image_url}
+                            />
+                            <ImageDropzone
+                              dense
+                              zoneClassName="rounded-lg"
+                              accept="image/jpeg,image/png,image/webp,application/pdf"
+                              label="National ID attachment"
+                              hint="Image or PDF"
+                              value={nationalIdFile}
+                              onSelect={setNationalIdFile}
+                              previewMode="square"
+                              mediaPreview="file"
+                              initialPreviewUrl={studentProfile?.national_id_attachment_url}
+                            />
+                          </>
+                        ) : null}
                       </div>
 
                       <Button
@@ -962,13 +1051,17 @@ const CourseViewPage = () => {
                         disabled={
                           createSubscriptionMutation.isPending ||
                           updateProfileMutation.isPending ||
+                          profilePending ||
                           !selectedPlanId ||
                           !voucherFile ||
                           (selectedPlanId != null && isPlanBlocked(selectedPlanId))
                         }
                         onClick={async () => {
-                          const isValid = await enrollmentForm.trigger();
-                          if (!isValid || !selectedPlanId || !voucherFile || validId == null) {
+                          if (!profileReady) {
+                            const isValid = await enrollmentForm.trigger();
+                            if (!isValid) return;
+                          }
+                          if (!selectedPlanId || !voucherFile || validId == null) {
                             return;
                           }
 
@@ -983,9 +1076,12 @@ const CourseViewPage = () => {
                           }
 
                           try {
-                            const profilePayload = enrollmentForm.getValues();
-                            if (studentProfile?.id) {
-                              await updateProfileMutation.mutateAsync(profilePayload);
+                            if (!profileReady && studentProfile?.id) {
+                              await updateProfileMutation.mutateAsync({
+                                ...enrollmentForm.getValues(),
+                                profile_image_file: profileImageFile,
+                                national_id_attachment_file: nationalIdFile,
+                              });
                             }
                             await createSubscriptionMutation.mutateAsync({
                               plan_id: String(selectedPlanId),
@@ -1030,8 +1126,10 @@ const CourseViewPage = () => {
                     setPlansOpen(false);
                     setShowSuccess(false);
                     setSelectedPlanId(null);
-                    setVoucherFile(null);
-                    enrollmentForm.reset();
+                            setVoucherFile(null);
+                            setProfileImageFile(null);
+                            setNationalIdFile(null);
+                            enrollmentForm.reset();
                   }}
                   className="min-w-[200px]"
                 >
@@ -1048,6 +1146,8 @@ const CourseViewPage = () => {
                 setShowSuccess(false);
                 setSelectedPlanId(null);
                 setVoucherFile(null);
+                setProfileImageFile(null);
+                setNationalIdFile(null);
                 enrollmentForm.reset(defaultFormValues);
               }}>
                 Cancel
