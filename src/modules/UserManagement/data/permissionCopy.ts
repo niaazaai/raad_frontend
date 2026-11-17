@@ -228,6 +228,16 @@ const SPECIAL: Record<string, Record<AppLocale, Copy>> = {
     fa: { label: "فاکتور دستی", description: "فاکتوری بسازید که از پرداخت صنف ساخته نشده است." },
     ps: { label: "لاسي انوایس", description: "هغه انوایس ولیکئ چې له صنف تادیې نه وي جوړ شوی." },
   },
+  "finance.service_names.create": {
+    en: { label: "Add a service name", description: "Save a new name in the manual invoice service list." },
+    fa: { label: "افزودن نام خدمت", description: "نام تازه‌ای را در فهرست خدمت فاکتور دستی ذخیره کنید." },
+    ps: { label: "د خدمت نوم زیاتول", description: "د لاسي انوایس د خدمت په لست کې نوی نوم خوندي کړئ." },
+  },
+  "finance.service_names.delete": {
+    en: { label: "Remove a service name", description: "Remove an unused name from the manual invoice service list." },
+    fa: { label: "حذف نام خدمت", description: "نام استفاده‌نشده را از فهرست خدمت فاکتور دستی حذف کنید." },
+    ps: { label: "د خدمت نوم لرې کول", description: "نه کارېدلی نوم د لاسي انوایس له خدمت لست څخه لرې کړئ." },
+  },
   "finance.dashboard.read": {
     en: { label: "View finance cards", description: "See the finance summary cards and dashboard earnings." },
     fa: { label: "کارت‌های مالی", description: "کارت‌های خلاصه مالی و درآمد داشبورد را ببینید." },
@@ -242,6 +252,11 @@ const SPECIAL: Record<string, Record<AppLocale, Copy>> = {
     en: { label: "Mark attendance", description: "Mark a student present, absent, or on leave." },
     fa: { label: "ثبت حاضری", description: "شاگرد را حاضر، غایب یا رخصت علامت بزنید." },
     ps: { label: "حاضري ثبتول", description: "زده‌کوونکی حاضر، غیرحاضر یا په رخصت نښه کړئ." },
+  },
+  "attendance.record.past": {
+    en: { label: "Edit previous attendance", description: "Change present, absent, or leave on dates before today." },
+    fa: { label: "ویرایش حاضری گذشته", description: "حاضر، غایب یا رخصت را برای تاریخ‌های قبل از امروز تغییر دهید." },
+    ps: { label: "د تېرې حاضرۍ سمون", description: "د نن ورځې نه مخکې نېټو حاضر، غیرحاضر یا رخصت بدل کړئ." },
   },
   "attendance.classes.read": {
     en: { label: "View class attendance", description: "See attendance for the classes assigned to you." },
@@ -319,6 +334,8 @@ const COURSE_CONTENT = [
 
 const ACTION_RANK: Record<string, number> = {
   read: 0,
+  record: 1,
+  past: 2,
   create: 1,
   update: 2,
   delete: 3,
