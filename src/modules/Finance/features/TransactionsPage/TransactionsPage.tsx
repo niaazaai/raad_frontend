@@ -143,7 +143,6 @@ function TransactionsList({
   }, []);
 
   const openEdit = useCallback((row: FinancialTransactionRow) => {
-    if (row.type === "refund") return;
     setEditing(row);
   }, []);
   const openAccount = useCallback((row: FinancialTransactionRow) => {
@@ -162,7 +161,7 @@ function TransactionsList({
   }, []);
   const openRow = useCallback(
     (row: FinancialTransactionRow) => {
-      if (canEdit && row.type !== "refund") {
+      if (canEdit) {
         openEdit(row);
         return;
       }
@@ -489,8 +488,7 @@ function TransactionsList({
         (row) =>
           editDeleteActions({
             t: gridT,
-            // Refunds are ledger-final — never expose edit.
-            canUpdate: canEdit && row.type !== "refund",
+            canUpdate: canEdit,
             canDelete,
             updatePermission: EDIT,
             deletePermission: DELETE,
