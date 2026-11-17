@@ -634,16 +634,17 @@ export function DataTable<TData>({
                     {row.getVisibleCells().map((cell) => {
                       const meta = cell.column.columnDef.meta;
                       const width = prefs.widths[cell.column.id] ?? meta?.width?.default;
+                      const isActions = cell.column.id === 'actions';
 
                       return (
                         <TableCell
                           key={cell.id}
                           style={width === undefined ? undefined : { width, minWidth: width }}
                           className={cn(
-                            'truncate',
+                            !isActions && 'truncate',
                             DENSITY_CELL[density],
                             ROW_CELL,
-                            cell.column.id === 'actions' && [PINNED_END, PINNED_BODY],
+                            isActions && [PINNED_END, PINNED_BODY],
                             meta?.numeric === true && 'text-end tabular',
                             priorityClass(meta?.priority),
                           )}
@@ -684,7 +685,7 @@ export function DataTable<TData>({
 const PINNED_START = 'sticky start-0';
 const PINNED_END = 'sticky end-0';
 /** Above the cells that slide under it sideways. */
-const PINNED_BODY = 'z-[1]';
+const PINNED_BODY = 'z-[2]';
 
 /*
  | The row's colours — card at rest, muted at 50% on hover and while its menu is open, muted
