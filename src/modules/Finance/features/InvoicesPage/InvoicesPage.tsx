@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Printer } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button, PageBreadcrumb } from "@/components/ui";
+import { PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
@@ -406,9 +405,6 @@ const InvoicesPage = () => {
             />
           </div>
         </div>
-        <Button type="button" variant="outline" asChild>
-          <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
-        </Button>
       </div>
       <InvoicesList period={period} onPeriodChange={setPeriod} filters={filters} />
     </div>
