@@ -1,20 +1,60 @@
 import { useCallback, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CircleCheck as CheckCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { TranslationKey } from "@/i18n/useTranslation";
+import { Archive, CircleCheck, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PageBreadcrumb } from "@/components/ui";
+import { Button, PageBreadcrumb } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useTranslation } from "@/i18n/useTranslation";
 import {
   ServerDataTable,
   actionsColumn,
   useDataTable,
+  useUrlFilters,
+  type UrlFilters,
 } from "@/components/data-table";
 import { useTranslation as useGridTranslation } from "@/components/data-table/i18n";
 import { attendanceOverviewQueryKey, type AttendanceOverviewClass } from "../../hooks/useClassAttendance";
 
 const READ = "attendance.read";
 const READ_CLASSES = "attendance.classes.read";
+const FILTER_KEYS = ["status"] as const;
+
+type AttendanceStatusTab = "active" | "archived" | "completed";
+
+const statusTabs: { value: AttendanceStatusTab; label: TranslationKey; icon: LucideIcon }[] = [
+  { value: "active", label: "common.active", icon: Play },
+  { value: "archived", label: "common.archived", icon: Archive },
+  { value: "completed", label: "common.completed", icon: CircleCheck },
+];
+
+function StatusTabs({ filters }: { filters: UrlFilters<"status"> }) {
+  const { t } = useTranslation();
+  const value = (filters.values.status || "active") as AttendanceStatusTab;
+
+  return (
+    <div className="inline-flex rounded-lg border border-border p-1">
+      {statusTabs.map((tab) => {
+        const Icon = tab.icon;
+        const selected = value === tab.value;
+        return (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={selected ? "default" : "ghost"}
+            onClick={() => filters.set("status", tab.value)}
+            className="gap-1.5"
+          >
+            <Icon className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">{t(tab.label)}</span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
 
 function rateText(value: number | null | undefined): string {
   return value == null ? "—" : `${value}%`;
@@ -24,6 +64,7 @@ function AttendanceHubList() {
   const { t } = useTranslation();
   const { t: gridT } = useGridTranslation();
   const navigate = useNavigate();
+  const filters = useUrlFilters(FILTER_KEYS);
 
   const openAttendance = useCallback(
     (row: AttendanceOverviewClass) => navigate(`/classes/${row.id}/attendance`),
@@ -32,8 +73,7 @@ function AttendanceHubList() {
 
   const columns = useMemo<ColumnDef<AttendanceOverviewClass, unknown>[]>(() => {
     const classCodeLabel = t("course.columns.class_code");
-    const mainCategoryLabel = t("course.columns.main_category_name");
-    const subCategoryLabel = t("course.columns.sub_category_name");
+    const categoryLabel = t("common.category");
     const nameLabel = t("course.columns.name");
     const instructorLabel = t("course.columns.instructor_name");
     const studentsLabel = t("course.attendance.students");
@@ -62,26 +102,27 @@ function AttendanceHubList() {
         ),
       },
       {
-        id: "main_category_name",
-        header: mainCategoryLabel,
+        id: "category",
+        header: categoryLabel,
         meta: {
-          priority: 2,
-          shortLabel: mainCategoryLabel,
-          plainText: (row) => (row as AttendanceOverviewClass).main_category_name || "—",
-          width: { default: 160, min: 120 },
+          priority: 1,
+          shortLabel: categoryLabel,
+          plainText: (row) => {
+            const value = row as AttendanceOverviewClass;
+            return [value.main_category_name, value.sub_category_name]
+              .filter((v) => typeof v === "string" && v.length > 0)
+              .join(" / ");
+          },
+          width: { default: 200, min: 140 },
         },
-        cell: ({ row }) => row.original.main_category_name || "—",
-      },
-      {
-        id: "sub_category_name",
-        header: subCategoryLabel,
-        meta: {
-          priority: 3,
-          shortLabel: subCategoryLabel,
-          plainText: (row) => (row as AttendanceOverviewClass).sub_category_name || "—",
-          width: { default: 160, min: 120 },
-        },
-        cell: ({ row }) => row.original.sub_category_name || "—",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-medium">{row.original.main_category_name || "—"}</span>
+            {row.original.sub_category_name ? (
+              <span className="text-xs text-muted-foreground">{row.original.sub_category_name}</span>
+            ) : null}
+          </div>
+        ),
       },
       {
         id: "name",
@@ -172,7 +213,7 @@ function AttendanceHubList() {
           {
             id: "open-attendance",
             label: openLabel,
-            icon: <CheckCircle className="size-4" aria-hidden="true" />,
+            icon: <CircleCheck className="size-4" aria-hidden="true" />,
             onSelect: () => openAttendance(row),
           },
         ],
@@ -190,6 +231,9 @@ function AttendanceHubList() {
     select: "multi",
     exports: ["print"],
     exportTitle: t("course.attendance.hubTitle"),
+    params: {
+      status: filters.values.status || "active",
+    },
     syncUrl: true,
     defaultSort: "-created_at",
     defaultPerPage: 25,
@@ -204,9 +248,11 @@ function AttendanceHubList() {
       searchPlaceholder={t("dt.attendance.search")}
       emptyTitle={t("dt.attendance.emptyTitle")}
       emptyBody={t("dt.attendance.emptyBody")}
+      narrowed={filters.narrowed}
       onRowDoubleClick={openAttendance}
       stickyHeader
       toolsInHeader
+      extra={<StatusTabs filters={filters} />}
     />
   );
 }
