@@ -141,6 +141,10 @@ function ClassesList({ filters }: { filters: UrlFilters<"status"> }) {
   const openEdit = useCallback((row: ClassRow) => setEditor({ mode: "edit", id: row.id }), []);
   const openView = useCallback((row: ClassRow) => setEditor({ mode: "view", id: row.id }), []);
   const closeEditor = useCallback(() => setEditor(null), []);
+  const openStudents = useCallback((row: ClassRow) => {
+    const id = row.id;
+    if (typeof id === "number" && !Number.isNaN(id)) navigate(`/classes/${id}/students`);
+  }, [navigate]);
 
   const { mutate: removeMutate, mutateAsync: removeAsync } = useDeleteCourseEntity("lms-classes");
   const archiveClass = useArchiveLmsClassMutation();
@@ -479,7 +483,7 @@ function ClassesList({ filters }: { filters: UrlFilters<"status"> }) {
         emptyBody={t("dt.classes.emptyBody")}
         emptyAction={<NewButton show={canCreate} onNew={openNew} label={newLabel} />}
         narrowed={filters.narrowed}
-        onRowDoubleClick={canUpdate ? openEdit : openView}
+        onRowDoubleClick={canReadStudents ? openStudents : canUpdate ? openEdit : openView}
         stickyHeader
         toolsInHeader
         searchClassName="sm:w-[23rem] sm:max-w-[23rem] sm:flex-none sm:basis-[23rem]"
