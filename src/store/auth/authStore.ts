@@ -20,7 +20,7 @@ export interface AuthState {
   setUser: (user: User | null) => void;
   setPermissions: (permissions: string[]) => void;
   fetchUser: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, remember?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   clearAuth: () => void;
 }
@@ -34,6 +34,8 @@ export interface AuthState {
  * - Auth status (loading, authenticated, etc.)
  * - Login/logout actions
  */
+let fetchUserInFlight: Promise<void> | null = null;
+
 export const useAuthStore = create<AuthState>()((set, get) => ({
   // Initial state
   user: null,
@@ -54,9 +56,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ permissions });
   },
 
-  // Fetch current user from API
+  // Fetch current user from API. One in-flight call is shared so the public
+  // site and the protected shell do not race each other.
   fetchUser: async () => {
-    set({ status: AuthStatus.LOADING, error: null });
+    if (fetchUserInFlight) return fetchUserInFlight;
+
+    const refresh = get().status === AuthStatus.AUTHENTICATED;
+    fetchUserInFlight = (async () => {
+    if (!refresh) {
+      set({ status: AuthStatus.LOADING, error: null });
+    }
 
     try {
       const response = await callApi<User>({
@@ -84,11 +93,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       }
     } catch {
       set({ user: null, permissions: [], status: AuthStatus.FAILED, error: "Failed to fetch user" });
+    } finally {
+      fetchUserInFlight = null;
     }
+    })();
+
+    return fetchUserInFlight;
   },
 
   // Login with email and password
-  login: async (email: string, password: string): Promise<boolean> => {
+  login: async (email: string, password: string, remember = false): Promise<boolean> => {
     set({ status: AuthStatus.LOADING, error: null });
 
     try {
@@ -97,7 +111,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       const response = await callApi<User>({
         url: API_ENDPOINTS.AUTH.LOGIN,
         method: RequestMethod.POST,
-        data: { email, password },
+        data: { email, password, remember },
         shouldPopError: false,
         shouldPopSuccess: false,
       });
