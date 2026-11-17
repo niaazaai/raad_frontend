@@ -20,6 +20,8 @@ export interface ImageDropzoneProps {
   initialPreviewName?: string | null;
   /** Shorter drop target for drawers where vertical space is tight. */
   dense?: boolean;
+  /** Extra classes for the dashed drop target. Use this to match a form's radius. */
+  zoneClassName?: string;
   /** Called when the X removes a preview that is already saved, not a file just picked. */
   onRemove?: () => void;
 }
@@ -37,6 +39,7 @@ const ImageDropzone = ({
   initialPreviewUrl,
   initialPreviewName,
   dense = false,
+  zoneClassName,
   onRemove,
 }: ImageDropzoneProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -124,6 +127,7 @@ const ImageDropzone = ({
         onDrop={handleDrop}
         className={cn(
           "flex flex-col items-center justify-center rounded-xl border-2 border-dashed text-center transition-colors cursor-pointer",
+          zoneClassName,
           dense ? "min-h-[4.75rem] px-3 py-2" : "min-h-[148px] px-4 py-6",
           dragOver
             ? "border-primary bg-primary/5"
