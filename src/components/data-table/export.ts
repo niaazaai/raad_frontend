@@ -1,5 +1,6 @@
 import type { Column, ColumnDef } from '@tanstack/react-table';
 import { apiFetch, ApiError, newId, type ListEnvelope } from '@/api/client';
+import { downloadXlsx } from '@/lib/xlsxWorkbook';
 import type { FilterExpression } from './query';
 import type { DataTableApi, Selection } from './use-data-table';
 
@@ -230,12 +231,6 @@ function escapeHtml(value: string): string {
   ));
 }
 
-function escapeXml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[char] ?? char
-  ));
-}
-
 /**
  * A plain document: a title and a table, in the page's direction, with none of the app chrome.
  *
@@ -304,11 +299,11 @@ export async function printGrid<TRow>(
 }
 
 /**
- * The same rows as {@link printGrid}, as a spreadsheet Excel opens.
+ * The same rows as {@link printGrid}, as an .xlsx workbook Excel opens.
  *
- * SpreadsheetML rather than a queued `POST …/exports`: inventory lists are not in the
+ * Written in the browser rather than a queued `POST …/exports`: inventory lists are not in the
  * platform export registry, and a download of the filter (or the ticked rows) is what the
- * person asked for.
+ * person asked for. Numeric values are real number cells, not text.
  */
 export function downloadRows<TRow>(
   title: string,
@@ -316,29 +311,7 @@ export function downloadRows<TRow>(
   rows: TRow[],
 ): void {
   const grid = gridOf(columns.filter((column) => column.meta?.exportable !== false), rows);
-  const sheetName = title.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Sheet';
-
-  const headerRow = `<Row>${grid.headers.map((header) => `<Cell><Data ss:Type="String">${escapeXml(header)}</Data></Cell>`).join('')}</Row>`;
-  const dataRows = grid.body.map((cells) => `<Row>${cells.map((cell) => `<Cell><Data ss:Type="String">${escapeXml(cell)}</Data></Cell>`).join('')}</Row>`).join('');
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Worksheet ss:Name="${escapeXml(sheetName)}">
-<Table>
-${headerRow}
-${dataRows}
-</Table>
-</Worksheet>
-</Workbook>`;
-
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${title.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-|-$/g, '') || 'export'}.xls`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadXlsx(title, grid.headers, grid.body);
 }
 
 export async function downloadGrid<TRow>(
