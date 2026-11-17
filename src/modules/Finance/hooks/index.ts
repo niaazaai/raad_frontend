@@ -18,8 +18,12 @@ export {
 export {
   useCreateManualInvoice,
   useNextManualInvoiceNumber,
+  useServiceNames,
+  useSaveServiceName,
+  useDeleteServiceName,
   extractManualInvoice,
   extractNextInvoiceNumber,
+  extractServiceNames,
 } from "./useManualInvoice";
 export {
   useManualInvoiceTransactions,
