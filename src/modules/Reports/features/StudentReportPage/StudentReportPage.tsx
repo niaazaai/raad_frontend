@@ -24,6 +24,7 @@ import {
 const FILTER_KEYS = [
   "class_id",
   "course_id",
+  "instructor_id",
   "model",
   "main_category_id",
   "sub_category_id",
@@ -170,6 +171,11 @@ function StudentReportList({ filters }: { filters: ReportFilters }) {
         width: 140,
       }),
       textColumn("email", t("studentReport.email"), 3, (row) => shown(row.email), { numeric: true, width: 200 }),
+      textColumn("national_id", t("studentReport.nationalId"), 3, (row) => shown(row.national_id), {
+        numeric: true,
+        width: 150,
+      }),
+      textColumn("acca_id", t("studentReport.accaId"), 3, (row) => shown(row.acca_id), { numeric: true, width: 130 }),
       funnel(
         textColumn("class_name", t("studentReport.className"), 2, classLabel, { sortKey: "class_name", width: 200 }),
         "class_id",
@@ -177,6 +183,15 @@ function StudentReportList({ filters }: { filters: ReportFilters }) {
         choices(t("studentReport.allClasses"), catalog.classes),
       ),
       textColumn("class_type", t("studentReport.classType"), 3, (row) => shown(row.class_type), { width: 120 }),
+      funnel(
+        textColumn("instructor_name", t("studentReport.instructor"), 2, (row) => shown(row.instructor_name), {
+          sortKey: "instructor_name",
+          width: 160,
+        }),
+        "instructor_id",
+        t("studentReport.instructor"),
+        choices(t("studentReport.allInstructors"), catalog.instructors),
+      ),
       funnel(
         textColumn("course_title", t("studentReport.courseTitle"), 2, (row) => shown(row.course_title), {
           sortKey: "course_title",
@@ -213,6 +228,16 @@ function StudentReportList({ filters }: { filters: ReportFilters }) {
         t("studentReport.subCategory"),
         choices(t("studentReport.allSubCategories"), subs),
       ),
+      textColumn("class_start_date", t("studentReport.classStartDate"), 3, (row) => day(row.class_start_date), {
+        sortKey: "class_start_date",
+        numeric: true,
+        width: 120,
+      }),
+      textColumn("class_end_date", t("studentReport.classEndDate"), 3, (row) => day(row.class_end_date), {
+        sortKey: "class_end_date",
+        numeric: true,
+        width: 120,
+      }),
       textColumn("grade", t("studentReport.grade"), 2, (row) => shown(row.grade), {
         sortKey: "grade",
         numeric: true,
