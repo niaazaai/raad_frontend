@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import { initializeTheme } from "./store";
 import { useEffect } from "react";
 import { ConfirmDialogProvider } from "./components/ui";
+import { SessionBootstrap } from "./features/auth";
 
 function App() {
   useEffect(() => {
@@ -11,6 +12,7 @@ function App() {
 
   return (
     <ConfirmDialogProvider>
+      <SessionBootstrap />
       <AppRoutes />
       <Toaster
         position="top-right"
