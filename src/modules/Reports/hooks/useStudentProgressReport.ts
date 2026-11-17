@@ -46,6 +46,7 @@ export interface StudentReportCatalog {
   classes: StudentReportCatalogOption[];
   main_categories: StudentReportCatalogOption[];
   sub_categories: StudentReportCatalogOption[];
+  instructors: StudentReportCatalogOption[];
 }
 
 const EMPTY_CATALOG: StudentReportCatalog = {
@@ -53,6 +54,7 @@ const EMPTY_CATALOG: StudentReportCatalog = {
   classes: [],
   main_categories: [],
   sub_categories: [],
+  instructors: [],
 };
 
 export function useStudentProgressCatalog() {
@@ -107,6 +109,7 @@ export function extractStudentProgressCatalog(response: unknown): StudentReportC
     classes: asCatalogList(record.classes),
     main_categories: asCatalogList(record.main_categories),
     sub_categories: asCatalogList(record.sub_categories),
+    instructors: asCatalogList(record.instructors),
   };
 }
 
