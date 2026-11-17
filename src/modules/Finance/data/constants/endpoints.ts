@@ -9,6 +9,7 @@ export const FINANCE_ENDPOINTS = {
   UPCOMING_INSTALLMENTS: "/finance/upcoming-installments",
   MANUAL_INVOICES: "/finance/manual-invoices",
   MANUAL_INVOICE_NEXT_NUMBER: "/finance/next-invoice-number",
+  SERVICE_NAMES: "/finance/service-names",
   STUDENT_ENROLLMENTS: (studentId: number) => `/finance/students/${studentId}/enrollments`,
   ENROLLMENT_ACCOUNT: (enrollmentId: number) => `/finance/enrollments/${enrollmentId}`,
   ENROLLMENT_TRANSACTIONS: (enrollmentId: number) =>
@@ -32,6 +33,7 @@ export const FINANCE_QUERY_KEYS = {
   invoices: ["finance", "invoices"] as const,
   transactions: ["finance", "transactions"] as const,
   manualInvoices: ["finance", "service-income"] as const,
+  serviceNames: ["finance", "service-names"] as const,
   upcomingInstallments: ["finance", "upcoming-installments"] as const,
   studentEnrollments: ["finance", "student-enrollments"] as const,
   enrollmentTransactions: (enrollmentId: number) =>
