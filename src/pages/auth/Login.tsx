@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams, useLocation } from "react-router-do
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff as EyeClosed } from "lucide-react";
-import { Button, Input, Label } from "@/components/ui";
+import { Button, Input, Label, PageLoader } from "@/components/ui";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoginSchema, LoginFormData, getDashboardPath } from "@/data/models/User";
 import { useAuth } from "@/features/auth";
@@ -55,7 +55,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const registrationState = location.state as { registered?: boolean; email?: string } | null;
@@ -81,10 +81,14 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, user, navigate, searchParams]);
 
+  if (isLoading || isAuthenticated) {
+    return <PageLoader className="min-h-svh" />;
+  }
+
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
-      const result = await login(data.email, data.password);
+      const result = await login(data.email, data.password, Boolean(data.remember));
       if (result === true) {
         const u = useAuthStore.getState().user;
         const redirect = getSafeRedirectPath(searchParams.get("redirect"));
