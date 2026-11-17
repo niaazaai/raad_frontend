@@ -282,8 +282,18 @@ export interface ManualInvoiceTransactionRow {
   class_name?: string | null;
   class_code?: string | null;
   customer_name?: string | null;
+  customer_national_id?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
   service_name?: string | null;
   service_cost?: number | string | null;
+}
+
+export interface ServiceIncomeFacets {
+  service_names?: { value: string; label: string }[];
+  customer_national_ids?: { value: string; label: string }[];
+  customer_phones?: { value: string; label: string }[];
+  customer_emails?: { value: string; label: string }[];
 }
 
 export interface UpcomingInstallmentRow {
