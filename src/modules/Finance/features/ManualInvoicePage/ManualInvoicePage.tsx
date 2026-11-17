@@ -5,11 +5,17 @@ import {
   Button,
   Card,
   CardContent,
+  DatePicker,
   Input,
   Label,
   PageBreadcrumb,
   SearchableMultiSelect,
   SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui";
 import { PermissionDeniedCard, useAuth } from "@/features/auth";
 import { useDebounce } from "@/hooks/common/useDebounce";
@@ -27,10 +33,20 @@ import {
 import {
   extractManualInvoice,
   extractNextInvoiceNumber,
+  extractServiceNames,
   useCreateManualInvoice,
+  useDeleteServiceName,
   useNextManualInvoiceNumber,
+  useServiceNames,
 } from "../../hooks/useManualInvoice";
 import type { FinanceInvoiceRow, FinanceTransaction } from "../../data/models/FinanceReport";
+import {
+  keepNationalIdChars,
+  keepPhoneChars,
+  manualInvoiceContactSchema,
+  OTHER_SERVICE_NAME,
+  PRESET_SERVICE_NAMES,
+} from "../../data/models/ManualInvoiceForm";
 import { localIsoDate } from "../../components/financeFormat";
 
 interface LastCreatedManualInvoice {
@@ -95,11 +111,12 @@ function formatMoney(value: unknown, currency?: string): string {
 
 const ManualInvoicePage = () => {
   const { t } = useTranslation();
-  const { hasAnyPermission } = useAuth();
+  const { hasAnyPermission, hasPermission } = useAuth();
   const canCreate = hasAnyPermission([
     "finance.manual_invoices.create",
     "finance.service_income.create",
   ]);
+  const canDeleteService = hasPermission("finance.service_names.delete");
 
   const [studentId, setStudentId] = useState<number | null>(null);
   const [selectedStudentLabel, setSelectedStudentLabel] = useState("");
@@ -112,12 +129,21 @@ const ManualInvoicePage = () => {
   const [exchangeRate, setExchangeRate] = useState("1");
   const [transactionDate, setTransactionDate] = useState(todayIsoDate());
   const [customerName, setCustomerName] = useState("");
-  const [serviceName, setServiceName] = useState("");
+  const [nationalId, setNationalId] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [serviceChoice, setServiceChoice] = useState("");
+  const [customService, setCustomService] = useState("");
+  const [hiddenServices, setHiddenServices] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
   const [lastCreated, setLastCreated] = useState<LastCreatedManualInvoice | null>(null);
 
   const createManualInvoice = useCreateManualInvoice();
+  const serviceNamesQuery = useServiceNames(canCreate);
+  const { mutateAsync: removeServiceName } = useDeleteServiceName();
+  const savedServiceNames = extractServiceNames(serviceNamesQuery.data);
   const nextNumberQuery = useNextManualInvoiceNumber(canCreate);
   const nextInvoiceNumber = extractNextInvoiceNumber(nextNumberQuery.data);
 
@@ -160,6 +186,19 @@ const ManualInvoicePage = () => {
 
   const needsExchangeRate = currency === "USD" || currency === "GBP";
 
+  const serviceOptions = useMemo(() => {
+    const hidden = new Set(hiddenServices.map((name) => name.toLowerCase()));
+    const allowed = new Set(PRESET_SERVICE_NAMES.map((name) => name.toLowerCase()));
+    const fromSaved = savedServiceNames
+      .map((option) => (option.label || option.value).trim())
+      .filter((name) => allowed.has(name.toLowerCase()));
+    const base = serviceNamesQuery.isSuccess ? fromSaved : [...PRESET_SERVICE_NAMES];
+    return base.filter((name) => name !== "" && !hidden.has(name.toLowerCase()));
+  }, [hiddenServices, savedServiceNames, serviceNamesQuery.isSuccess]);
+
+  const resolvedServiceName =
+    serviceChoice === OTHER_SERVICE_NAME ? customService.trim() : serviceChoice.trim();
+
   const handleStudentChange = useCallback(
     (ids: string[]) => {
       const value = ids[0] ?? "";
@@ -167,15 +206,55 @@ const ManualInvoicePage = () => {
       setStudentId(Number.isNaN(nextId) ? null : nextId);
       const match = studentOptions.find((o) => o.value === value);
       setSelectedStudentLabel(match?.label ?? "");
+      const student = availableStudents.find((row) => String(row.id) === value);
+      if (student) {
+        const nextNationalId = keepNationalIdChars(String(student.national_id ?? ""));
+        const nextPhone = keepPhoneChars(String(student.phone_number ?? ""));
+        const nextEmail = String(student.email ?? "").trim();
+        setNationalId((current) => (current.trim() ? current : nextNationalId));
+        setPhone((current) => (current.trim() ? current : nextPhone));
+        setEmail((current) => (current.trim() ? current : nextEmail));
+      }
       setEnrollmentId(null);
     },
-    [studentOptions]
+    [availableStudents, studentOptions]
   );
+
+  const clearFieldError = (key: string) => {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleRemoveService = async (value: string) => {
+    try {
+      await removeServiceName(value);
+      setHiddenServices((current) =>
+        current.some((name) => name.toLowerCase() === value.toLowerCase())
+          ? current
+          : [...current, value.toLowerCase()],
+      );
+      if (serviceChoice.toLowerCase() === value.toLowerCase()) {
+        const next = serviceOptions.find((name) => name.toLowerCase() !== value.toLowerCase());
+        setServiceChoice(next ?? "");
+      }
+    } catch {
+      // The request layer already shows the in-use or permission message.
+    }
+  };
 
   const resetForm = () => {
     setAmount("");
     setCustomerName("");
-    setServiceName("");
+    setNationalId("");
+    setPhone("");
+    setEmail("");
+    setServiceChoice("");
+    setCustomService("");
+    setFieldErrors({});
     setCost("");
     setNotes("");
     setTransactionDate(todayIsoDate());
@@ -195,13 +274,43 @@ const ManualInvoicePage = () => {
       return;
     }
 
+    if (serviceChoice === OTHER_SERVICE_NAME && !customService.trim()) {
+      setFieldErrors({ service_name: t("finance.manualInvoice.serviceRequired") });
+      return;
+    }
+
+    const contact = manualInvoiceContactSchema({
+      nationalId: t("finance.manualInvoice.nationalIdInvalid"),
+      phone: t("finance.manualInvoice.phoneInvalid"),
+      email: t("finance.manualInvoice.emailInvalid"),
+      service: t("finance.manualInvoice.serviceRequired"),
+    }).safeParse({
+      customer_national_id: nationalId,
+      customer_phone: phone,
+      customer_email: email,
+      service_name: resolvedServiceName,
+    });
+    if (!contact.success) {
+      const next: Record<string, string> = {};
+      for (const issue of contact.error.issues) {
+        const key = String(issue.path[0] ?? "");
+        if (key && !next[key]) next[key] = issue.message;
+      }
+      setFieldErrors(next);
+      return;
+    }
+    setFieldErrors({});
+
     const payload = {
       amount: parsedAmount,
       currency,
       exchange_rate: needsExchangeRate ? Number(exchangeRate) || 1 : 1,
       transaction_date: transactionDate,
       customer_name: customerName.trim() || undefined,
-      service_name: serviceName.trim() || undefined,
+      customer_national_id: contact.data.customer_national_id || undefined,
+      customer_phone: contact.data.customer_phone || undefined,
+      customer_email: contact.data.customer_email || undefined,
+      service_name: contact.data.service_name || undefined,
       cost: cost.trim() ? Number(cost) : undefined,
       notes: notes.trim() || undefined,
       ...(enrollmentId ? { class_student_id: enrollmentId } : {}),
@@ -298,6 +407,115 @@ const ManualInvoicePage = () => {
                 </div>
               ) : null}
 
+              <div className="space-y-1.5">
+                <Label htmlFor="manual-customer">{t("finance.manualInvoice.customerName")}</Label>
+                <Input
+                  id="manual-customer"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder={t("finance.manualInvoice.customerPlaceholder")}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="manual-national-id">{t("finance.manualInvoice.nationalId")}</Label>
+                  <Input
+                    id="manual-national-id"
+                    value={nationalId}
+                    inputMode="text"
+                    maxLength={64}
+                    onChange={(e) => {
+                      setNationalId(keepNationalIdChars(e.target.value));
+                      clearFieldError("customer_national_id");
+                    }}
+                    placeholder={t("finance.manualInvoice.nationalIdPlaceholder")}
+                  />
+                  {fieldErrors.customer_national_id ? (
+                    <p className="text-sm text-danger">{fieldErrors.customer_national_id}</p>
+                  ) : null}
+                </div>
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor="manual-phone">{t("finance.manualInvoice.phone")}</Label>
+                  <Input
+                    id="manual-phone"
+                    value={phone}
+                    inputMode="tel"
+                    maxLength={16}
+                    onChange={(e) => {
+                      setPhone(keepPhoneChars(e.target.value));
+                      clearFieldError("customer_phone");
+                    }}
+                    placeholder="+93701234567"
+                  />
+                  {fieldErrors.customer_phone ? (
+                    <p className="text-sm text-danger">{fieldErrors.customer_phone}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="manual-email">{t("finance.manualInvoice.email")}</Label>
+                <Input
+                  id="manual-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearFieldError("customer_email");
+                  }}
+                  placeholder="name@example.com"
+                />
+                {fieldErrors.customer_email ? (
+                  <p className="text-sm text-danger">{fieldErrors.customer_email}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="manual-service">{t("finance.manualInvoice.serviceName")}</Label>
+                <Select
+                  value={serviceChoice || undefined}
+                  onValueChange={(value) => {
+                    setServiceChoice(value);
+                    clearFieldError("service_name");
+                    if (value !== OTHER_SERVICE_NAME) setCustomService("");
+                  }}
+                >
+                  <SelectTrigger id="manual-service" className="w-full">
+                    <SelectValue placeholder={t("finance.manualInvoice.servicePlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceOptions.map((name) => (
+                      <SelectItem
+                        key={name}
+                        value={name}
+                        onRemove={canDeleteService ? () => void handleRemoveService(name) : undefined}
+                        removeLabel={t("finance.manualInvoice.removeService")}
+                      >
+                        {name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_SERVICE_NAME}>{t("finance.manualInvoice.otherService")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {serviceChoice === OTHER_SERVICE_NAME ? (
+                  <Input
+                    id="manual-service-other"
+                    value={customService}
+                    maxLength={255}
+                    onChange={(e) => {
+                      setCustomService(e.target.value);
+                      clearFieldError("service_name");
+                    }}
+                    placeholder={t("finance.manualInvoice.customServicePlaceholder")}
+                    aria-label={t("finance.manualInvoice.customService")}
+                  />
+                ) : null}
+                {fieldErrors.service_name ? (
+                  <p className="text-sm text-danger">{fieldErrors.service_name}</p>
+                ) : null}
+              </div>
+
               <div className={cn("grid gap-4", needsExchangeRate ? "grid-cols-3" : "grid-cols-2")}>
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="manual-amount">{t("finance.manualInvoice.amount")}</Label>
@@ -337,26 +555,6 @@ const ManualInvoicePage = () => {
                 ) : null}
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="manual-customer">{t("finance.manualInvoice.customerName")}</Label>
-                <Input
-                  id="manual-customer"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder={t("finance.manualInvoice.customerPlaceholder")}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="manual-service">{t("finance.manualInvoice.serviceName")}</Label>
-                <Input
-                  id="manual-service"
-                  value={serviceName}
-                  onChange={(e) => setServiceName(e.target.value)}
-                  placeholder={t("finance.manualInvoice.servicePlaceholder")}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="manual-cost">{t("finance.manualInvoice.serviceCost")}</Label>
@@ -371,13 +569,13 @@ const ManualInvoicePage = () => {
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="manual-date">{t("finance.manualInvoice.date")}</Label>
-                  <Input
+                  <DatePicker
                     id="manual-date"
-                    type="date"
                     value={transactionDate}
-                    onChange={(e) => setTransactionDate(e.target.value)}
+                    onChange={setTransactionDate}
+                    placeholder={t("finance.manualInvoice.date")}
+                    className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground">{t("fin.manual.issueDateAuto")}</p>
                 </div>
               </div>
 
@@ -418,12 +616,12 @@ const ManualInvoicePage = () => {
                   {nextNumberQuery.isLoading ? "…" : nextInvoiceNumber || "—"}
                 </p>
               </div>
-              {serviceName.trim() ? (
+              {resolvedServiceName ? (
                 <div className="border-t border-border pt-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t("finance.manualInvoice.serviceName")}
                   </p>
-                  <p className="mt-1.5 text-sm font-medium text-foreground">{serviceName.trim()}</p>
+                  <p className="mt-1.5 text-sm font-medium text-foreground">{resolvedServiceName}</p>
                 </div>
               ) : null}
               {lastCreated ? (
