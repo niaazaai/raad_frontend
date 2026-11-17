@@ -1,11 +1,14 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMutationApi, useQueryApi } from "@/hooks";
 import { RequestMethod } from "@/data/constants/methods";
+import { callApi } from "@/services";
 import {
   FINANCE_ENDPOINTS,
   FINANCE_QUERY_KEYS,
   FINANCE_RELATED_QUERY_KEYS,
 } from "../data/constants/endpoints";
 import type { FinanceInvoiceRow } from "../data/models/FinanceReport";
+import type { ServiceNameOption } from "../data/models/ManualInvoiceForm";
 
 export interface ManualInvoicePayload {
   class_student_id?: number;
@@ -14,6 +17,9 @@ export interface ManualInvoicePayload {
   exchange_rate?: number;
   transaction_date?: string;
   customer_name?: string;
+  customer_national_id?: string;
+  customer_phone?: string;
+  customer_email?: string;
   service_name?: string;
   cost?: number;
   notes?: string;
@@ -80,4 +86,66 @@ export function extractManualInvoice(response: unknown): FinanceInvoiceRow | nul
   if (!response || typeof response !== "object") return null;
   const envelope = response as { data?: FinanceInvoiceRow };
   return envelope.data ?? null;
+}
+
+export function useServiceNames(enabled = true) {
+  return useQueryApi<ServiceNameOption[]>({
+    queryKey: [...FINANCE_QUERY_KEYS.serviceNames] as const,
+    url: FINANCE_ENDPOINTS.SERVICE_NAMES,
+    method: RequestMethod.GET,
+    options: { enabled },
+  });
+}
+
+export function extractServiceNames(response: unknown): ServiceNameOption[] {
+  if (!response || typeof response !== "object") return [];
+  const data = (response as { data?: unknown }).data;
+  if (!Array.isArray(data)) return [];
+  return data.filter(
+    (row): row is ServiceNameOption =>
+      !!row && typeof row === "object" && typeof (row as ServiceNameOption).value === "string",
+  );
+}
+
+export function useSaveServiceName() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (serviceName: string) => {
+      const res = await callApi<{ value: string; label: string }>({
+        url: FINANCE_ENDPOINTS.SERVICE_NAMES,
+        method: RequestMethod.POST,
+        data: { service_name: serviceName },
+        shouldPopSuccess: false,
+      });
+      if (!res?.ok) {
+        throw new Error("Could not save service name");
+      }
+      const payload = res.data as { data?: { value?: string } } | undefined;
+      return payload?.data?.value ?? serviceName;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: FINANCE_QUERY_KEYS.serviceNames });
+      queryClient.invalidateQueries({ queryKey: FINANCE_QUERY_KEYS.manualInvoices });
+    },
+  });
+}
+
+export function useDeleteServiceName() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (serviceName: string) => {
+      const res = await callApi({
+        url: FINANCE_ENDPOINTS.SERVICE_NAMES,
+        method: RequestMethod.DELETE,
+        params: { name: serviceName },
+      });
+      if (!res?.ok) {
+        throw new Error("Could not remove service name");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: FINANCE_QUERY_KEYS.serviceNames });
+      queryClient.invalidateQueries({ queryKey: FINANCE_QUERY_KEYS.manualInvoices });
+    },
+  });
 }
