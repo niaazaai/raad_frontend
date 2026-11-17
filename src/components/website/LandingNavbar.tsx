@@ -6,6 +6,8 @@ import LanguageSwitcher from "@/components/website/LanguageSwitcher";
 import ThemeToggle from "@/components/website/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useIsDarkMode } from "@/hooks";
+import { useAuth } from "@/features/auth";
+import { getDashboardPath } from "@/data/models/User";
 
 interface LandingNavbarProps {
   loginHref?: string;
@@ -15,6 +17,8 @@ interface LandingNavbarProps {
 const LandingNavbar = ({ loginHref = "/login", className }: LandingNavbarProps) => {
   const { t } = useTranslation();
   const isDark = useIsDarkMode();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const accountHref = getDashboardPath(user?.type);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -95,9 +99,15 @@ const LandingNavbar = ({ loginHref = "/login", className }: LandingNavbarProps) 
           <div className="flex shrink-0 items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
             <ThemeToggle className="hidden sm:flex" />
-            <Button asChild size="sm" className="rounded-full px-4 font-semibold shadow-sm">
-              <a href={loginHref}>{t("nav.signIn")}</a>
-            </Button>
+            {isLoading ? (
+              <span className="inline-block h-8 w-24 rounded-full bg-primary/15" aria-hidden />
+            ) : (
+              <Button asChild size="sm" className="rounded-full px-4 font-semibold shadow-sm">
+                <a href={isAuthenticated ? accountHref : loginHref}>
+                  {isAuthenticated ? t("nav.dashboard") : t("nav.signIn")}
+                </a>
+              </Button>
+            )}
             <button
               type="button"
               aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
@@ -139,11 +149,13 @@ const LandingNavbar = ({ loginHref = "/login", className }: LandingNavbarProps) 
               isDark ? "border-white/10" : "border-primary/15",
             )}
           >
-            <Button asChild className="w-full rounded-full py-3 font-semibold">
-              <a href={loginHref} onClick={() => setMenuOpen(false)}>
-                {t("nav.signIn")}
-              </a>
-            </Button>
+            {isLoading ? null : (
+              <Button asChild className="w-full rounded-full py-3 font-semibold">
+                <a href={isAuthenticated ? accountHref : loginHref} onClick={() => setMenuOpen(false)}>
+                  {isAuthenticated ? t("nav.dashboard") : t("nav.signIn")}
+                </a>
+              </Button>
+            )}
           </div>
         </nav>
       </div>
