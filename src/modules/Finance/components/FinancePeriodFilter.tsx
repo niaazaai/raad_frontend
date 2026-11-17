@@ -30,6 +30,11 @@ interface FinancePeriodFilterProps {
   idPrefix?: string;
   /** Kept for call-site compatibility; the control is always compact. */
   size?: "sm" | "default";
+  /**
+   * Date field on the inline start of the tabs, one row, with no pill around the buttons.
+   * Other finance screens keep the stacked layout.
+   */
+  beside?: boolean;
 }
 
 const TAB_ICONS: Record<PeriodTab, ComponentType<{ className?: string }>> = {
@@ -51,6 +56,7 @@ const FinancePeriodFilter = ({
   allowAll = true,
   className,
   idPrefix = "finance-period",
+  beside = false,
 }: FinancePeriodFilterProps) => {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -78,30 +84,7 @@ const FinancePeriodFilter = ({
 
   const pickerClassName = "h-8 gap-1.5 px-2.5 text-xs has-[>svg]:px-2";
 
-  return (
-    <Tabs
-      value={value.period}
-      onValueChange={(next) => set({ period: next as PeriodTab })}
-      className={cn(
-        "flex max-w-full min-w-0 flex-row flex-wrap items-center gap-2 data-horizontal:flex-row",
-        className
-      )}
-    >
-      <TabsList
-        aria-label={t("fin.period.label")}
-        className="max-w-full min-w-0 flex-wrap justify-start group-data-horizontal/tabs:h-auto sm:flex-nowrap sm:overflow-x-auto sm:group-data-horizontal/tabs:h-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {tabs.map((tab) => {
-          const Icon = TAB_ICONS[tab.value];
-          return (
-            <TabsTrigger key={tab.value} value={tab.value} className="shrink-0 flex-none">
-              <Icon />
-              {tab.label}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-
+  const picker = (
       <AnimatePresence initial={false} mode="wait">
         {value.period === "daily" ? (
           <motion.div key="daily" className="overflow-hidden" transition={transition} {...reveal}>
@@ -155,6 +138,52 @@ const FinancePeriodFilter = ({
           </motion.div>
         ) : null}
       </AnimatePresence>
+  );
+
+  const tabList = (
+    <TabsList
+      aria-label={t("fin.period.label")}
+      className={cn(
+        beside
+          ? "h-8 bg-transparent p-0 shadow-none"
+          : "max-w-full min-w-0 flex-wrap justify-start group-data-horizontal/tabs:h-auto sm:flex-nowrap sm:overflow-x-auto sm:group-data-horizontal/tabs:h-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      )}
+    >
+      {tabs.map((tab) => {
+        const Icon = TAB_ICONS[tab.value];
+        return (
+          <TabsTrigger key={tab.value} value={tab.value} className="shrink-0 flex-none">
+            <Icon />
+            {tab.label}
+          </TabsTrigger>
+        );
+      })}
+    </TabsList>
+  );
+
+  if (beside) {
+    return (
+      <div className={cn("flex w-fit flex-nowrap items-center gap-2", className)}>
+        <div className="order-1 rtl:order-2">{picker}</div>
+        <Tabs
+          value={value.period}
+          onValueChange={(next) => set({ period: next as PeriodTab })}
+          className="order-2 w-fit rtl:order-1"
+        >
+          {tabList}
+        </Tabs>
+      </div>
+    );
+  }
+
+  return (
+    <Tabs
+      value={value.period}
+      onValueChange={(next) => set({ period: next as PeriodTab })}
+      className={cn("max-w-full min-w-0 flex-row flex-wrap items-center gap-2", className)}
+    >
+      {tabList}
+      {picker}
     </Tabs>
   );
 };
