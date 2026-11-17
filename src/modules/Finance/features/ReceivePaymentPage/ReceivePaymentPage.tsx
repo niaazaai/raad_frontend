@@ -23,6 +23,7 @@ import {
   buildPaymentPayloadFromForm,
   ClassStudentPaymentForm,
   computeDiscountValue,
+  computeFeeAfterDiscount,
   defaultPaymentFormState,
   isEnrollmentFullyPaid,
   type PaymentFormState,
@@ -103,10 +104,64 @@ function buildSavedAccountSummary(
   };
 }
 
+/** Money fields that drive the Account summary waterfall. */
+function summaryMoneySnapshot(form: PaymentFormState): string {
+  return [
+    form.discount_type,
+    form.discount_amount,
+    form.payment_amount,
+    form.irrecoverable_debt,
+    form.receivable_status,
+  ].join("|");
+}
+
 /**
- * Recover preview only — does not project an unsaved payment into Paid.
- * Payment mode always uses the saved ledger (prefilled remaining must not look like paid).
+ * Live payment preview — same identity as EnrollmentBalanceCalculator after this save:
+ * gross − discount = net; open = net − (saved payments + payment now) − cancelled − write-off.
  */
+function buildLivePaymentSummary(
+  enrollment: ClassStudentRow,
+  classFee: number,
+  paymentForm: PaymentFormState
+): WaterfallValues {
+  const gross = Math.max(0, classFee);
+  const refunds = toNumber(enrollment.refund_amount);
+  const cancelled = toNumber(enrollment.cancelled_amount);
+  const paymentsAlready = toNumber(enrollment.paid_amount) + refunds;
+  const discountInput = paymentForm.discount_amount ? Number(paymentForm.discount_amount) : 0;
+  const discount = computeDiscountValue(gross, paymentForm.discount_type, discountInput);
+  const net = computeFeeAfterDiscount(gross, paymentForm.discount_type, discountInput);
+  const paymentNow = paymentForm.payment_amount
+    ? Math.max(0, Number(paymentForm.payment_amount) || 0)
+    : 0;
+  const payments = paymentsAlready + paymentNow;
+  const writtenOff = paymentForm.irrecoverable_debt
+    ? Math.max(0, Number(paymentForm.irrecoverable_debt) || 0)
+    : 0;
+  const open = Math.round((net - payments - cancelled - writtenOff) * 100) / 100;
+  const receivable = Math.max(0, open);
+  const credit = Math.max(0, -open);
+  const classified = receivable > 0.009 ? paymentForm.receivable_status : "pending";
+  const mof = classified === "mof_pending" ? receivable : 0;
+  const other = classified === "other_party" ? receivable : 0;
+
+  return {
+    gross,
+    discount,
+    net,
+    paid: Math.max(0, payments - refunds),
+    refunds,
+    cancelled,
+    writtenOff,
+    receivable,
+    mof,
+    other,
+    studentReceivable: Math.max(0, Math.round((receivable - mof - other) * 100) / 100),
+    credit,
+  };
+}
+
+/** Recover preview — projects an unsaved recovery amount into Paid / write-off. */
 function buildRecoverPreviewSummary(
   enrollment: ClassStudentRow,
   classFee: number,
@@ -163,6 +218,8 @@ const ReceivePaymentPage = () => {
     searchParams.get("mode") === "recover" ? "recover" : "payment"
   );
   const [paymentForm, setPaymentForm] = useState<PaymentFormState>(defaultPaymentFormState());
+  /** Snapshot at hydrate — while money fields match this, show saved ledger (not prefilled remaining as paid). */
+  const [baselinePaymentForm, setBaselinePaymentForm] = useState<PaymentFormState | null>(null);
   const [recoverAmount, setRecoverAmount] = useState("");
   const [recoverDate, setRecoverDate] = useState(localIsoDate());
   const [recoverNotes, setRecoverNotes] = useState("");
@@ -237,7 +294,9 @@ const ReceivePaymentPage = () => {
   useEffect(() => {
     if (!selectedEnrollment || hydratedFor === selectedEnrollment.id) return;
     setHydratedFor(selectedEnrollment.id);
-    setPaymentForm(buildPaymentFormStateFromEnrollment(selectedEnrollment, classFee));
+    const nextForm = buildPaymentFormStateFromEnrollment(selectedEnrollment, classFee);
+    setPaymentForm(nextForm);
+    setBaselinePaymentForm(nextForm);
     setRecoverAmount(writtenOff > 0 ? String(writtenOff) : "");
     setRecoverDate(localIsoDate());
     setRecoverNotes("");
@@ -295,6 +354,7 @@ const ReceivePaymentPage = () => {
       setSelectedStudentLabel(match?.label ?? "");
       setEnrollmentId(null);
       setHydratedFor(null);
+      setBaselinePaymentForm(null);
       setPaymentForm(defaultPaymentFormState());
       syncUrl({ student: id });
     },
@@ -307,6 +367,7 @@ const ReceivePaymentPage = () => {
       const id = nextId && !Number.isNaN(nextId) ? nextId : null;
       setEnrollmentId(id);
       setHydratedFor(null);
+      setBaselinePaymentForm(null);
       syncUrl({ student: studentId, enrollment: id });
     },
     [studentId, syncUrl]
@@ -319,6 +380,7 @@ const ReceivePaymentPage = () => {
       !enrollments.some((row) => row.id === enrollmentId)
     ) {
       setEnrollmentId(null);
+      setBaselinePaymentForm(null);
       setPaymentForm(defaultPaymentFormState());
     }
   }, [enrollmentId, enrollments, enrollmentsQuery.isSuccess]);
@@ -329,6 +391,7 @@ const ReceivePaymentPage = () => {
 
   const refreshAfterSave = async () => {
     setHydratedFor(null);
+    setBaselinePaymentForm(null);
     await Promise.all([enrollmentsQuery.refetch(), transactionsQuery.refetch()]);
   };
 
@@ -370,14 +433,35 @@ const ReceivePaymentPage = () => {
   const accountSummary = useMemo((): WaterfallValues | null => {
     if (!selectedEnrollment) return null;
 
-    // Recover tab can preview an unsaved recovery amount; payment mode stays on saved ledger
-    // so the prefilled remaining balance is never mistaken for money already paid.
     if (mode === "recover" && writtenOff > 0 && hydratedFor === selectedEnrollment.id) {
       return buildRecoverPreviewSummary(selectedEnrollment, classFee, recoverValue);
     }
 
+    // While the form still matches the hydrated baseline, show the saved ledger so a
+    // prefilled remaining payment is not mistaken for money already collected.
+    // As soon as discount / payment / write-off / classification changes, preview live.
+    const formReady = hydratedFor === selectedEnrollment.id;
+    const moneyDirty =
+      formReady &&
+      baselinePaymentForm != null &&
+      summaryMoneySnapshot(paymentForm) !== summaryMoneySnapshot(baselinePaymentForm);
+
+    if (formReady && moneyDirty && !settled) {
+      return buildLivePaymentSummary(selectedEnrollment, classFee, paymentForm);
+    }
+
     return buildSavedAccountSummary(selectedEnrollment, classFee);
-  }, [selectedEnrollment, classFee, mode, recoverValue, writtenOff, hydratedFor]);
+  }, [
+    selectedEnrollment,
+    classFee,
+    mode,
+    recoverValue,
+    writtenOff,
+    hydratedFor,
+    baselinePaymentForm,
+    paymentForm,
+    settled,
+  ]);
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-6 p-4 sm:p-6">
@@ -402,9 +486,6 @@ const ReceivePaymentPage = () => {
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
             <Link to="/finance/upcoming-dues">{t("fin.dues.title")}</Link>
-          </Button>
-          <Button type="button" variant="outline" asChild>
-            <Link to="/finance">{t("finance.receivePayment.backToReport")}</Link>
           </Button>
         </div>
       </div>
